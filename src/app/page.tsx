@@ -255,8 +255,16 @@ function HomeClient() {
                 <div className='h-0.5 w-12 bg-red-400 rounded my-2'></div>
               </div>
               <p className='text-black leading-relaxed'>
-                本项目基于开源项目 MoonTV 开发，项目代码已开源，您可以在 GitHub
-                上查看和参与贡献。
+                本项目基于开源项目{' '}
+                <a
+                  href='https://github.com/senshinya/MoonTV'
+                  target='_blank'
+                  rel='noopener noreferrer'
+                  className='text-blue-500 hover:underline'
+                >
+                  MoonTV
+                </a>{' '}
+                开发，项目代码已开源，您可以在 GitHub 上查看和参与贡献。
               </p>
               <button
                 onClick={handleCloseNotice}
