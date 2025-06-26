@@ -21,6 +21,7 @@ export interface StorageConfig {
 
 export interface Config {
   cache_time?: number;
+  notice_content?: string;
   api_site: {
     [key: string]: ApiSite;
   };
@@ -36,6 +37,7 @@ export const API_CONFIG = {
         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
       Accept: 'application/json',
     },
+    maxPages: 50,
   },
   detail: {
     path: '?ac=videolist&ids=',

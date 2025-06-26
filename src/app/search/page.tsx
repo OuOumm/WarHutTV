@@ -26,11 +26,7 @@ function SearchPageClient() {
     poster: string;
     source: string;
     source_name: string;
-    episodes: string[];
-    year: string;
-    class?: string;
-    type_name?: string;
-    desc?: string;
+    episodes?: number;
   };
 
   const router = useRouter();
@@ -41,25 +37,16 @@ function SearchPageClient() {
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  // 视图模式：聚合(agg) 或 全部(all)，默认值由环境变量 NEXT_PUBLIC_AGGREGATE_SEARCH_RESULT 决定
-  const [viewMode, setViewMode] = useState<'agg' | 'all'>(() => {
-    const envVal = process.env.NEXT_PUBLIC_AGGREGATE_SEARCH_RESULT;
-    // 默认聚合（'agg'）。当显式设置为 'false' 或 '0' 时使用 'all'
-    if (envVal === 'false' || envVal === '0') {
-      return 'all';
-    }
-    return 'agg';
-  });
+  // 视图模式：聚合(agg) 或 全部(all)
+  const [viewMode, setViewMode] = useState<'agg' | 'all'>('agg');
 
-  // 聚合后的结果（按标题和年份分组）
+  // 聚合后的结果（按标题分组）
   const aggregatedResults = useMemo(() => {
     const map = new Map<string, SearchResult[]>();
     searchResults.forEach((item) => {
-      // 使用 title + year 作为键，若 year 不存在则使用 'unknown'
-      const key = `${item.title}-${item.year || 'unknown'}`;
-      const arr = map.get(key) || [];
+      const arr = map.get(item.title) || [];
       arr.push(item);
-      map.set(key, arr);
+      map.set(item.title, arr);
     });
     return Array.from(map.values());
   }, [searchResults]);
@@ -117,7 +104,6 @@ function SearchPageClient() {
     setIsLoading(true);
     setShowResults(true);
 
-    router.push(`/search?q=${encodeURIComponent(searchQuery)}`);
     // 直接发请求
     fetchSearchResults(searchQuery);
 
@@ -179,33 +165,16 @@ function SearchPageClient() {
               <div className='justify-start grid grid-cols-3 gap-x-2 gap-y-14 sm:gap-y-20 px-0 sm:px-2 sm:grid-cols-[repeat(auto-fill,_minmax(11rem,_1fr))] sm:gap-x-8 sm:px-4'>
                 {viewMode === 'agg'
                   ? aggregatedResults.map((group) => {
-                      const key = `${group[0].title}-${
-                        group[0].year || 'unknown'
-                      }`;
+                      const key = group[0].title;
                       return (
-                        <div key={`agg-${key}`} className='w-full'>
-                          <AggregateCard
-                            items={group}
-                            query={searchQuery}
-                            year={group[0].year}
-                          />
+                        <div key={key} className='w-full'>
+                          <AggregateCard items={group} />
                         </div>
                       );
                     })
                   : searchResults.map((item) => (
-                      <div
-                        key={`all-${item.source}-${item.id}`}
-                        className='w-full'
-                      >
-                        <VideoCard
-                          id={item.id}
-                          title={item.title}
-                          poster={item.poster}
-                          episodes={item.episodes.length}
-                          source={item.source}
-                          source_name={item.source_name}
-                          from='search'
-                        />
+                      <div key={item.id} className='w-full'>
+                        <VideoCard {...item} from='search' />
                       </div>
                     ))}
                 {searchResults.length === 0 && (

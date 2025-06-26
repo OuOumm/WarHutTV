@@ -1,6 +1,7 @@
 import {
   Clover,
   Film,
+  Github,
   Home,
   Menu,
   MessageCircleHeart,
@@ -39,7 +40,7 @@ const Logo = () => (
     className='flex items-center justify-center h-16 select-none hover:opacity-80 transition-opacity duration-200'
   >
     <span className='text-2xl font-bold text-green-600 tracking-tight'>
-      MoonTV
+      WarHutTV
     </span>
   </Link>
 );
@@ -155,7 +156,13 @@ const Sidebar = ({ onToggle, activePath = '/' }: SidebarProps) => {
       href: '/douban?type=tv&tag=韩剧',
     },
     { icon: MountainSnow, label: '日剧', href: '/douban?type=tv&tag=日剧' },
-    { icon: VenetianMask, label: '日漫', href: '/douban?type=tv&tag=日本动画' },
+    { icon: VenetianMask, label: '日漫', href: '/douban?type=tv&tag=日漫' },
+    {
+      icon: Github,
+      label: 'MoonTV',
+      href: 'https://github.com/senshinya/MoonTV',
+      target: '_blank',
+    },
   ];
 
   return (
@@ -259,6 +266,7 @@ const Sidebar = ({ onToggle, activePath = '/' }: SidebarProps) => {
                     <Link
                       key={item.href}
                       href={item.href}
+                      target={item.target ?? '_self'}
                       onClick={() => setActive(item.href)}
                       data-active={isActive}
                       className={`group flex items-center rounded-lg px-2 py-2 pl-4 text-gray-700 hover:bg-gray-100/30 hover:text-green-600 data-[active=true]:bg-green-500/20 data-[active=true]:text-green-700 transition-colors duration-200 min-h-[40px] ${

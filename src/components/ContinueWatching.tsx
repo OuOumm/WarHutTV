@@ -101,7 +101,6 @@ export default function ContinueWatching({ className }: ContinueWatchingProps) {
                     id={id}
                     title={record.title}
                     poster={record.cover}
-                    year={record.year}
                     source={source}
                     source_name={record.source_name}
                     progress={getProgress(record)}

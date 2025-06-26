@@ -129,7 +129,7 @@ export async function GET(request: Request) {
   }
 }
 
-function handleTop250(pageStart: number) {
+async function handleTop250(pageStart: number) {
   const target = `https://movie.douban.com/top250?start=${pageStart}&filter=`;
 
   // 直接使用 fetch 获取 HTML 页面
@@ -147,59 +147,57 @@ function handleTop250(pageStart: number) {
     },
   };
 
-  return fetch(target, fetchOptions)
-    .then(async (fetchResponse) => {
-      clearTimeout(timeoutId);
+  try {
+    const fetchResponse = await fetch(target, fetchOptions);
+    clearTimeout(timeoutId);
 
-      if (!fetchResponse.ok) {
-        throw new Error(`HTTP error! Status: ${fetchResponse.status}`);
-      }
+    if (!fetchResponse.ok) {
+      throw new Error(`HTTP error! Status: ${fetchResponse.status}`);
+    }
 
-      // 获取 HTML 内容
-      const html = await fetchResponse.text();
+    // 获取 HTML 内容
+    const html = await fetchResponse.text();
 
-      // 使用正则表达式提取电影信息
-      const moviePattern =
-        /<div class="item">[\s\S]*?<img[^>]+alt="([^"]+)"[^>]*src="([^"]+)"[\s\S]*?<span class="rating_num"[^>]*>([^<]+)<\/span>[\s\S]*?<\/div>/g;
-      const movies: DoubanItem[] = [];
-      let match;
+    // 使用正则表达式提取电影信息
+    const moviePattern = /<div class="item">[\s\S]*?<img[^>]+alt="([^"]+)"[^>]*src="([^"]+)"[\s\S]*?<span class="rating_num"[^>]*>([^<]+)<\/span>[\s\S]*?<\/div>/g;
+    const movies: DoubanItem[] = [];
+    let match;
 
-      while ((match = moviePattern.exec(html)) !== null) {
-        const title = match[1];
-        const cover = match[2];
-        const rate = match[3] || '';
+    while ((match = moviePattern.exec(html)) !== null) {
+      const title = match[1];
+      const cover = match[2];
+      const rate = match[3] || '';
 
-        // 处理图片 URL，确保使用 HTTPS
-        const processedCover = cover.replace(/^http:/, 'https:');
+      // 处理图片 URL，确保使用 HTTPS
+      const processedCover = cover.replace(/^http:/, 'https:');
 
-        movies.push({
-          title: title,
-          poster: processedCover,
-          rate: rate,
-        });
-      }
-
-      const apiResponse: DoubanResponse = {
-        code: 200,
-        message: '获取成功',
-        list: movies,
-      };
-
-      const cacheTime = getCacheTime();
-      return NextResponse.json(apiResponse, {
-        headers: {
-          'Cache-Control': `public, max-age=${cacheTime}`,
-        },
+      movies.push({
+        title: title,
+        poster: processedCover,
+        rate: rate,
       });
-    })
-    .catch((error) => {
-      clearTimeout(timeoutId);
-      return NextResponse.json(
-        {
-          error: '获取豆瓣 Top250 数据失败',
-          details: (error as Error).message,
-        },
-        { status: 500 }
-      );
+    }
+
+    const apiResponse: DoubanResponse = {
+      code: 200,
+      message: '获取成功',
+      list: movies,
+    };
+
+    const cacheTime = getCacheTime();
+    return await NextResponse.json(apiResponse, {
+      headers: {
+        'Cache-Control': `public, max-age=${cacheTime}`,
+      },
     });
+  } catch (error) {
+    clearTimeout(timeoutId);
+    return NextResponse.json(
+      {
+        error: '获取豆瓣 Top250 数据失败',
+        details: (error as Error).message,
+      },
+      { status: 500 }
+    );
+  }
 }

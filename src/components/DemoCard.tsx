@@ -3,6 +3,8 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import React, { useState } from 'react';
 
+import { getRandomImageBaseUrl } from '@/lib/utils';
+
 interface DemoCardProps {
   title: string;
   poster: string;
@@ -69,9 +71,10 @@ const DemoCard = ({ title, poster, rate }: DemoCardProps) => {
       {/* 海报图片 - 2:3 比例 */}
       <div className='relative aspect-[2/3] w-full overflow-hidden rounded-md'>
         <Image
-          src={poster}
+          src={getRandomImageBaseUrl() + poster}
           alt={title}
           fill
+          loading='lazy'
           className='object-cover'
           referrerPolicy='no-referrer'
           unoptimized

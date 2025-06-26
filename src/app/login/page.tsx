@@ -47,7 +47,7 @@ function LoginPageClient() {
     <div className='relative min-h-screen flex items-center justify-center px-4 overflow-hidden'>
       <div className='relative z-10 w-full max-w-md rounded-3xl bg-gradient-to-b from-white/90 via-white/70 to-white/40 backdrop-blur-xl shadow-2xl p-10'>
         <h1 className='text-green-600 tracking-tight text-center text-3xl font-extrabold mb-8 bg-clip-text drop-shadow-sm'>
-          MoonTV
+          WarHutTV
         </h1>
         <form onSubmit={handleSubmit} className='space-y-8'>
           <div>

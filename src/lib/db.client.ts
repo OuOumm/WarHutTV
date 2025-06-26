@@ -17,7 +17,6 @@
 export interface PlayRecord {
   title: string;
   source_name: string;
-  year: string;
   cover: string;
   index: number; // 第几集
   total_episodes: number; // 总集数
@@ -28,7 +27,7 @@ export interface PlayRecord {
 }
 
 // ---- 常量 ----
-const PLAY_RECORDS_KEY = 'moontv_play_records';
+const PLAY_RECORDS_KEY = 'WarHutTV_play_records';
 
 // ---- 环境变量 ----
 const STORAGE_TYPE =
@@ -38,7 +37,7 @@ const STORAGE_TYPE =
     | undefined) || 'localstorage';
 
 // ---------------- 搜索历史相关常量 ----------------
-const SEARCH_HISTORY_KEY = 'moontv_search_history';
+const SEARCH_HISTORY_KEY = 'WarHutTV_search_history';
 
 // 搜索历史最大保存条数
 const SEARCH_HISTORY_LIMIT = 20;
@@ -271,7 +270,6 @@ export async function clearSearchHistory(): Promise<void> {
 export interface Favorite {
   title: string;
   source_name: string;
-  year: string;
   cover: string;
   total_episodes: number;
   save_time: number;
@@ -279,7 +277,7 @@ export interface Favorite {
 }
 
 // 收藏在 localStorage 中使用的 key
-const FAVORITES_KEY = 'moontv_favorites';
+const FAVORITES_KEY = 'WarHutTV_favorites';
 
 /**
  * 获取全部收藏

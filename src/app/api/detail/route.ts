@@ -2,10 +2,21 @@ import { NextResponse } from 'next/server';
 
 import { API_CONFIG, ApiSite, getApiSites, getCacheTime } from '@/lib/config';
 import { VideoDetail } from '@/lib/types';
-import { cleanHtmlTags } from '@/lib/utils';
 
 // 匹配 m3u8 链接的正则
 const M3U8_PATTERN = /(https?:\/\/[^"'\s]+?\.m3u8)/g;
+
+// 清理 HTML 标签的工具函数
+function cleanHtmlTags(text: string): string {
+  if (!text) return '';
+  return text
+    .replace(/<[^>]+>/g, '\n') // 将 HTML 标签替换为换行
+    .replace(/\n+/g, '\n') // 将多个连续换行合并为一个
+    .replace(/[ \t]+/g, ' ') // 将多个连续空格和制表符合并为一个空格，但保留换行符
+    .replace(/^\n+|\n+$/g, '') // 去掉首尾换行
+    .replace(/&nbsp;/g, ' ') // 将 &nbsp; 替换为空格
+    .trim(); // 去掉首尾空格
+}
 
 async function handleSpecialSourceDetail(
   id: string,
@@ -144,9 +155,7 @@ async function getDetailFromApi(
       cover: videoDetail.vod_pic,
       desc: cleanHtmlTags(videoDetail.vod_content),
       type: videoDetail.type_name,
-      year: videoDetail.vod_year
-        ? videoDetail.vod_year.match(/\d{4}/)?.[0] || ''
-        : '',
+      year: videoDetail.vod_year,
       area: videoDetail.vod_area,
       director: videoDetail.vod_director,
       actor: videoDetail.vod_actor,

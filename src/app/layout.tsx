@@ -7,10 +7,16 @@ import AuthProvider from '../components/AuthProvider';
 
 const inter = Inter({ subsets: ['latin'] });
 
+import type { Viewport } from 'next';
+
 export const metadata: Metadata = {
-  title: 'MoonTV',
+  title: 'WarHutTV',
   description: '影视聚合',
   manifest: '/manifest.json',
+};
+
+export const viewport: Viewport = {
+  themeColor: '#0f172a',
 };
 
 export default function RootLayout({
@@ -20,9 +26,6 @@ export default function RootLayout({
 }) {
   return (
     <html lang='zh-CN'>
-      <head>
-        <meta name='theme-color' content='#f9fbfe' />
-      </head>
       <body className={`${inter.className} min-h-screen text-gray-900`}>
         <AuthProvider>{children}</AuthProvider>
       </body>

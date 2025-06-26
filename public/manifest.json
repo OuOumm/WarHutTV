@@ -1,11 +1,12 @@
 {
-  "name": "MoonTV",
-  "short_name": "MoonTV",
+  "name": "WarHutTV",
+  "short_name": "WarHutTV",
   "description": "影视聚合",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "background_color": "#000000",
+  "theme_color": "#000000",
   "apple-mobile-web-app-capable": "yes",
   "apple-mobile-web-app-status-bar-style": "black",
   "icons": [

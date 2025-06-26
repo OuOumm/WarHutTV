@@ -99,3 +99,19 @@ body {
 *::-webkit-scrollbar {
   display: none; /* Chrome, Safari, Opera */
 }
+
+/* 隐藏 Artplayer 顶部提示 */
+.art-notice {
+  display: none !important;
+}
+
+.art-poster {
+  background-size: contain !important; /* 使图片完整展示 */
+  background-position: center center !important; /* 居中显示 */
+  background-repeat: no-repeat !important; /* 防止重复 */
+  background-color: #000 !important; /* 其余区域填充为黑色 */
+}
+
+.art-video-player .art-layers {
+  z-index: 100 !important;
+}

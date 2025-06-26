@@ -14,7 +14,8 @@ import {
   isFavorited,
   toggleFavorite,
 } from '@/lib/db.client';
-import { type VideoDetail, fetchVideoDetail } from '@/lib/fetchVideoDetail';
+import { VideoDetail } from '@/lib/types';
+import { getRandomImageBaseUrl } from '@/lib/utils';
 
 import PageLayout from '@/components/PageLayout';
 
@@ -26,8 +27,8 @@ function DetailPageClient() {
   const [playRecord, setPlayRecord] = useState<PlayRecord | null>(null);
   const [favorited, setFavorited] = useState(false);
 
+  // 当接口缺失标题时，使用 URL 中的 title 参数作为后备
   const fallbackTitle = searchParams.get('title') || '';
-  const fallbackYear = searchParams.get('year') || '';
 
   // 格式化剩余时间（如 1h 50m）
   const formatDuration = (seconds: number) => {
@@ -52,14 +53,20 @@ function DetailPageClient() {
 
     const fetchData = async () => {
       try {
-        // 获取视频详情
-        const detailData = await fetchVideoDetail({
-          source,
-          id,
-          fallbackTitle,
-          fallbackYear,
-        });
-        setDetail(detailData);
+        const response = await fetch(`/api/detail?source=${source}&id=${id}`);
+        if (!response.ok) {
+          throw new Error('获取详情失败');
+        }
+        const data = await response.json();
+        // 如果接口中缺失标题，则补上备用标题
+        let finalData = data;
+        if (!data?.videoInfo?.title && fallbackTitle) {
+          finalData = {
+            ...data,
+            videoInfo: { ...data.videoInfo, title: fallbackTitle },
+          };
+        }
+        setDetail(finalData);
 
         // 获取播放记录
         const allRecords = await getAllPlayRecords();
@@ -91,11 +98,10 @@ function DetailPageClient() {
 
     try {
       const newState = await toggleFavorite(source, id, {
-        title: detail.title,
-        source_name: detail.source_name,
-        year: detail.year || fallbackYear || '',
-        cover: detail.poster || '',
-        total_episodes: detail.episodes.length || 1,
+        title: detail.videoInfo.title,
+        source_name: detail.videoInfo.source_name,
+        cover: detail.videoInfo.cover || '',
+        total_episodes: detail.episodes?.length || 1,
         save_time: Date.now(),
       });
       setFavorited(newState);
@@ -132,7 +138,12 @@ function DetailPageClient() {
               {/* 返回按钮放置在主信息区左上角 */}
               <button
                 onClick={() => {
-                  window.history.back();
+                  const from = searchParams.get('from');
+                  if (from === 'search') {
+                    window.history.back();
+                  } else {
+                    window.location.href = '/';
+                  }
                 }}
                 className='absolute top-0 left-0 -translate-x-[40%] -translate-y-[30%] sm:-translate-x-[180%] sm:-translate-y-1/2 p-2 rounded transition-colors'
               >
@@ -154,8 +165,11 @@ function DetailPageClient() {
               {/* 封面 */}
               <div className='flex-shrink-0 w-full max-w-[200px] sm:max-w-none md:w-72 mx-auto'>
                 <Image
-                  src={detail.poster || '/images/placeholder.png'}
-                  alt={detail.title || fallbackTitle}
+                  src={
+                    getRandomImageBaseUrl() + detail.videoInfo.cover ||
+                    '/images/placeholder.png'
+                  }
+                  alt={detail.videoInfo.title || fallbackTitle}
                   width={288}
                   height={432}
                   className='w-full rounded-xl object-cover'
@@ -170,23 +184,25 @@ function DetailPageClient() {
                 style={{ height: '430px' }}
               >
                 <h1 className='text-3xl font-bold mb-2 tracking-wide flex items-center flex-shrink-0 text-center md:text-left w-full'>
-                  {detail.title || fallbackTitle}
+                  {detail.videoInfo.title || fallbackTitle}
                 </h1>
                 <div className='flex flex-wrap items-center gap-3 text-base mb-4 opacity-80 flex-shrink-0'>
-                  {detail.class && (
+                  {detail.videoInfo.remarks && (
                     <span className='text-green-600 font-semibold'>
-                      {detail.class}
+                      {detail.videoInfo.remarks}
                     </span>
                   )}
-                  {(detail.year || fallbackYear) && (
-                    <span>{detail.year || fallbackYear}</span>
+                  {detail.videoInfo.year && (
+                    <span>{detail.videoInfo.year}</span>
                   )}
-                  {detail.source_name && (
+                  {detail.videoInfo.source_name && (
                     <span className='border border-gray-500/60 px-2 py-[1px] rounded'>
-                      {detail.source_name}
+                      {detail.videoInfo.source_name}
                     </span>
                   )}
-                  {detail.type_name && <span>{detail.type_name}</span>}
+                  {detail.videoInfo.type && (
+                    <span>{detail.videoInfo.type}</span>
+                  )}
                 </div>
                 {/* 按钮区域 */}
                 <div className='flex items-center gap-4 mb-4 flex-shrink-0'>
@@ -198,11 +214,7 @@ function DetailPageClient() {
                           'source'
                         )}&id=${searchParams.get(
                           'id'
-                        )}&title=${encodeURIComponent(detail.title)}${
-                          detail.year || fallbackYear
-                            ? `&year=${detail.year || fallbackYear}`
-                            : ''
-                        }`}
+                        )}&title=${encodeURIComponent(detail.videoInfo.title)}`}
                         className='flex items-center justify-center gap-2 px-6 py-2 bg-green-500 hover:bg-green-600 rounded-lg transition-colors text-white'
                       >
                         <div className='w-0 h-0 border-t-[6px] border-t-transparent border-l-[10px] border-l-white border-b-[6px] border-b-transparent'></div>
@@ -215,12 +227,8 @@ function DetailPageClient() {
                         )}&id=${searchParams.get(
                           'id'
                         )}&index=1&position=0&title=${encodeURIComponent(
-                          detail.title
-                        )}${
-                          detail.year || fallbackYear
-                            ? `&year=${detail.year || fallbackYear}`
-                            : ''
-                        }`}
+                          detail.videoInfo.title
+                        )}`}
                         className='hidden sm:flex items-center justify-center gap-2 px-6 py-2 bg-gray-500 hover:bg-gray-600 rounded-lg transition-colors text-white'
                       >
                         <div className='w-0 h-0 border-t-[6px] border-t-transparent border-l-[10px] border-l-white border-b-[6px] border-b-transparent'></div>
@@ -236,12 +244,8 @@ function DetailPageClient() {
                         )}&id=${searchParams.get(
                           'id'
                         )}&index=1&position=0&title=${encodeURIComponent(
-                          detail.title
-                        )}${
-                          detail.year || fallbackYear
-                            ? `&year=${detail.year || fallbackYear}`
-                            : ''
-                        }`}
+                          detail.videoInfo.title
+                        )}`}
                         className='flex items-center justify-center gap-2 px-6 py-2 bg-green-500 hover:bg-green-600 rounded-lg transition-colors text-white'
                       >
                         <div className='w-0 h-0 border-t-[6px] border-t-transparent border-l-[10px] border-l-white border-b-[6px] border-b-transparent'></div>
@@ -291,18 +295,18 @@ function DetailPageClient() {
                     </span>
                   </div>
                 )}
-                {detail.desc && (
+                {detail.videoInfo.desc && (
                   <div
                     className='mt-0 text-base leading-relaxed opacity-90 overflow-y-auto pr-2 flex-1 min-h-0 scrollbar-hide'
                     style={{ whiteSpace: 'pre-line' }}
                   >
-                    {detail.desc}
+                    {detail.videoInfo.desc}
                   </div>
                 )}
               </div>
             </div>
             {/* 选集按钮区 */}
-            {detail.episodes && detail.episodes.length > 0 && (
+            {detail.episodes.length > 0 && (
               <div className='mt-0 sm:mt-8 bg-transparent rounded-xl p-2 sm:p-6'>
                 <div className='flex items-center gap-2 mb-4'>
                   <div className='text-xl font-semibold'>选集</div>
@@ -318,11 +322,7 @@ function DetailPageClient() {
                         'source'
                       )}&id=${searchParams.get('id')}&index=${
                         idx + 1
-                      }&title=${encodeURIComponent(detail.title)}${
-                        detail.year || fallbackYear
-                          ? `&year=${detail.year || fallbackYear}`
-                          : ''
-                      }`}
+                      }&title=${encodeURIComponent(detail.videoInfo.title)}`}
                       className='bg-gray-500/80 hover:bg-green-500 text-white px-5 py-2 rounded-lg transition-colors text-base font-medium w-24 text-center'
                     >
                       第{idx + 1}集

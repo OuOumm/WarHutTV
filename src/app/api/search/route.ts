@@ -1,23 +1,14 @@
 import { NextResponse } from 'next/server';
 
 import { API_CONFIG, ApiSite, getApiSites, getCacheTime } from '@/lib/config';
-import { cleanHtmlTags } from '@/lib/utils';
-
-// 根据环境变量决定最大搜索页数，默认 5
-const MAX_SEARCH_PAGES: number =
-  Number(process.env.NEXT_PUBLIC_SEARCH_MAX_PAGE) || 5;
 
 export interface SearchResult {
   id: string;
   title: string;
   poster: string;
-  episodes: string[];
+  episodes?: number;
   source: string;
   source_name: string;
-  class?: string;
-  year: string;
-  desc?: string;
-  type_name?: string;
 }
 
 interface ApiSearchItem {
@@ -26,10 +17,6 @@ interface ApiSearchItem {
   vod_pic: string;
   vod_remarks?: string;
   vod_play_url?: string;
-  vod_class?: string;
-  vod_year?: string;
-  vod_content?: string;
-  type_name?: string;
 }
 
 async function searchFromApi(
@@ -67,29 +54,17 @@ async function searchFromApi(
     ) {
       return [];
     }
+
     // 处理第一页结果
     const results = data.list.map((item: ApiSearchItem) => {
-      let episodes: string[] = [];
+      let episodes: number | undefined = undefined;
 
       // 使用正则表达式从 vod_play_url 提取 m3u8 链接
       if (item.vod_play_url) {
         const m3u8Regex = /\$(https?:\/\/[^"'\s]+?\.m3u8)/g;
-        // 先用 $$$ 分割
-        const vod_play_url_array = item.vod_play_url.split('$$$');
-        // 对每个分片做匹配，取匹配到最多的作为结果
-        vod_play_url_array.forEach((url: string) => {
-          const matches = url.match(m3u8Regex) || [];
-          if (matches.length > episodes.length) {
-            episodes = matches;
-          }
-        });
+        const matches = item.vod_play_url.match(m3u8Regex);
+        episodes = matches ? matches.length : undefined;
       }
-
-      episodes = Array.from(new Set(episodes)).map((link: string) => {
-        link = link.substring(1); // 去掉开头的 $
-        const parenIndex = link.indexOf('(');
-        return parenIndex > 0 ? link.substring(0, parenIndex) : link;
-      });
 
       return {
         id: item.vod_id,
@@ -98,17 +73,16 @@ async function searchFromApi(
         episodes,
         source: apiSite.key,
         source_name: apiName,
-        class: item.vod_class,
-        year: item.vod_year ? item.vod_year.match(/\d{4}/)?.[0] || '' : '',
-        desc: cleanHtmlTags(item.vod_content || ''),
-        type_name: item.type_name,
       };
     });
 
     // 获取总页数
     const pageCount = data.pagecount || 1;
     // 确定需要获取的额外页数
-    const pagesToFetch = Math.min(pageCount - 1, MAX_SEARCH_PAGES - 1);
+    const pagesToFetch = Math.min(
+      pageCount - 1,
+      API_CONFIG.search.maxPages - 1
+    );
 
     // 如果有额外页数，获取更多页的结果
     if (pagesToFetch > 0) {
@@ -144,19 +118,14 @@ async function searchFromApi(
               return [];
 
             return pageData.list.map((item: ApiSearchItem) => {
-              let episodes: string[] = [];
+              let episodes: number | undefined = undefined;
 
               // 使用正则表达式从 vod_play_url 提取 m3u8 链接
               if (item.vod_play_url) {
                 const m3u8Regex = /\$(https?:\/\/[^"'\s]+?\.m3u8)/g;
-                episodes = item.vod_play_url.match(m3u8Regex) || [];
+                const matches = item.vod_play_url.match(m3u8Regex);
+                episodes = matches ? matches.length : undefined;
               }
-
-              episodes = Array.from(new Set(episodes)).map((link: string) => {
-                link = link.substring(1); // 去掉开头的 $
-                const parenIndex = link.indexOf('(');
-                return parenIndex > 0 ? link.substring(0, parenIndex) : link;
-              });
 
               return {
                 id: item.vod_id,
@@ -165,12 +134,6 @@ async function searchFromApi(
                 episodes,
                 source: apiSite.key,
                 source_name: apiName,
-                class: item.vod_class,
-                year: item.vod_year
-                  ? item.vod_year.match(/\d{4}/)?.[0] || ''
-                  : '',
-                desc: cleanHtmlTags(item.vod_content || ''),
-                type_name: item.type_name,
               };
             });
           } catch (error) {

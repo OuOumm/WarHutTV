@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import React, { useEffect, useState } from 'react';
 
 import { deletePlayRecord, isFavorited, toggleFavorite } from '@/lib/db.client';
+import { getRandomImageBaseUrl } from '@/lib/utils';
 
 interface VideoCardProps {
   id: string;
@@ -14,7 +15,6 @@ interface VideoCardProps {
   episodes?: number;
   source_name: string;
   progress?: number;
-  year?: string;
   from?: string;
   currentEpisode?: number;
   onDelete?: () => void;
@@ -80,7 +80,6 @@ export default function VideoCard({
   source,
   source_name,
   progress,
-  year,
   from,
   currentEpisode,
   onDelete,
@@ -114,7 +113,6 @@ export default function VideoCard({
       const newState = await toggleFavorite(source, id, {
         title,
         source_name,
-        year: year || '',
         cover: poster,
         total_episodes: episodes ?? 1,
         save_time: Date.now(),
@@ -150,13 +148,13 @@ export default function VideoCard({
     <Link
       href={`/detail?source=${source}&id=${id}&title=${encodeURIComponent(
         title
-      )}${year ? `&year=${year}` : ''}${from ? `&from=${from}` : ''}`}
+      )}${from ? `&from=${from}` : ''}`}
     >
       <div className='group relative w-full rounded-lg bg-transparent shadow-none flex flex-col'>
         {/* 海报图片 - 2:3 比例 */}
         <div className='relative aspect-[2/3] w-full overflow-hidden rounded-md'>
           <Image
-            src={poster}
+            src={getRandomImageBaseUrl() + poster}
             alt={title}
             fill
             className='object-cover'
@@ -177,7 +175,7 @@ export default function VideoCard({
                   router.push(
                     `/play?source=${source}&id=${id}&title=${encodeURIComponent(
                       title
-                    )}${year ? `&year=${year}` : ''}`
+                    )}`
                   );
                 }}
                 onMouseEnter={() => setPlayHover(true)}

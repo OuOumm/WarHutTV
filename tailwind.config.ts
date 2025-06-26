@@ -9,11 +9,6 @@ const config: Config = {
   ],
   theme: {
     extend: {
-      screens: {
-        'mobile-landscape': {
-          raw: '(orientation: landscape) and (max-height: 700px)',
-        },
-      },
       fontFamily: {
         primary: ['Inter', ...defaultTheme.fontFamily.sans],
       },

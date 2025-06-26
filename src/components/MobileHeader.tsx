@@ -8,7 +8,7 @@ const MobileHeader = () => {
           href='/'
           className='text-2xl font-bold text-green-600 tracking-tight hover:opacity-80 transition-opacity'
         >
-          MoonTV
+          WarHutTV
         </Link>
       </div>
     </header>

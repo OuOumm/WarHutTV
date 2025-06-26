@@ -2,7 +2,7 @@
 
 import { ChevronRight } from 'lucide-react';
 import Link from 'next/link';
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useEffect, useLayoutEffect, useState } from 'react';
 
 // 客户端收藏 API
 import { getAllFavorites } from '@/lib/db.client';
@@ -26,11 +26,17 @@ interface DoubanResponse {
   list: DoubanItem[];
 }
 
+// 使用随机字符串生成稳定的 key
+function generateKey(prefix: string) {
+  return `${prefix}-${Math.random().toString(36).slice(2, 9)}`;
+}
+
 function HomeClient() {
   const [activeTab, setActiveTab] = useState('home');
   const [hotMovies, setHotMovies] = useState<DoubanItem[]>([]);
   const [hotTvShows, setHotTvShows] = useState<DoubanItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hasHydrated, setHasHydrated] = useState(false);
 
   // 收藏夹数据
   type FavoriteItem = {
@@ -89,7 +95,6 @@ function HomeClient() {
             id,
             source,
             title: fav.title,
-            year: fav.year,
             poster: fav.cover,
             episodes: fav.total_episodes,
             source_name: fav.source_name,
@@ -98,6 +103,20 @@ function HomeClient() {
       setFavoriteItems(sorted);
     })();
   }, [activeTab]);
+
+  // 弹出式公告 - 使用 useLayoutEffect 确保在水合后渲染
+  const [showNotice, setShowNotice] = useState(false);
+
+  useLayoutEffect(() => {
+    setHasHydrated(true);
+    const hasShown = localStorage.getItem('hasShownNotice');
+    setShowNotice(!hasShown);
+  }, []);
+
+  const handleCloseNotice = () => {
+    setShowNotice(false);
+    localStorage.setItem('hasShownNotice', 'true');
+  };
 
   return (
     <PageLayout>
@@ -155,9 +174,9 @@ function HomeClient() {
                 <ScrollableRow>
                   {loading
                     ? // 加载状态显示灰色占位数据
-                      Array.from({ length: 8 }).map((_, index) => (
+                      Array.from({ length: 8 }).map(() => (
                         <div
-                          key={index}
+                          key={generateKey('movie-placeholder')}
                           className='min-w-[96px] w-24 sm:min-w-[180px] sm:w-44'
                         >
                           <div className='relative aspect-[2/3] w-full overflow-hidden rounded-lg bg-gray-200 animate-pulse'>
@@ -167,9 +186,9 @@ function HomeClient() {
                         </div>
                       ))
                     : // 显示真实数据
-                      hotMovies.map((movie, index) => (
+                      hotMovies.map((movie) => (
                         <div
-                          key={index}
+                          key={movie.title || generateKey('movie')}
                           className='min-w-[96px] w-24 sm:min-w-[180px] sm:w-44'
                         >
                           <DemoCard
@@ -197,9 +216,9 @@ function HomeClient() {
                 <ScrollableRow>
                   {loading
                     ? // 加载状态显示灰色占位数据
-                      Array.from({ length: 8 }).map((_, index) => (
+                      Array.from({ length: 8 }).map(() => (
                         <div
-                          key={index}
+                          key={generateKey('tv-placeholder')}
                           className='min-w-[96px] w-24 sm:min-w-[180px] sm:w-44'
                         >
                           <div className='relative aspect-[2/3] w-full overflow-hidden rounded-lg bg-gray-200 animate-pulse'>
@@ -209,9 +228,9 @@ function HomeClient() {
                         </div>
                       ))
                     : // 显示真实数据
-                      hotTvShows.map((show, index) => (
+                      hotTvShows.map((show) => (
                         <div
-                          key={index}
+                          key={show.title || generateKey('tv-show')}
                           className='min-w-[96px] w-24 sm:min-w-[180px] sm:w-44'
                         >
                           <DemoCard
@@ -226,6 +245,28 @@ function HomeClient() {
             </>
           )}
         </div>
+        {/* 公告模板 - 仅在水合完成后渲染 */}
+        {hasHydrated && showNotice && (
+          <div className='fixed inset-0 flex items-center justify-center z-50'>
+            <div className='fixed inset-0 bg-gray-900 bg-opacity-50 backdrop-blur-sm'></div>
+            <div className='bg-white p-8 rounded-3xl shadow-[0_10px_30px_rgba(0,0,0,0.15)] transform transition-all hover:scale-105 duration-300 relative z-10'>
+              <div className='mb-4'>
+                <p className='text-lg font-bold text-red-600'>公告</p>
+                <div className='h-0.5 w-12 bg-red-400 rounded my-2'></div>
+              </div>
+              <p className='text-black leading-relaxed'>
+                本项目基于开源项目 MoonTV 开发，项目代码已开源，您可以在 GitHub
+                上查看和参与贡献。
+              </p>
+              <button
+                onClick={handleCloseNotice}
+                className='mt-6 px-6 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors focus:outline-none focus:ring-2 focus:ring-red-300 block mx-auto'
+              >
+                知道了
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </PageLayout>
   );
