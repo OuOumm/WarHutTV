@@ -4,20 +4,72 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"warhutv/config"
 	"warhutv/services"
 )
 
-func GetLiveChannels(c *gin.Context) {
-	channels := []services.LiveChannel{
-		{Name: "CCTV-1", URL: "http://example.com/cctv1.m3u8", Group: "央视频道"},
-		{Name: "CCTV-5", URL: "http://example.com/cctv5.m3u8", Group: "央视频道"},
-	}
-
+// GetLiveSources returns all enabled live sources
+func GetLiveSources(c *gin.Context) {
+	sources := services.GetLiveSources()
 	c.JSON(http.StatusOK, gin.H{
-		"channels": channels,
+		"success": true,
+		"data":    sources,
 	})
 }
 
+// GetLiveChannels returns channels for a specific source
+func GetLiveChannels(c *gin.Context) {
+	sourceKey := c.Query("source")
+	if sourceKey == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "缺少直播源参数"})
+		return
+	}
+
+	data, err := services.GetCachedLiveChannels(sourceKey)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "频道信息未找到"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    data.Channels,
+	})
+}
+
+// PrecheckLiveStream checks the stream type
+func PrecheckLiveStream(c *gin.Context) {
+	url := c.Query("url")
+	if url == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "缺少URL参数"})
+		return
+	}
+
+	sourceKey := c.Query("moontv-source")
+	ua := ""
+	if sourceKey != "" {
+		cfg := config.Get()
+		for _, s := range cfg.LiveConfig {
+			if s.Key == sourceKey {
+				ua = s.UA
+				break
+			}
+		}
+	}
+
+	streamType, err := services.CheckStreamType(url, ua)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "检测失败"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"type":    streamType,
+	})
+}
+
+// StreamLive proxies a live stream
 func StreamLive(c *gin.Context) {
 	streamURL := c.Query("url")
 	if streamURL == "" {
@@ -25,7 +77,19 @@ func StreamLive(c *gin.Context) {
 		return
 	}
 
-	if err := services.ProxyLiveStream(streamURL, c.Writer); err != nil {
+	sourceKey := c.Query("moontv-source")
+	ua := ""
+	if sourceKey != "" {
+		cfg := config.Get()
+		for _, s := range cfg.LiveConfig {
+			if s.Key == sourceKey {
+				ua = s.UA
+				break
+			}
+		}
+	}
+
+	if err := services.ProxyLiveStream(streamURL, ua, c.Writer); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "直播流获取失败"})
 		return
 	}

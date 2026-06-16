@@ -12,6 +12,16 @@ type SiteConfig struct {
 	Detail string `json:"detail,omitempty"`
 }
 
+type LiveSource struct {
+	Key           string `json:"key"`
+	Name          string `json:"name"`
+	URL           string `json:"url"`
+	UA            string `json:"ua,omitempty"`
+	EPG           string `json:"epg,omitempty"`
+	ChannelNumber int    `json:"channelNumber,omitempty"`
+	Disabled      bool   `json:"disabled,omitempty"`
+}
+
 type Config struct {
 	SiteName       string                `json:"site_name"`
 	Announcement   string                `json:"announcement"`
@@ -19,6 +29,7 @@ type Config struct {
 	JWTSecret      string                `json:"jwt_secret"`
 	AdBlockEnabled bool                  `json:"ad_block_enabled"`
 	APISite        map[string]SiteConfig `json:"api_site"`
+	LiveConfig     []LiveSource          `json:"live_config,omitempty"`
 
 	mu sync.RWMutex
 }
@@ -76,6 +87,9 @@ func (c *Config) Update(newConfig *Config) {
 	}
 	if newConfig.AdBlockEnabled {
 		c.AdBlockEnabled = newConfig.AdBlockEnabled
+	}
+	if newConfig.LiveConfig != nil {
+		c.LiveConfig = newConfig.LiveConfig
 	}
 }
 
