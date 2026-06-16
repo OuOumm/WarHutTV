@@ -31,30 +31,15 @@ function setCache(key: string, data: DoubanResult) {
   }
 }
 
-function getProxyBase(): string {
-  const proxy = localStorage.getItem('doubanProxy') || 'tencent';
-  switch (proxy) {
-    case 'ali':
-      return 'https://m.douban.cmliussss.com';
-    case 'direct':
-      return 'https://m.douban.com';
-    case 'tencent':
-    default:
-      return 'https://m.douban.cmliussss.net';
-  }
-}
+const PROXY_BASES = {
+  tencent: { api: 'https://m.douban.cmliussss.net', list: 'https://movie.douban.cmliussss.net' },
+  ali: { api: 'https://m.douban.cmliussss.com', list: 'https://movie.douban.cmliussss.com' },
+  direct: { api: 'https://m.douban.com', list: 'https://movie.douban.com' },
+} as const;
 
-function getListProxyBase(): string {
-  const proxy = localStorage.getItem('doubanProxy') || 'tencent';
-  switch (proxy) {
-    case 'ali':
-      return 'https://movie.douban.cmliussss.com';
-    case 'direct':
-      return 'https://movie.douban.com';
-    case 'tencent':
-    default:
-      return 'https://movie.douban.cmliussss.net';
-  }
+function getProxyBases() {
+  const proxy = (localStorage.getItem('doubanProxy') || 'tencent') as keyof typeof PROXY_BASES;
+  return PROXY_BASES[proxy] || PROXY_BASES.tencent;
 }
 
 async function fetchWithTimeout(url: string, timeout = 10000): Promise<Response> {
@@ -105,8 +90,8 @@ export async function getDoubanCategories(params: {
 }): Promise<DoubanResult> {
   const { kind, category, type, pageLimit = 20, pageStart = 0 } = params;
   const cacheKey = `cat:${kind}:${category}:${type}:${pageLimit}:${pageStart}`;
-  const base = getProxyBase();
-  const url = `${base}/rexxar/api/v2/subject/recent_hot/${kind}?start=${pageStart}&limit=${pageLimit}&category=${category}&type=${type}`;
+  const { api } = getProxyBases();
+  const url = `${api}/rexxar/api/v2/subject/recent_hot/${kind}?start=${pageStart}&limit=${pageLimit}&category=${category}&type=${type}`;
 
   return fetchDoubanAPI(cacheKey, url, (data) =>
     (data.items || []).map((item: any) => ({
@@ -128,8 +113,8 @@ export async function getDoubanList(params: {
 }): Promise<DoubanResult> {
   const { tag, type, pageLimit = 20, pageStart = 0 } = params;
   const cacheKey = `list:${tag}:${type}:${pageLimit}:${pageStart}`;
-  const base = getListProxyBase();
-  const url = `${base}/j/search_subjects?type=${type}&tag=${tag}&sort=recommend&page_limit=${pageLimit}&page_start=${pageStart}`;
+  const { list } = getProxyBases();
+  const url = `${list}/j/search_subjects?type=${type}&tag=${tag}&sort=recommend&page_limit=${pageLimit}&page_start=${pageStart}`;
 
   return fetchDoubanAPI(cacheKey, url, (data) =>
     (data.subjects || []).map((item: any) => ({
@@ -170,7 +155,7 @@ export async function getDoubanRecommends(params: {
   const cached = getCache(cacheKey);
   if (cached) return cached;
 
-  const base = getProxyBase();
+  const { api } = getProxyBases();
 
   // 构造 selected_categories
   const selectedCategories: Record<string, string> = {};
@@ -194,7 +179,7 @@ export async function getDoubanRecommends(params: {
   reqParams.append('tags', tags.join(','));
   if (sort) reqParams.append('sort', sort);
 
-  const url = `${base}/rexxar/api/v2/${kind}/recommend?${reqParams.toString()}`;
+  const url = `${api}/rexxar/api/v2/${kind}/recommend?${reqParams.toString()}`;
 
   return fetchDoubanAPI(cacheKey, url, (data) =>
     (data.items || [])

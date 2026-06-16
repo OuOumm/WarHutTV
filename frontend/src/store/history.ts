@@ -10,12 +10,25 @@ export const historyStore = {
       await db.watchHistory.update(existing.id!, {
         watchedAt: Date.now(),
         episode: episode || existing.episode,
+        site_key: video.site_key,
+        vod_pic: video.vod_pic,
+        vod_name: video.vod_name,
       });
     } else {
       await db.watchHistory.add({
         ...video,
         watchedAt: Date.now(),
         episode,
+      });
+    }
+  },
+
+  async updateSource(vodId: string | number, siteKey: string, newVodId: string | number): Promise<void> {
+    const existing = await db.watchHistory.where('vod_id').equals(vodId).first();
+    if (existing) {
+      await db.watchHistory.update(existing.id!, {
+        site_key: siteKey,
+        vod_id: newVodId,
       });
     }
   },

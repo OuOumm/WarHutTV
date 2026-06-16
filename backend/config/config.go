@@ -57,12 +57,12 @@ func Load(path string) {
 
 	json.Unmarshal(data, globalConfig)
 
-		if pass := os.Getenv("PASSWORD"); pass != "" {
-			globalConfig.Password = pass
-		}
-		if secret := os.Getenv("JWT_SECRET"); secret != "" {
-			globalConfig.JWTSecret = secret
-		}
+	if pass := os.Getenv("PASSWORD"); pass != "" {
+		globalConfig.Password = pass
+	}
+	if secret := os.Getenv("JWT_SECRET"); secret != "" {
+		globalConfig.JWTSecret = secret
+	}
 }
 
 func Get() *Config {

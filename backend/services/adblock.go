@@ -5,17 +5,6 @@ import (
 	"strings"
 )
 
-var adPatterns = []string{
-	"广告",
-	"ad",
-	"commercial",
-	"sponsor",
-	"promo",
-	"skip",
-	"pre-roll",
-	"mid-roll",
-}
-
 type AdBlocker struct {
 	enabled   bool
 	adPattern *regexp.Regexp

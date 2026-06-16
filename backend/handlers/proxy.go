@@ -11,8 +11,20 @@ import (
 	"warhutv/config"
 )
 
-var proxyClient = &http.Client{
-	Timeout: 30 * time.Second,
+var proxyClient = &http.Client{Timeout: 30 * time.Second}
+
+const defaultUA = "Mozilla/5.0"
+
+func getUA(sourceKey string) string {
+	if sourceKey == "" {
+		return defaultUA
+	}
+	for _, s := range config.Get().LiveConfig {
+		if s.Key == sourceKey && s.UA != "" {
+			return s.UA
+		}
+	}
+	return defaultUA
 }
 
 // ProxyM3U8 proxies M3U8 stream requests and rewrites relative URLs
@@ -24,16 +36,7 @@ func ProxyM3U8(c *gin.Context) {
 	}
 
 	sourceKey := c.Query("moontv-source")
-	ua := "Mozilla/5.0"
-	if sourceKey != "" {
-		cfg := config.Get()
-		for _, s := range cfg.LiveConfig {
-			if s.Key == sourceKey && s.UA != "" {
-				ua = s.UA
-				break
-			}
-		}
-	}
+	ua := getUA(sourceKey)
 
 	req, err := http.NewRequest("GET", m3u8URL, nil)
 	if err != nil {
@@ -113,17 +116,7 @@ func ProxyLogo(c *gin.Context) {
 		return
 	}
 
-	sourceKey := c.Query("source")
-	ua := "Mozilla/5.0"
-	if sourceKey != "" {
-		cfg := config.Get()
-		for _, s := range cfg.LiveConfig {
-			if s.Key == sourceKey && s.UA != "" {
-				ua = s.UA
-				break
-			}
-		}
-	}
+	ua := getUA(c.Query("source"))
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -151,37 +144,4 @@ func ProxyLogo(c *gin.Context) {
 	io.Copy(c.Writer, resp.Body)
 }
 
-// ProxyCatchAll handles all other proxy requests (e.g., .ts segments)
-// It reconstructs the original URL from Referer header or query params
-func ProxyCatchAll(c *gin.Context) {
-	url := c.Query("url")
-	if url == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "缺少url参数"})
-		return
-	}
 
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "请求创建失败"})
-		return
-	}
-	req.Header.Set("User-Agent", "Mozilla/5.0")
-
-	resp, err := proxyClient.Do(req)
-	if err != nil {
-		c.JSON(http.StatusBadGateway, gin.H{"error": "请求失败"})
-		return
-	}
-	defer resp.Body.Close()
-
-	contentType := resp.Header.Get("Content-Type")
-	if contentType == "" {
-		contentType = "video/mp2t"
-	}
-
-	c.Header("Content-Type", contentType)
-	c.Header("Cache-Control", "public, max-age=3600")
-	c.Header("Access-Control-Allow-Origin", "*")
-
-	io.Copy(c.Writer, resp.Body)
-}
