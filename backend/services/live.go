@@ -28,11 +28,15 @@ type LiveChannelsData struct {
 }
 
 var (
-	liveClient = &http.Client{
-		Timeout: 30 * time.Second,
-	}
+	liveClient = &http.Client{Timeout: 30 * time.Second}
 	channelCache = make(map[string]*LiveChannelsData)
 	cacheMu      sync.RWMutex
+
+	// Pre-compiled regexes for M3U parsing
+	tvgIDRe  = regexp.MustCompile(`tvg-id="([^"]*)"`)
+	tvgLogoRe = regexp.MustCompile(`tvg-logo="([^"]*)"`)
+	groupRe   = regexp.MustCompile(`group-title="([^"]*)"`)
+	tvgURLRe  = regexp.MustCompile(`(?:x-tvg-url|url-tvg)="([^"]*)"`)
 )
 
 const defaultUA = "AptvPlayer/1.4.10"
@@ -131,11 +135,6 @@ func parseStandardM3U(sourceKey string, content string) (*LiveChannelsData, erro
 	channelIndex := 0
 
 	lines := strings.Split(content, "\n")
-	tvgIDRe := regexp.MustCompile(`tvg-id="([^"]*)"`)
-	tvgLogoRe := regexp.MustCompile(`tvg-logo="([^"]*)"`)
-	groupRe := regexp.MustCompile(`group-title="([^"]*)"`)
-	tvgURLRe := regexp.MustCompile(`(?:x-tvg-url|url-tvg)="([^"]*)"`)
-
 	var currentTvgID, currentName, currentLogo, currentGroup string
 
 	for _, line := range lines {

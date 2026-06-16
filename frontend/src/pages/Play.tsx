@@ -45,6 +45,7 @@ const Play = () => {
   const [searchDataCache, setSearchDataCache] = useState<any>(null);
   const [currentTime, setCurrentTime] = useState(0);
   const [toast, setToast] = useState('');
+  const [historyVodId, setHistoryVodId] = useState<string | number>('');
   const detailCache = useState(() => new Map<string, { data: any; ts: number }>())[0];
   const CACHE_TTL = 5 * 60 * 1000;
 
@@ -67,11 +68,11 @@ const Play = () => {
             if (epList[0].url) setPlayUrl(epList[0].url);
           }
         }
-        const fav = await favoritesStore.isFavorite(videoDetail.vod_id);
+        const fav = await favoritesStore.isFavorite(id!);
         setIsFavorite(fav);
         
         const history = await historyStore.getRecent(100);
-        const savedRecord = history.find((h: any) => h.vod_id === videoDetail.vod_id);
+        const savedRecord = history.find((h: any) => String(h.vod_id) === String(id));
         if (savedRecord && savedRecord.progress && savedRecord.progress > 0) {
           setCurrentTime(savedRecord.progress);
           const minutes = Math.floor(savedRecord.progress / 60);
@@ -80,7 +81,8 @@ const Play = () => {
           setTimeout(() => setToast(''), 3000);
         }
 
-        await historyStore.add(videoDetail);
+        await historyStore.add({ ...videoDetail, vod_id: id!, site_key: site });
+        setHistoryVodId(id!);
         loadSources(videoDetail.vod_name);
       }
     } catch (err) { console.error('加载详情失败:', err); } finally { setLoading(false); }
@@ -174,6 +176,8 @@ const Play = () => {
             if (epList.length > 0) { setCurrentEpisode(epList[0]); if (epList[0].url) setPlayUrl(epList[0].url); }
           }
           setActiveTab('episodes');
+          await historyStore.updateSource(historyVodId, sourceKey, item.vod_id);
+          setHistoryVodId(item.vod_id);
         }
       }
     } catch (err) { console.error('切换源失败:', err); } finally { setLoading(false); }
@@ -212,7 +216,7 @@ const Play = () => {
           <div className="md:col-span-3 h-full">
             <div className="relative w-full h-[300px] lg:h-full bg-black rounded-xl overflow-hidden ring-1 ring-white/10 shadow-2xl">
               {playUrl ? (
-                <Player url={playUrl} title={detail.vod_name} currentTime={currentTime} onTimeUpdate={(t) => { setCurrentTime(t); if (detail) historyStore.updateProgress(detail.vod_id, t, 0); }} />
+                <Player url={playUrl} title={detail.vod_name} currentTime={currentTime} onTimeUpdate={(t) => { setCurrentTime(t); if (historyVodId) historyStore.updateProgress(historyVodId, t, 0); }} />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-gray-500">选择集数开始播放</div>
               )}

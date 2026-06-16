@@ -4,7 +4,6 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"warhutv/config"
 	"warhutv/services"
 )
 
@@ -45,28 +44,14 @@ func PrecheckLiveStream(c *gin.Context) {
 		return
 	}
 
-	sourceKey := c.Query("moontv-source")
-	ua := ""
-	if sourceKey != "" {
-		cfg := config.Get()
-		for _, s := range cfg.LiveConfig {
-			if s.Key == sourceKey {
-				ua = s.UA
-				break
-			}
-		}
-	}
-
+	ua := getUA(c.Query("moontv-source"))
 	streamType, err := services.CheckStreamType(url, ua)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "检测失败"})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"type":    streamType,
-	})
+	c.JSON(http.StatusOK, gin.H{"success": true, "type": streamType})
 }
 
 // StreamLive proxies a live stream
@@ -77,18 +62,7 @@ func StreamLive(c *gin.Context) {
 		return
 	}
 
-	sourceKey := c.Query("moontv-source")
-	ua := ""
-	if sourceKey != "" {
-		cfg := config.Get()
-		for _, s := range cfg.LiveConfig {
-			if s.Key == sourceKey {
-				ua = s.UA
-				break
-			}
-		}
-	}
-
+	ua := getUA(c.Query("moontv-source"))
 	if err := services.ProxyLiveStream(streamURL, ua, c.Writer); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "直播流获取失败"})
 		return
