@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import Sidebar from './Sidebar';
 import MobileNav from './MobileNav';
+import ThemeSwitcher from './ThemeSwitcher';
 import UserMenu from './SettingsPanel';
 
 interface LayoutProps {
@@ -18,6 +19,7 @@ const Layout = ({ children, activePath = '/' }: LayoutProps) => {
       <div className="md:ml-64 transition-all duration-300 min-h-screen">
         {/* 右上角按钮 */}
         <div className="absolute top-2 right-4 z-20 hidden md:flex items-center gap-1">
+          <ThemeSwitcher />
           <UserMenu />
         </div>
 

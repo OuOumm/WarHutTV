@@ -10,9 +10,11 @@ import Favorites from './pages/Favorites';
 import History from './pages/History';
 import SpeedTest from './pages/SpeedTest';
 import Douban from './pages/Douban';
+import { getCurrentTheme, applyTheme } from './store/theme';
 
-// Force dark mode
+// Force dark mode & apply saved theme
 document.documentElement.classList.add('dark');
+applyTheme(getCurrentTheme());
 
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated, isLoading } = useAuth();
