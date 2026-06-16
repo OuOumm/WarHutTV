@@ -4,6 +4,7 @@ node_modules/
 # Build output
 dist/
 build/
+bin/
 
 # Go
 backend/backend
@@ -22,3 +23,6 @@ backend/backend
 # OS
 .DS_Store
 Thumbs.db
+
+# Data (except config.json)
+data/*
