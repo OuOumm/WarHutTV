@@ -56,9 +56,9 @@ body::before {
   width: 200%;
   height: 200%;
   background: 
-    radial-gradient(ellipse at 20% 50%, rgba(230, 185, 30, 0.04) 0%, transparent 50%),
-    radial-gradient(ellipse at 80% 20%, rgba(59, 130, 246, 0.03) 0%, transparent 50%),
-    radial-gradient(ellipse at 50% 80%, rgba(139, 92, 246, 0.02) 0%, transparent 50%);
+    radial-gradient(ellipse at 20% 50%, var(--glow-1, rgba(230, 185, 30, 0.04)) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 20%, var(--glow-2, rgba(59, 130, 246, 0.03)) 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 80%, var(--glow-3, rgba(139, 92, 246, 0.02)) 0%, transparent 50%);
   pointer-events: none;
   z-index: 0;
 }

@@ -43,7 +43,11 @@ const ScrollableRow = ({ children, scrollDistance = 1000 }: ScrollableRowProps) 
   return (
     <div className="relative" onMouseEnter={() => { setIsHovered(true); checkScroll(); }} onMouseLeave={() => setIsHovered(false)}>
       <div ref={containerRef} className="flex gap-5 overflow-x-auto overflow-y-visible scrollbar-hide py-6 sm:py-8 pb-16 sm:pb-20 px-4 sm:px-6" onScroll={checkScroll}>
-        {children}
+        {Array.isArray(children) ? children.map((child, i) => (
+          <div key={i} className="flex-shrink-0 w-[170px] sm:w-[185px]">
+            {child}
+          </div>
+        )) : children}
       </div>
 
       {showLeft && (
