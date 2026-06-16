@@ -15,7 +15,6 @@ type SiteConfig struct {
 type Config struct {
 	SiteName       string                `json:"site_name"`
 	Announcement   string                `json:"announcement"`
-	Username       string                `json:"username"`
 	Password       string                `json:"password"`
 	JWTSecret      string                `json:"jwt_secret"`
 	AdBlockEnabled bool                  `json:"ad_block_enabled"`
@@ -24,42 +23,40 @@ type Config struct {
 	mu sync.RWMutex
 }
 
-var (
-	globalConfig *Config
-	configOnce   sync.Once
-)
+var globalConfig *Config
 
-func Load(path string) (*Config, error) {
-	var err error
-	configOnce.Do(func() {
-		data, readErr := os.ReadFile(path)
-		if readErr != nil {
-			err = readErr
-			return
-		}
+func defaultConfig() *Config {
+	return &Config{
+		SiteName:       "WarHutTV",
+		Announcement:   "本网站仅提供影视信息搜索服务",
+		Password:       "admin123",
+		JWTSecret:      "change-me-in-production",
+		AdBlockEnabled: true,
+		APISite:        make(map[string]SiteConfig),
+	}
+}
 
-		globalConfig = &Config{}
-		if jsonErr := json.Unmarshal(data, globalConfig); jsonErr != nil {
-			err = jsonErr
-			return
-		}
+func Load(path string) {
+	globalConfig = defaultConfig()
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return
+	}
+
+	json.Unmarshal(data, globalConfig)
 
 		if pass := os.Getenv("PASSWORD"); pass != "" {
 			globalConfig.Password = pass
 		}
-		if user := os.Getenv("USERNAME"); user != "" {
-			globalConfig.Username = user
-		}
 		if secret := os.Getenv("JWT_SECRET"); secret != "" {
 			globalConfig.JWTSecret = secret
 		}
-	})
-	return globalConfig, err
 }
 
 func Get() *Config {
 	if globalConfig == nil {
-		Load("config/config.json")
+		Load("data/config.json")
 	}
 	return globalConfig
 }

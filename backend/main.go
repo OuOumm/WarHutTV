@@ -1,9 +1,12 @@
 package main
 
 import (
+	"embed"
+	"io/fs"
 	"log"
+	"net/http"
 	"os"
-	"path/filepath"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"warhutv/config"
@@ -11,11 +14,11 @@ import (
 	"warhutv/middleware"
 )
 
+//go:embed frontend/dist/*
+var frontendFS embed.FS
+
 func main() {
-	_, err := config.Load("config/config.json")
-	if err != nil {
-		log.Printf("Warning: failed to load config: %v", err)
-	}
+	config.Load("data/config.json")
 
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -43,17 +46,60 @@ func main() {
 		auth.GET("/live/stream", handlers.StreamLive)
 		auth.GET("/config", handlers.GetConfig)
 		auth.POST("/config", handlers.UpdateConfig)
+		auth.GET("/bangumi/calendar", handlers.BangumiCalendar)
 	}
 
-	frontendDist := "../frontend/dist"
-	if _, err := os.Stat(frontendDist); err == nil {
-		r.Static("/assets", filepath.Join(frontendDist, "assets"))
-		r.StaticFile("/favicon.ico", filepath.Join(frontendDist, "favicon.ico"))
-		r.StaticFile("/logo.png", filepath.Join(frontendDist, "logo.png"))
-
-		r.NoRoute(func(c *gin.Context) {
-			c.File(filepath.Join(frontendDist, "index.html"))
+	// 嵌入前端静态资源
+	distFS, err := fs.Sub(frontendFS, "frontend/dist")
+	if err != nil {
+		log.Printf("Warning: failed to load frontend: %v", err)
+	} else {
+		// 根路由直接返回index.html
+		r.GET("/", func(c *gin.Context) {
+			data, err := fs.ReadFile(distFS, "index.html")
+			if err != nil {
+				c.String(http.StatusInternalServerError, "index.html not found")
+				return
+			}
+			c.Data(http.StatusOK, "text/html; charset=utf-8", data)
 		})
+
+		// 静态资源请求
+		r.NoRoute(func(c *gin.Context) {
+			path := c.Request.URL.Path
+
+			// 处理 index.html 请求
+			if path == "/index.html" || path == "/index.htm" {
+				data, err := fs.ReadFile(distFS, "index.html")
+				if err != nil {
+					c.String(http.StatusInternalServerError, "index.html not found")
+					return
+				}
+				c.Data(http.StatusOK, "text/html; charset=utf-8", data)
+				return
+			}
+
+			// 尝试从嵌入的文件系统中读取静态文件
+			if strings.HasPrefix(path, "/assets/") || strings.HasSuffix(path, ".js") || strings.HasSuffix(path, ".css") || strings.HasSuffix(path, ".svg") {
+				filePath := path[1:] // 去掉开头的 /
+				f, err := distFS.Open(filePath)
+				if err == nil {
+					f.Close()
+					http.FileServer(http.FS(distFS)).ServeHTTP(c.Writer, c.Request)
+					return
+				}
+			}
+
+			// 其他路由返回index.html（SPA模式）
+			data, err := fs.ReadFile(distFS, "index.html")
+			if err != nil {
+				c.String(http.StatusInternalServerError, "index.html not found")
+				return
+			}
+			c.Data(http.StatusOK, "text/html; charset=utf-8", data)
+		})
+
+		log.Printf("Frontend embedded successfully")
 	}
 
 	log.Printf("Server starting on port %s", port)

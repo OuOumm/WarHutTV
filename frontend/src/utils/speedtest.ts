@@ -1,0 +1,95 @@
+import Hls from 'hls.js';
+
+export interface SpeedTestResult {
+  quality: string;
+  loadSpeed: string;
+  pingTime: number;
+}
+
+export async function testVideoSpeed(m3u8Url: string): Promise<SpeedTestResult> {
+  return new Promise((resolve, reject) => {
+    const video = document.createElement('video');
+    video.muted = true;
+    video.preload = 'metadata';
+
+    const pingStart = performance.now();
+    let pingTime = 0;
+
+    fetch(m3u8Url, { method: 'HEAD', mode: 'no-cors' })
+      .then(() => { pingTime = performance.now() - pingStart; })
+      .catch(() => { pingTime = performance.now() - pingStart; });
+
+    const hls = new Hls();
+
+    const timeout = setTimeout(() => {
+      hls.destroy();
+      video.remove();
+      reject(new Error('Timeout'));
+    }, 5000);
+
+    video.onerror = () => {
+      clearTimeout(timeout);
+      hls.destroy();
+      video.remove();
+      reject(new Error('Failed to load'));
+    };
+
+    let loadSpeed = '未知';
+    let speedCalculated = false;
+    let metadataLoaded = false;
+    let fragmentStartTime = 0;
+
+    const checkResolve = () => {
+      if (metadataLoaded && (speedCalculated || loadSpeed !== '未知')) {
+        clearTimeout(timeout);
+        const width = video.videoWidth;
+        hls.destroy();
+        video.remove();
+
+        const quality = width >= 3840 ? '4K'
+          : width >= 2560 ? '2K'
+          : width >= 1920 ? '1080p'
+          : width >= 1280 ? '720p'
+          : width >= 854 ? '480p' : 'SD';
+
+        resolve({ quality, loadSpeed, pingTime: Math.round(pingTime) });
+      }
+    };
+
+    hls.on(Hls.Events.FRAG_LOADING, () => {
+      fragmentStartTime = performance.now();
+    });
+
+    hls.on(Hls.Events.FRAG_LOADED, (_event: any, data: any) => {
+      if (fragmentStartTime > 0 && data?.payload && !speedCalculated) {
+        const loadTime = performance.now() - fragmentStartTime;
+        const size = data.payload.byteLength || 0;
+        if (loadTime > 0 && size > 0) {
+          const speedKBps = size / 1024 / (loadTime / 1000);
+          loadSpeed = speedKBps >= 1024
+            ? `${(speedKBps / 1024).toFixed(1)} MB/s`
+            : `${speedKBps.toFixed(1)} KB/s`;
+          speedCalculated = true;
+          checkResolve();
+        }
+      }
+    });
+
+    hls.loadSource(m3u8Url);
+    hls.attachMedia(video);
+
+    hls.on(Hls.Events.ERROR, (_event: any, data: any) => {
+      if (data.fatal) {
+        clearTimeout(timeout);
+        hls.destroy();
+        video.remove();
+        reject(new Error('HLS error'));
+      }
+    });
+
+    video.onloadedmetadata = () => {
+      metadataLoaded = true;
+      checkResolve();
+    };
+  });
+}

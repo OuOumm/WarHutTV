@@ -1,1 +1,78 @@
 @import "tailwindcss";
+
+@layer utilities {
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+:root {
+  --foreground-rgb: 255, 255, 255;
+}
+
+html, body {
+  height: 100%;
+  overflow-x: hidden;
+  overscroll-behavior: none;
+}
+
+body {
+  color: rgb(var(--foreground-rgb));
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+html:not(.dark) body {
+  background: linear-gradient(180deg, #e6f3fb 0%, #eaf3f7 18%, #f7f7f3 38%, #e9ecef 60%, #dbe3ea 80%, #d3dde6 100%);
+  background-attachment: fixed;
+}
+
+html.dark body {
+  background: #0c111c;
+}
+
+* {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+*::-webkit-scrollbar { display: none; }
+
+/* Theme transition */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 0.3s;
+  animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+::view-transition-old(root) {
+  animation: none;
+}
+
+html.dark::view-transition-new(root) {
+  animation-name: slide-from-top;
+}
+
+html:not(.dark)::view-transition-new(root) {
+  animation-name: slide-from-bottom;
+}
+
+@keyframes slide-from-top {
+  from { clip-path: polygon(0 0, 100% 0, 100% 0, 0 0); }
+  to { clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%); }
+}
+
+@keyframes slide-from-bottom {
+  from { clip-path: polygon(0 100%, 100% 100%, 100% 100%, 0 100%); }
+  to { clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%); }
+}
+
+@media (max-width: 767px) {
+  html, body {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  html::-webkit-scrollbar, body::-webkit-scrollbar { display: none; }
+}
