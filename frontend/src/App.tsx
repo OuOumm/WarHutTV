@@ -11,10 +11,13 @@ import History from './pages/History';
 import SpeedTest from './pages/SpeedTest';
 import Douban from './pages/Douban';
 
+// Force dark mode
+document.documentElement.classList.add('dark');
+
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated, isLoading } = useAuth();
   if (isLoading) {
-    return <div className="min-h-screen flex items-center justify-center bg-gray-900"><div className="text-white">加载中...</div></div>;
+    return <div className="min-h-screen flex items-center justify-center bg-deep"><div className="text-text">加载中...</div></div>;
   }
   return isAuthenticated ? <>{children}</> : <Navigate to="/login" />;
 };

@@ -86,9 +86,9 @@ const Selector = ({
   }, [value, options]);
 
   return (
-    <div ref={containerRef} className="relative inline-flex items-center bg-gray-100/80 dark:bg-gray-800/60 rounded-lg p-1">
+    <div ref={containerRef} className="relative inline-flex items-center bg-surface rounded-lg p-1">
       <div
-        className="absolute top-1 bottom-1 bg-white dark:bg-gray-700 rounded-md shadow-sm transition-all duration-200"
+        className="absolute top-1 bottom-1 bg-card rounded-md shadow-sm transition-all duration-200"
         style={{ left: indicator.left, width: indicator.width }}
       />
       {options.map((opt, i) => (
@@ -98,8 +98,8 @@ const Selector = ({
           onClick={() => onChange(opt.value)}
           className={`relative z-10 px-3 py-1.5 text-sm rounded-md transition-colors whitespace-nowrap ${
             value === opt.value
-              ? 'text-green-600 dark:text-green-400 font-medium'
-              : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+              ? 'text-primary font-medium'
+              : 'text-muted hover:text-text'
           }`}
         >
           {opt.label}
@@ -308,28 +308,28 @@ export default function DoubanPage() {
       {/* Title */}
       <div className="mb-6 sm:mb-8 space-y-4 sm:space-y-6">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 dark:text-gray-200">{getTitle()}</h1>
-          <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400">{getDescription()}</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-text">{getTitle()}</h1>
+          <p className="text-sm sm:text-base text-muted">{getDescription()}</p>
         </div>
 
         {/* Selectors */}
-        <div className="bg-white/60 dark:bg-gray-900/60 rounded-2xl p-4 sm:p-6 border border-gray-200/30 dark:border-gray-800/50 backdrop-blur-sm">
+        <div className="bg-glass rounded-2xl p-4 sm:p-6 border border-glass-border backdrop-blur-sm">
           <div className="space-y-3">
             {primaryOptions.length > 0 && (
               <div className="flex flex-wrap gap-2">
-                <span className="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-400 min-w-[48px] self-center">分类</span>
+                <span className="text-xs sm:text-sm font-medium text-muted min-w-[48px] self-center">分类</span>
                 <Selector options={primaryOptions} value={primarySelection} onChange={handlePrimaryChange} />
               </div>
             )}
             {showWeekdaySelector && (
               <div className="flex flex-wrap gap-2 items-center">
-                <span className="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-400 min-w-[48px]">星期</span>
+                <span className="text-xs sm:text-sm font-medium text-muted min-w-[48px]">星期</span>
                 <WeekdaySelector value={selectedWeekday} onChange={setSelectedWeekday} />
               </div>
             )}
             {showSecondarySelector && secondaryOptions.length > 0 && (
               <div className="flex flex-wrap gap-2">
-                <span className="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-400 min-w-[48px] self-center">
+                <span className="text-xs sm:text-sm font-medium text-muted min-w-[48px] self-center">
                   {type === 'anime' ? '地区' : '类型'}
                 </span>
                 <Selector options={secondaryOptions} value={secondarySelection} onChange={handleSecondaryChange} />
@@ -345,8 +345,8 @@ export default function DoubanPage() {
           <div className="grid grid-cols-3 gap-x-2 gap-y-12 sm:grid-cols-[repeat(auto-fill,minmax(160px,1fr))] sm:gap-x-8 sm:gap-y-20">
             {Array.from({ length: 25 }).map((_, i) => (
               <div key={i}>
-                <div className="aspect-[2/3] bg-gray-200 dark:bg-gray-800 rounded-lg animate-pulse" />
-                <div className="mt-2 h-4 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
+                <div className="aspect-[2/3] bg-card rounded-lg animate-pulse" />
+                <div className="mt-2 h-4 bg-card rounded animate-pulse" />
               </div>
             ))}
           </div>
@@ -364,15 +364,15 @@ export default function DoubanPage() {
           <div ref={loadingRef} className={loadingMore ? 'flex justify-center mt-12 py-8' : 'h-px'}>
             {loadingMore && (
               <div className="flex items-center gap-2">
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-500" />
-                <span className="text-gray-600 dark:text-gray-400">加载中...</span>
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
+                <span className="text-muted">加载中...</span>
               </div>
             )}
           </div>
         )}
 
         {!hasMore && !loading && (
-          <div className="text-center text-gray-500 py-8">
+          <div className="text-center text-muted py-8">
             {data.length > 0 ? '已加载全部内容' : '暂无相关内容'}
           </div>
         )}
