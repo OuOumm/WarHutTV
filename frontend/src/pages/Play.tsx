@@ -45,6 +45,8 @@ const Play = () => {
   const [searchDataCache, setSearchDataCache] = useState<any>(null);
   const [currentTime, setCurrentTime] = useState(0);
   const [toast, setToast] = useState('');
+  const detailCache = useState(() => new Map<string, { data: any; ts: number }>())[0];
+  const CACHE_TTL = 5 * 60 * 1000;
 
   useEffect(() => { if (site && id) loadDetail(); }, [site, id]);
 
@@ -109,8 +111,8 @@ const Play = () => {
     if (tab === 'sources' && sources.length === 0) {
       loadSources().then(() => setTimeout(() => testAllSources(), 500));
     } else if (tab === 'sources' && sources.length > 0 && !testingAll) {
-      const hasUntested = sources.some(s => s.status === 'done' && !s.speed);
-      if (hasUntested) setTimeout(() => testAllSources(), 300);
+      const needsTest = sources.some(s => s.status === 'error' || (s.status === 'done' && !s.speed));
+      if (needsTest) setTimeout(() => testAllSources(), 300);
     }
   };
 
@@ -126,8 +128,7 @@ const Play = () => {
           : await apiClient.get('/search', { params: { wd: detail?.vod_name || '', site: source.key } });
         const siteData = searchRes.data[source.key];
         if (siteData?.list?.length > 0) {
-          const detailRes = await apiClient.get('/detail', { params: { site: source.key, ids: siteData.list[0].vod_id } });
-          const vodDetail = detailRes.data?.list?.[0];
+          const vodDetail = await getCachedDetail(source.key, siteData.list[0].vod_id);
           const epUrl = vodDetail?.vod_play_url?.split('#')[0]?.split('$')[1];
           if (epUrl && epUrl.includes('.m3u8')) {
             const result = await testVideoSpeed(epUrl);
@@ -145,6 +146,16 @@ const Play = () => {
     setTestingAll(false);
   }, [sources, detail]);
 
+  const getCachedDetail = async (sourceKey: string, vodId: string) => {
+    const cacheKey = `${sourceKey}:${vodId}`;
+    const cached = detailCache.get(cacheKey);
+    if (cached && Date.now() - cached.ts < CACHE_TTL) return cached.data;
+    const res = await apiClient.get('/detail', { params: { site: sourceKey, ids: vodId } });
+    const data = res.data?.list?.[0];
+    if (data) detailCache.set(cacheKey, { data, ts: Date.now() });
+    return data;
+  };
+
   const handleSourceSwitch = async (sourceKey: string) => {
     if (sourceKey === currentSource) return;
     setCurrentSource(sourceKey);
@@ -154,9 +165,8 @@ const Play = () => {
       const siteData = response.data[sourceKey];
       if (siteData?.list?.length > 0) {
         const item = siteData.list[0];
-        const detailRes = await apiClient.get('/detail', { params: { site: sourceKey, ids: item.vod_id } });
-        if (detailRes.data?.list?.length > 0) {
-          const newDetail = detailRes.data.list[0];
+        const newDetail = await getCachedDetail(sourceKey, item.vod_id);
+        if (newDetail) {
           setDetail(newDetail);
           if (newDetail.vod_play_url) {
             const epList = parseEpisodes(newDetail.vod_play_url);
@@ -200,7 +210,7 @@ const Play = () => {
 
         <div className="grid gap-4 lg:h-[500px] xl:h-[650px] grid-cols-1 md:grid-cols-4">
           <div className="md:col-span-3 h-full">
-            <div className="relative w-full h-[300px] lg:h-full bg-black rounded-xl overflow-hidden">
+            <div className="relative w-full h-[300px] lg:h-full bg-black rounded-xl overflow-hidden ring-1 ring-white/10 shadow-2xl">
               {playUrl ? (
                 <Player url={playUrl} title={detail.vod_name} currentTime={currentTime} onTimeUpdate={(t) => { setCurrentTime(t); if (detail) historyStore.updateProgress(detail.vod_id, t, 0); }} />
               ) : (

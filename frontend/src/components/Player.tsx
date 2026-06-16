@@ -7,9 +7,10 @@ interface PlayerProps {
   title?: string;
   currentTime?: number;
   onTimeUpdate?: (time: number) => void;
+  isLive?: boolean;
 }
 
-const Player = ({ url, title, currentTime, onTimeUpdate }: PlayerProps) => {
+const Player = ({ url, title, currentTime, onTimeUpdate, isLive = false }: PlayerProps) => {
   const artRef = useRef<HTMLDivElement>(null);
   const artInstance = useRef<Artplayer | null>(null);
 
@@ -34,7 +35,7 @@ const Player = ({ url, title, currentTime, onTimeUpdate }: PlayerProps) => {
       container: artRef.current,
       url: url,
       volume: 0.7,
-      isLive: false,
+      isLive: isLive,
       muted: false,
       autoplay: true,
       pip: true,

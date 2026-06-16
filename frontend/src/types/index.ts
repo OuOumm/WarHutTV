@@ -39,10 +39,22 @@ export interface VideoDetail {
 }
 
 export interface LiveChannel {
+  id: string;
+  tvgId?: string;
   name: string;
   url: string;
   logo?: string;
   group?: string;
+}
+
+export interface LiveSource {
+  key: string;
+  name: string;
+  url: string;
+  ua?: string;
+  epg?: string;
+  channelNumber?: number;
+  disabled?: boolean;
 }
 
 export interface User {

@@ -31,6 +31,8 @@ func main() {
 	api := r.Group("/api")
 	{
 		api.POST("/auth/login", handlers.Login)
+		api.GET("/proxy/m3u8", handlers.ProxyM3U8)
+		api.GET("/proxy/logo", handlers.ProxyLogo)
 	}
 
 	auth := r.Group("/api")
@@ -42,8 +44,11 @@ func main() {
 		auth.GET("/play", handlers.Play)
 		auth.GET("/adblock/status", handlers.GetAdBlockStatus)
 		auth.POST("/adblock/status", handlers.SetAdBlockStatus)
+		auth.GET("/live/sources", handlers.GetLiveSources)
 		auth.GET("/live/channels", handlers.GetLiveChannels)
+		auth.GET("/live/precheck", handlers.PrecheckLiveStream)
 		auth.GET("/live/stream", handlers.StreamLive)
+
 		auth.GET("/config", handlers.GetConfig)
 		auth.POST("/config", handlers.UpdateConfig)
 		auth.GET("/bangumi/calendar", handlers.BangumiCalendar)
