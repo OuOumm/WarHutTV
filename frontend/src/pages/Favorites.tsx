@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import VideoCard from '../components/VideoCard';
 import type { VideoItem } from '../types';
 import { favoritesStore } from '../store/favorites';
@@ -6,12 +7,14 @@ import { favoritesStore } from '../store/favorites';
 const Favorites = () => {
   const [favorites, setFavorites] = useState<VideoItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const location = useLocation();
 
   useEffect(() => {
     loadFavorites();
-  }, []);
+  }, [location.pathname]);
 
   const loadFavorites = async () => {
+    setLoading(true);
     const items = await favoritesStore.getAll();
     setFavorites(items);
     setLoading(false);
@@ -41,9 +44,12 @@ const Favorites = () => {
               <VideoCard video={item} />
               <button
                 onClick={() => handleRemove(item.vod_id)}
-                className="absolute top-2 left-2 px-2 py-1 bg-red-600 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                className="absolute bottom-12 right-2 w-8 h-8 bg-red-500/90 backdrop-blur-sm text-white rounded-full flex items-center justify-center shadow-md hover:bg-red-600 transition-all opacity-0 group-hover:opacity-100 z-50"
+                title="删除收藏"
               >
-                移除
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
               </button>
             </div>
           ))}

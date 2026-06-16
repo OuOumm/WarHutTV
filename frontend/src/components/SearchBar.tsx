@@ -19,7 +19,7 @@ const SearchBar = () => {
         value={keyword}
         onChange={(e) => setKeyword(e.target.value)}
         placeholder="搜索影片..."
-        className="flex-1 px-4 py-2.5 bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm border border-gray-200/50 dark:border-gray-700/50 rounded-xl text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:border-transparent transition-all shadow-sm"
+        className="flex-1 px-4 py-2.5 bg-white/60 dark:bg-gray-900/80 backdrop-blur-sm border border-gray-200/50 dark:border-gray-700/50 rounded-xl text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:border-transparent transition-all shadow-sm"
       />
       <button
         type="submit"

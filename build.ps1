@@ -1,6 +1,11 @@
 # WarHutTV Build Script
 # Usage: powershell -ExecutionPolicy Bypass -File build.ps1
 
+$OriginalLocation = Get-Location
+$OrigMiseShell = $env:MISE_SHELL
+$env:MISE_SHELL = ''  # 临时禁用 mise prompt hook，避免 Invoke-Expression 解析含空格 PATH 出错
+try {
+
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host "  WarHutTV Build" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
@@ -95,3 +100,8 @@ Get-ChildItem "bin" -Recurse | Where-Object { -not $_.PSIsContainer } | ForEach-
 
 Write-Host ""
 Write-Host "Run: cd bin && warhutv-windows-amd64.exe" -ForegroundColor Gray
+
+} finally {
+    $env:MISE_SHELL = $OrigMiseShell
+    Set-Location $OriginalLocation
+}

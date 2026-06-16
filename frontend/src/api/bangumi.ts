@@ -34,7 +34,14 @@ export async function getBangumiCalendar(): Promise<BangumiCalendarData[]> {
 
   try {
     const response = await apiClient.get('/bangumi/calendar', { timeout: 3000 });
-    const data = response.data;
+    const raw = response.data;
+    // Base64 decode if needed
+    let data;
+    try {
+      data = JSON.parse(atob(raw));
+    } catch {
+      data = raw;
+    }
     const result = data.map((item: BangumiCalendarData) => ({
       ...item,
       items: item.items.filter((bangumi) => bangumi.images),
@@ -45,3 +52,4 @@ export async function getBangumiCalendar(): Promise<BangumiCalendarData[]> {
     return [];
   }
 }
+

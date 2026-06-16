@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -47,6 +48,11 @@ func Search(c *gin.Context) {
 	}
 
 	// 多站点并行搜索，每个结果附带来源站点名
+	// 整体超时 9 秒，慢站点不阻塞整体响应
+	ctx := c.Request.Context()
+	timedCtx, cancel := context.WithTimeout(ctx, 9*time.Second)
+	defer cancel()
+
 	cfg := config.Get()
 	allResults := make(map[string]interface{})
 	var mu sync.Mutex
@@ -70,10 +76,28 @@ func Search(c *gin.Context) {
 		}(siteKey)
 	}
 
-	wg.Wait()
+	// 等待所有站点完成或超时，先到先回
+	done := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
 
-	// 只缓存有结果的数据
-	if len(allResults) > 0 {
+	select {
+	case <-done:
+	case <-timedCtx.Done():
+		// 超时了，返回已收集到的结果
+	}
+
+	// 只缓存有数据的结果（至少一个站点返回了实际列表项）
+	hasData := false
+	for _, r := range allResults {
+		if res, ok := r.(*services.SearchResult); ok && len(res.List) > 0 {
+			hasData = true
+			break
+		}
+	}
+	if hasData {
 		services.AppCache.Set(cacheKey, allResults, 1*time.Hour)
 	}
 	c.JSON(http.StatusOK, allResults)

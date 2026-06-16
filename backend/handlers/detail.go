@@ -22,5 +22,10 @@ func Detail(c *gin.Context) {
 		return
 	}
 
+	// 设置 site_key 到每个结果项
+	for i := range result.List {
+		result.List[i].SiteKey = site
+	}
+
 	c.JSON(http.StatusOK, result)
 }
