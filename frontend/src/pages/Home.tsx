@@ -12,9 +12,9 @@ import type { DoubanItem, BangumiCalendarData } from '../types';
 
 const SectionHeader = ({ title, href }: { title: string; href?: string }) => (
   <div className="mb-4 flex items-center justify-between">
-    <h2 className="text-xl font-bold text-gray-800 dark:text-gray-200">{title}</h2>
+    <h2 className="text-xl font-bold text-text">{title}</h2>
     {href && (
-      <Link to={href} className="flex items-center text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+      <Link to={href} className="flex items-center text-sm text-muted hover:text-text">
         查看更多
         <svg className="w-4 h-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
       </Link>
@@ -119,12 +119,12 @@ const Home = () => {
             <div className="space-y-8">
               {Array.from({ length: 3 }).map((_, i) => (
                 <div key={i}>
-                  <div className="h-6 w-32 bg-gray-200 dark:bg-gray-800 rounded animate-pulse mb-4" />
+                  <div className="h-6 w-32 bg-card rounded animate-pulse mb-4" />
                   <div className="flex space-x-6 overflow-hidden px-4 sm:px-6 py-2">
                     {Array.from({ length: 6 }).map((_, j) => (
                       <div key={j} className="min-w-[120px] w-[140px] sm:min-w-[160px] sm:w-[180px] flex-shrink-0">
-                        <div className="aspect-[2/3] bg-gray-200 dark:bg-gray-800 rounded-lg animate-pulse" />
-                        <div className="mt-2 h-4 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
+                        <div className="aspect-[2/3] bg-card rounded-lg animate-pulse" />
+                        <div className="mt-2 h-4 bg-card rounded animate-pulse" />
                       </div>
                     ))}
                   </div>
@@ -136,8 +136,8 @@ const Home = () => {
               {continueWatching.length > 0 && (
                 <section className="mb-8">
                   <div className="mb-4 flex items-center justify-between">
-                    <h2 className="text-xl font-bold text-gray-800 dark:text-gray-200">继续观看</h2>
-                    <button onClick={async () => { await historyStore.clear(); setContinueWatching([]); }} className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">清空</button>
+                    <h2 className="text-xl font-bold text-text">继续观看</h2>
+                    <button onClick={async () => { await historyStore.clear(); setContinueWatching([]); }} className="text-sm text-muted hover:text-text">清空</button>
                   </div>
                   <ScrollableRow>
                     {continueWatching.map((item: any) => (
@@ -192,7 +192,7 @@ const Home = () => {
               )}
 
               {!loading && hotMovies.length === 0 && hotTvShows.length === 0 && (
-                <div className="text-center text-gray-500 dark:text-gray-400 py-16">
+                <div className="text-center text-muted py-16">
                   <p className="text-lg">欢迎使用 WarHutTV</p>
                   <p className="mt-2">使用搜索栏查找影片</p>
                 </div>
@@ -202,13 +202,13 @@ const Home = () => {
         ) : (
           <section>
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-gray-800 dark:text-gray-200">我的收藏</h2>
+              <h2 className="text-xl font-bold text-text">我的收藏</h2>
               {favoriteItems.length > 0 && (
-                <button onClick={async () => { await favoritesStore.clear(); setFavoriteItems([]); }} className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">清空</button>
+                <button onClick={async () => { await favoritesStore.clear(); setFavoriteItems([]); }} className="text-sm text-muted hover:text-text">清空</button>
               )}
             </div>
             {favoriteItems.length === 0 ? (
-              <div className="text-center text-gray-500 dark:text-gray-400 py-16">暂无收藏内容</div>
+              <div className="text-center text-muted py-16">暂无收藏内容</div>
             ) : (
               <div className="grid grid-cols-3 gap-x-2 gap-y-12 sm:grid-cols-[repeat(auto-fill,180px)] sm:gap-x-8 sm:gap-y-20 px-4 sm:px-6 py-1 sm:py-2 pb-12 sm:pb-14">
                 {favoriteItems.map((item: any) => (
@@ -229,6 +229,3 @@ const Home = () => {
 };
 
 export default Home;
-
-
-

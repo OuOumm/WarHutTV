@@ -38,10 +38,10 @@ const WeekdaySelector = ({ value, onChange, className = '' }: WeekdaySelectorPro
   return (
     <div
       ref={containerRef}
-      className={`relative inline-flex items-center bg-gray-100/80 dark:bg-gray-800/60 rounded-lg p-1 ${className}`}
+      className={`relative inline-flex items-center bg-surface rounded-lg p-1 ${className}`}
     >
       <div
-        className="absolute top-1 bottom-1 bg-white dark:bg-gray-700 rounded-md shadow-sm transition-all duration-200"
+        className="absolute top-1 bottom-1 bg-card rounded-md shadow-sm transition-all duration-200"
         style={{ left: indicator.left, width: indicator.width }}
       />
       {weekdays.map((weekday, i) => {
@@ -53,8 +53,8 @@ const WeekdaySelector = ({ value, onChange, className = '' }: WeekdaySelectorPro
             onClick={() => onChange(weekday.value)}
             className={`relative z-10 px-3 py-1.5 text-sm rounded-md transition-colors whitespace-nowrap ${
               isActive
-                ? 'text-green-600 dark:text-green-400 font-medium'
-                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                ? 'text-primary font-medium'
+                : 'text-muted hover:text-text'
             }`}
           >
             {weekday.label}

@@ -89,7 +89,7 @@ const Search = () => {
       <div className="max-w-[95%] mx-auto mt-12 overflow-visible">
         {loading && (
           <div className="flex justify-center items-center h-40">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500" />
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
           </div>
         )}
 
@@ -98,21 +98,21 @@ const Search = () => {
         )}
 
         {!loading && !error && results.length === 0 && keyword && (
-          <div className="text-center text-gray-500 dark:text-gray-400 py-8">未找到相关结果</div>
+          <div className="text-center text-muted py-8">未找到相关结果</div>
         )}
 
         {results.length > 0 && (
           <>
             {/* 标题 + 聚合开关 */}
             <div className="mb-6 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-gray-800 dark:text-gray-200">
+              <h2 className="text-xl font-bold text-text">
                 搜索结果
-                <span className="ml-2 text-sm font-normal text-gray-500 dark:text-gray-400">
+                <span className="ml-2 text-sm font-normal text-muted">
                   {viewMode === 'agg' ? aggregatedResults.length : results.length} 个结果
                 </span>
               </h2>
               <label className="flex items-center gap-2 cursor-pointer select-none">
-                <span className="text-sm text-gray-700 dark:text-gray-300">聚合</span>
+                <span className="text-sm text-muted">聚合</span>
                 <div className="relative">
                   <input
                     type="checkbox"
@@ -120,7 +120,7 @@ const Search = () => {
                     checked={viewMode === 'agg'}
                     onChange={() => setViewMode(viewMode === 'agg' ? 'all' : 'agg')}
                   />
-                  <div className="w-9 h-5 bg-gray-300 rounded-full peer-checked:bg-green-500 transition-colors dark:bg-gray-700" />
+                  <div className="w-9 h-5 bg-surface rounded-full peer-checked:bg-primary transition-colors" />
                   <div className="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-4" />
                 </div>
               </label>
@@ -134,7 +134,7 @@ const Search = () => {
                       <VideoCard video={agg.item} from="vod" />
                       {agg.sourceCount > 1 && (
                         <div className="mt-1.5 flex justify-center">
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-500/10 text-blue-600 dark:text-blue-400 text-xs font-medium rounded-full">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-500/10 text-blue-400 text-xs font-medium rounded-full">
                             <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
                             {agg.sourceCount} 个源
                           </span>

@@ -1,5 +1,26 @@
 @import "tailwindcss";
-@custom-variant dark (&:is(.dark *));
+
+/* ==================== THEME DEFINITION ==================== */
+/* 只需修改这里即可切换整套配色 */
+@theme {
+  /* 背景色 */
+  --color-deep: #0b111e;
+  --color-card: #111827;
+  --color-surface: #0f172a;
+
+  /* 主色调 */
+  --color-primary: #e6b91e;
+  --color-primary-dim: #b8941a;
+  --color-primary-glow: rgba(230, 185, 30, 0.15);
+
+  /* 文字色 */
+  --color-text: #f0f0f0;
+  --color-muted: #8b95a5;
+
+  /* 毛玻璃 */
+  --color-glass: rgba(17, 24, 39, 0.65);
+  --color-glass-border: rgba(230, 185, 30, 0.15);
+}
 
 @layer utilities {
   .scrollbar-hide {
@@ -11,10 +32,7 @@
   }
 }
 
-:root {
-  --foreground-rgb: 255, 255, 255;
-}
-
+/* ==================== BASE ==================== */
 html, body {
   height: 100%;
   overflow-x: hidden;
@@ -22,18 +40,38 @@ html, body {
 }
 
 body {
-  color: rgb(var(--foreground-rgb));
+  font-family: 'Inter', sans-serif;
+  background-color: var(--color-deep);
+  color: var(--color-text);
   transition: background-color 0.3s ease, color 0.3s ease;
+  -webkit-font-smoothing: antialiased;
 }
 
-html:not(.dark) body {
-  background: linear-gradient(180deg, #e6f3fb 0%, #eaf3f7 18%, #f7f7f3 38%, #e9ecef 60%, #dbe3ea 80%, #d3dde6 100%);
-  background-attachment: fixed;
+/* 背景氛围光晕 */
+body::before {
+  content: '';
+  position: fixed;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: 
+    radial-gradient(ellipse at 20% 50%, rgba(230, 185, 30, 0.04) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 20%, rgba(59, 130, 246, 0.03) 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 80%, rgba(139, 92, 246, 0.02) 0%, transparent 50%);
+  pointer-events: none;
+  z-index: 0;
 }
 
-html.dark body {
-  background: #000;
-  background-attachment: fixed;
+/* 胶片颗粒纹理 */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.5;
 }
 
 * {
@@ -42,33 +80,52 @@ html.dark body {
 }
 *::-webkit-scrollbar { display: none; }
 
-/* Theme transition */
-::view-transition-old(root),
-::view-transition-new(root) {
-  animation-duration: 0.3s;
-  animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+/* ==================== CARD ANIMATIONS ==================== */
+@keyframes shineSwipe {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(100%); }
 }
 
-::view-transition-old(root) {
-  animation: none;
+@keyframes ratingBounce {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.25); }
 }
 
-html.dark::view-transition-new(root) {
-  animation-name: slide-from-top;
+.card-shine {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    115deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.08) 45%,
+    rgba(255, 255, 255, 0.15) 50%,
+    rgba(255, 255, 255, 0.08) 55%,
+    transparent 70%
+  );
+  transform: translateX(-100%);
+  pointer-events: none;
+  z-index: 2;
 }
 
-html:not(.dark)::view-transition-new(root) {
-  animation-name: slide-from-bottom;
+.group:hover .card-shine {
+  animation: shineSwipe 0.6s ease forwards;
 }
 
-@keyframes slide-from-top {
-  from { clip-path: polygon(0 0, 100% 0, 100% 0, 0 0); }
-  to { clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%); }
+.card-rating {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
 }
 
-@keyframes slide-from-bottom {
-  from { clip-path: polygon(0 100%, 100% 100%, 100% 100%, 0 100%); }
-  to { clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%); }
+.group:hover .card-rating {
+  animation: ratingBounce 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card-shine,
+  .card-rating {
+    animation: none !important;
+  }
 }
 
 @media (max-width: 767px) {

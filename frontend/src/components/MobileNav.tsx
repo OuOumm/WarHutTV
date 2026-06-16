@@ -33,7 +33,7 @@ const MobileNav = (_props: MobileNavProps) => {
         paddingBottom: 'env(safe-area-inset-bottom)',
         minHeight: 'calc(3.5rem + env(safe-area-inset-bottom))',
       }}
-      className="md:hidden fixed left-0 right-0 z-[600] border-t border-gray-200/50 bg-white/90 dark:bg-gray-950/95 dark:border-gray-800 overflow-hidden"
+      className="md:hidden fixed left-0 right-0 z-[600] border-t border-glass-border bg-card overflow-hidden"
     >
       <ul className="flex items-center overflow-x-auto scrollbar-hide">
         {navItems.map((item) => {
@@ -45,14 +45,14 @@ const MobileNav = (_props: MobileNavProps) => {
                 className="flex flex-col items-center justify-center w-full h-14 gap-1 text-xs"
               >
                 <svg
-                  className={`h-6 w-6 ${active ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400'}`}
+                  className={`h-6 w-6 ${active ? 'text-primary' : 'text-muted'}`}
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
                 >
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={item.icon} />
                 </svg>
-                <span className={active ? 'text-green-600 dark:text-green-400' : 'text-gray-600 dark:text-gray-300'}>
+                <span className={active ? 'text-primary' : 'text-muted'}>
                   {item.label}
                 </span>
               </NavLink>

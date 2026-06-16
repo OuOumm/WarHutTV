@@ -28,8 +28,8 @@ const Login = () => {
     <div className="min-h-screen flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-green-600">WarHutTV</h1>
-          <p className="text-gray-500 dark:text-gray-400 mt-2 text-sm">影视聚合播放器</p>
+          <h1 className="text-3xl font-bold text-primary">WarHutTV</h1>
+          <p className="text-muted mt-2 text-sm">影视聚合播放器</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -39,7 +39,7 @@ const Login = () => {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="请输入访问密码"
-              className="w-full px-4 py-3 bg-white/60 dark:bg-gray-900/80 backdrop-blur-sm border border-gray-200/50 dark:border-gray-700/50 rounded-xl text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:border-transparent transition-all shadow-sm"
+              className="w-full px-4 py-3 bg-glass backdrop-blur-sm border border-glass-border rounded-xl text-text placeholder-muted focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-transparent transition-all shadow-sm"
               disabled={loading}
               autoFocus
             />
@@ -52,7 +52,7 @@ const Login = () => {
           <button
             type="submit"
             disabled={loading || !password}
-            className="w-full py-3 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-medium rounded-xl transition-colors shadow-sm"
+            className="w-full py-3 bg-primary hover:bg-primary-dim disabled:bg-gray-600 disabled:cursor-not-allowed text-deep font-medium rounded-xl transition-colors shadow-sm"
           >
             {loading ? '登录中...' : '进入'}
           </button>

@@ -193,8 +193,8 @@ const Play = () => {
 
   const toggleFavorite = async () => { if (!detail) return; const result = await favoritesStore.toggle(detail); setIsFavorite(result); };
 
-  if (loading) return <div className="flex justify-center items-center h-[60vh]"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500" /></div>;
-  if (!detail) return <div className="text-center text-gray-500 dark:text-gray-400 py-8">未找到视频</div>;
+  if (loading) return <div className="flex justify-center items-center h-[60vh]"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>;
+  if (!detail) return <div className="text-center text-muted py-8">未找到视频</div>;
 
   return (
     <div>
@@ -206,9 +206,9 @@ const Play = () => {
 
       <div className="flex flex-col gap-4 py-4 px-5 lg:px-[3rem] 2xl:px-20">
         <div className="py-1">
-          <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+          <h1 className="text-xl font-semibold text-text">
             {detail.vod_name}
-            {currentEpisode && <span className="text-gray-500 dark:text-gray-400">{` > ${currentEpisode.name}`}</span>}
+            {currentEpisode && <span className="text-muted">{` > ${currentEpisode.name}`}</span>}
           </h1>
         </div>
 
@@ -218,59 +218,59 @@ const Play = () => {
               {playUrl ? (
                 <Player url={playUrl} title={detail.vod_name} currentTime={currentTime} onTimeUpdate={(t) => { setCurrentTime(t); if (historyVodId) historyStore.updateProgress(historyVodId, t, 0); }} />
               ) : (
-                <div className="w-full h-full flex items-center justify-center text-gray-500">选择集数开始播放</div>
+                <div className="w-full h-full flex items-center justify-center text-muted">选择集数开始播放</div>
               )}
             </div>
           </div>
 
           <div className="md:col-span-1 h-[300px] lg:h-full">
-            <div className="h-full bg-gray-100 dark:bg-gray-900 rounded-xl overflow-hidden flex flex-col">
-              <div className="flex border-b border-gray-200 dark:border-gray-800 flex-shrink-0">
-                <button onClick={() => handleTabChange('episodes')} className={`flex-1 px-3 py-2.5 text-sm font-medium transition-colors ${activeTab === 'episodes' ? 'text-green-600 dark:text-green-400 border-b-2 border-green-600 dark:border-green-400 bg-white dark:bg-gray-900' : 'text-gray-500 dark:text-gray-400'}`}>
+            <div className="h-full bg-card rounded-xl overflow-hidden flex flex-col">
+              <div className="flex border-b border-glass-border flex-shrink-0">
+                <button onClick={() => handleTabChange('episodes')} className={`flex-1 px-3 py-2.5 text-sm font-medium transition-colors ${activeTab === 'episodes' ? 'text-primary border-b-2 border-primary bg-deep' : 'text-muted'}`}>
                   播放集数
                 </button>
-                <button onClick={() => handleTabChange('sources')} className={`flex-1 px-3 py-2.5 text-sm font-medium transition-colors ${activeTab === 'sources' ? 'text-green-600 dark:text-green-400 border-b-2 border-green-600 dark:border-green-400 bg-white dark:bg-gray-900' : 'text-gray-500 dark:text-gray-400'}`}>
+                <button onClick={() => handleTabChange('sources')} className={`flex-1 px-3 py-2.5 text-sm font-medium transition-colors ${activeTab === 'sources' ? 'text-primary border-b-2 border-primary bg-deep' : 'text-muted'}`}>
                   换源
                 </button>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-2 bg-white dark:bg-gray-900">
+              <div className="flex-1 overflow-y-auto p-2 bg-deep">
                 {activeTab === 'episodes' ? (
                   <div className="grid grid-cols-3 gap-1.5">
                     {episodes.map((ep, index) => (
-                      <button key={index} onClick={() => handleEpisodeClick(ep)} className={`px-2 py-1.5 text-xs rounded-md transition-colors truncate ${currentEpisode?.name === ep.name ? 'bg-green-600 text-white' : 'bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-700'}`} title={ep.name}>
+                      <button key={index} onClick={() => handleEpisodeClick(ep)} className={`px-2 py-1.5 text-xs rounded-md transition-colors truncate ${currentEpisode?.name === ep.name ? 'bg-primary text-deep' : 'bg-surface text-muted hover:bg-card'}`} title={ep.name}>
                         {ep.name}
                       </button>
                     ))}
                   </div>
                 ) : sourceLoading ? (
-                  <div className="flex justify-center py-4"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-500" /></div>
+                  <div className="flex justify-center py-4"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" /></div>
                 ) : sources.length === 0 ? (
-                  <div className="text-center text-gray-400 text-sm py-4">暂无其他播放源</div>
+                  <div className="text-center text-muted text-sm py-4">暂无其他播放源</div>
                 ) : (
                   <div className="space-y-1.5">
                     {sources.map((source) => (
-                      <div key={source.key} onClick={() => handleSourceSwitch(source.key)} className={`flex gap-2.5 p-2 rounded-lg cursor-pointer transition-colors ${currentSource === source.key ? 'bg-green-50 dark:bg-green-900/20 ring-1 ring-green-500' : 'hover:bg-gray-100 dark:hover:bg-gray-800'}`}>
-                        <div className="w-12 h-16 flex-shrink-0 rounded overflow-hidden bg-gray-200 dark:bg-gray-800">
-                          {source.poster ? <img src={processImageUrl(source.poster)} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs">暂无</div>}
+                      <div key={source.key} onClick={() => handleSourceSwitch(source.key)} className={`flex gap-2.5 p-2 rounded-lg cursor-pointer transition-colors ${currentSource === source.key ? 'bg-primary-glow ring-1 ring-primary' : 'hover:bg-surface'}`}>
+                        <div className="w-12 h-16 flex-shrink-0 rounded overflow-hidden bg-surface">
+                          {source.poster ? <img src={processImageUrl(source.poster)} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-muted text-xs">暂无</div>}
                         </div>
                         <div className="flex-1 min-w-0 flex flex-col justify-between">
                           <div>
                             <div className="flex items-center justify-between">
-                              <span className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">{detail.vod_name}</span>
-                              {source.speed && <span className="text-[10px] px-1.5 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded">{source.speed.quality}</span>}
-                              {source.status === 'error' && <span className="text-[10px] px-1.5 py-0.5 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded">检测失败</span>}
+                              <span className="text-sm font-medium text-text truncate">{detail.vod_name}</span>
+                              {source.speed && <span className="text-[10px] px-1.5 py-0.5 bg-green-900/30 text-green-400 rounded">{source.speed.quality}</span>}
+                              {source.status === 'error' && <span className="text-[10px] px-1.5 py-0.5 bg-red-900/30 text-red-400 rounded">检测失败</span>}
                             </div>
                             <div className="flex items-center gap-1 mt-0.5">
-                              <span className="text-[10px] px-1 py-0.5 bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded">{source.name}</span>
-                              {source.episodeCount && <span className="text-[10px] text-gray-400">{source.episodeCount} 集</span>}
+                              <span className="text-[10px] px-1 py-0.5 bg-card text-muted rounded">{source.name}</span>
+                              {source.episodeCount && <span className="text-[10px] text-muted">{source.episodeCount} 集</span>}
                             </div>
                           </div>
                           <div className="text-[10px]">
                             {(() => {
-                              if (source.status === 'testing') return <span className="text-gray-400">测速中...</span>;
-                              if (source.speed) return <span><span className="text-blue-600 dark:text-blue-400">{source.speed.loadSpeed}</span> <span className="text-orange-500">{source.speed.pingTime}ms</span></span>;
-                              return <span className="text-gray-400">无测速数据</span>;
+                              if (source.status === 'testing') return <span className="text-muted">测速中...</span>;
+                              if (source.speed) return <span><span className="text-blue-400">{source.speed.loadSpeed}</span> <span className="text-orange-500">{source.speed.pingTime}ms</span></span>;
+                              return <span className="text-muted">无测速数据</span>;
                             })()}
                           </div>
                         </div>
@@ -294,28 +294,28 @@ const Play = () => {
 
           <div className="md:col-span-3">
             <div className="p-4">
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2 flex items-center gap-3">
+              <h1 className="text-2xl sm:text-3xl font-bold text-text mb-2 flex items-center gap-3">
                 {detail.vod_name}
                 <button onClick={toggleFavorite} className="flex-shrink-0 hover:opacity-80 transition-opacity">
                   {isFavorite ? (
                     <svg className="h-7 w-7" viewBox="0 0 24 24" fill="#ef4444" stroke="#ef4444" strokeWidth="2"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" /></svg>
                   ) : (
-                    <svg className="h-7 w-7 text-gray-600 dark:text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1"><path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" /></svg>
+                    <svg className="h-7 w-7 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1"><path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" /></svg>
                   )}
                 </button>
               </h1>
 
               <div className="flex flex-wrap items-center gap-3 text-base mb-4">
-                {detail.type_name && <span className="text-green-600 font-semibold">{detail.type_name}</span>}
-                {detail.vod_year && <span className="text-gray-500 dark:text-gray-400">{detail.vod_year}</span>}
-                <span className="border border-gray-400 dark:border-gray-500 px-2 py-0.5 rounded text-gray-600 dark:text-gray-400 text-sm">
+                {detail.type_name && <span className="text-primary font-semibold">{detail.type_name}</span>}
+                {detail.vod_year && <span className="text-muted">{detail.vod_year}</span>}
+                <span className="border border-glass-border px-2 py-0.5 rounded text-muted text-sm">
                   {sources.find(s => s.key === currentSource)?.name || site}
                 </span>
-                {detail.vod_remarks && <span className="text-gray-500 dark:text-gray-400">{detail.vod_remarks}</span>}
+                {detail.vod_remarks && <span className="text-muted">{detail.vod_remarks}</span>}
               </div>
 
               {detail.vod_content && (
-                <p className="text-base leading-relaxed text-gray-600 dark:text-gray-400" style={{ whiteSpace: 'pre-line' }}>
+                <p className="text-base leading-relaxed text-muted" style={{ whiteSpace: 'pre-line' }}>
                   {detail.vod_content.replace(/<[^>]*>/g, '')}
                 </p>
               )}
@@ -328,4 +328,3 @@ const Play = () => {
 };
 
 export default Play;
-
