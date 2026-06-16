@@ -120,7 +120,7 @@ const Search = () => {
                     checked={viewMode === 'agg'}
                     onChange={() => setViewMode(viewMode === 'agg' ? 'all' : 'agg')}
                   />
-                  <div className="w-9 h-5 bg-gray-300 rounded-full peer-checked:bg-green-500 transition-colors dark:bg-gray-600" />
+                  <div className="w-9 h-5 bg-gray-300 rounded-full peer-checked:bg-green-500 transition-colors dark:bg-gray-700" />
                   <div className="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-4" />
                 </div>
               </label>

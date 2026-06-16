@@ -15,6 +15,7 @@ export interface VideoItem {
   vod_remarks?: string;
   type_id?: string | number;
   type_name?: string;
+  site_key?: string;
 }
 
 export interface SearchResult {
@@ -89,3 +90,6 @@ export interface BangumiItem {
     grid: string;
   };
 }
+
+
+

@@ -29,14 +29,9 @@ const Sidebar = () => {
 
   return (
     <aside
-      className={`fixed top-0 left-0 h-screen transition-all duration-300 border-r border-gray-200/50 z-10 shadow-lg dark:bg-gray-900/70 dark:border-gray-700/50 ${
+      className={`fixed top-0 left-0 h-screen transition-all duration-300 border-r border-gray-200/50 z-10 shadow-lg bg-white/40 dark:bg-[hsl(232.62deg_4.98%_6%)] dark:border-gray-800/80 backdrop-blur-xl ${
         collapsed ? 'w-16' : 'w-64'
       }`}
-      style={{
-        backgroundColor: 'rgba(255,255,255,0.4)',
-        backdropFilter: 'blur(20px)',
-        WebkitBackdropFilter: 'blur(20px)',
-      }}
     >
       <div className="flex h-full flex-col">
         {/* Logo */}
@@ -46,7 +41,7 @@ const Sidebar = () => {
           )}
           <button
             onClick={() => setCollapsed(!collapsed)}
-            className={`absolute top-1/2 -translate-y-1/2 flex items-center justify-center w-8 h-8 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100/50 transition-colors dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-700/50 ${
+            className={`absolute top-1/2 -translate-y-1/2 flex items-center justify-center w-8 h-8 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100/50 transition-colors dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-800/50 ${
               collapsed ? 'left-1/2 -translate-x-1/2' : 'right-2'
             }`}
           >
@@ -83,7 +78,7 @@ const Sidebar = () => {
               <NavLink
                 key={item.path}
                 to={item.path}
-                className={`group flex items-center rounded-lg px-2 py-2 pl-4 text-sm text-gray-700 hover:bg-gray-100/30 hover:text-green-600 transition-colors duration-200 min-h-[40px] dark:text-gray-300 dark:hover:text-green-400 gap-3 ${
+                className={`group flex items-center rounded-lg px-2 py-2 pl-4 text-sm text-gray-700 hover:bg-gray-100/30 hover:text-green-600 transition-colors duration-200 min-h-[40px] dark:text-gray-400 dark:hover:text-green-400 gap-3 ${
                   isActive(item.path) ? 'bg-green-500/20 text-green-700 dark:bg-green-500/10 dark:text-green-400' : ''
                 }`}
               >

@@ -26,15 +26,14 @@ const MobileNav = (_props: MobileNavProps) => {
 
   return (
     <nav
-      className="md:hidden fixed left-0 right-0 z-[600] border-t border-gray-200/50 dark:border-gray-700/50 overflow-hidden"
       style={{
-        backgroundColor: 'rgba(255,255,255,0.9)',
         backdropFilter: 'blur(20px)',
         WebkitBackdropFilter: 'blur(20px)',
         bottom: 0,
         paddingBottom: 'env(safe-area-inset-bottom)',
         minHeight: 'calc(3.5rem + env(safe-area-inset-bottom))',
       }}
+      className="md:hidden fixed left-0 right-0 z-[600] border-t border-gray-200/50 bg-white/90 dark:bg-gray-950/95 dark:border-gray-800 overflow-hidden"
     >
       <ul className="flex items-center overflow-x-auto scrollbar-hide">
         {navItems.map((item) => {

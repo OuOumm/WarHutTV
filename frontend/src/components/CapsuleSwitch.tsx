@@ -28,10 +28,10 @@ const CapsuleSwitch = ({ options, active, onChange }: CapsuleSwitchProps) => {
   }, [activeIndex]);
 
   return (
-    <div ref={containerRef} className="relative inline-flex bg-gray-200/80 dark:bg-gray-700 rounded-full p-1">
+    <div ref={containerRef} className="relative inline-flex bg-gray-200/80 dark:bg-gray-800 rounded-full p-1">
       {indicator.width > 0 && (
         <div
-          className="absolute top-1 bottom-1 bg-white dark:bg-gray-500 rounded-full shadow-sm transition-all duration-300 ease-out"
+          className="absolute top-1 bottom-1 bg-white dark:bg-gray-700 rounded-full shadow-sm transition-all duration-300 ease-out"
           style={{ left: `${indicator.left}px`, width: `${indicator.width}px` }}
         />
       )}
@@ -43,7 +43,7 @@ const CapsuleSwitch = ({ options, active, onChange }: CapsuleSwitchProps) => {
           className={`relative z-10 px-5 py-1.5 text-sm rounded-full font-medium transition-all duration-200 ${
             active === opt.value
               ? 'text-gray-900 dark:text-gray-100'
-              : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100'
+              : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'
           }`}
         >
           {opt.label}

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
 	"time"
 
 	"warhutv/config"
@@ -41,6 +40,7 @@ type VideoDetail struct {
 	VodPlayURL  string      `json:"vod_play_url"`
 	TypeID      interface{} `json:"type_id"`
 	TypeName    string      `json:"type_name"`
+	SiteKey     string      `json:"site_key,omitempty"`
 }
 
 type DetailResult struct {
@@ -76,7 +76,7 @@ func ProxyDetail(siteKey, vodID string) (*DetailResult, error) {
 	cfg := config.Get()
 	site, ok := cfg.APISite[siteKey]
 	if !ok {
-		return nil, fmt.Errorf("site not found: %s", site.API)
+		return nil, fmt.Errorf("site not found: %s", siteKey)
 	}
 
 	url := fmt.Sprintf("%s?ac=detail&ids=%s", site.API, vodID)
@@ -87,18 +87,9 @@ func ProxyPlay(siteKey, vodID, episode string) (string, error) {
 	cfg := config.Get()
 	site, ok := cfg.APISite[siteKey]
 	if !ok {
-		return "", fmt.Errorf("site not found: %s", site.API)
+		return "", fmt.Errorf("site not found: %s", siteKey)
 	}
 
-	// 从 episode 参数中提取 URL（格式：名称$url）
-	if strings.Contains(episode, "$") {
-		parts := strings.SplitN(episode, "$", 2)
-		if len(parts) == 2 {
-			return parts[1], nil
-		}
-	}
-
-	// 如果没有 URL，尝试通过 API 获取
 	url := fmt.Sprintf("%s?ac=play&ids=%s", site.API, vodID)
 	playResult, err := doRequest[PlayResult](url)
 	if err != nil {

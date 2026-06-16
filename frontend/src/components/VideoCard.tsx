@@ -82,8 +82,7 @@ const VideoCard = ({ video, douban, bangumi, from = 'vod', onDelete, showActions
     const handleDeleteClick = (e: React.MouseEvent) => {
       e.preventDefault();
       e.stopPropagation();
-      historyStore.remove(video.vod_id);
-      onDelete?.();
+      onDelete ? onDelete() : historyStore.remove(video.vod_id);
     };
 
     return (
@@ -126,7 +125,7 @@ const VideoCard = ({ video, douban, bangumi, from = 'vod', onDelete, showActions
           <span className="block text-sm font-semibold truncate text-gray-900 dark:text-gray-100 group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors">{video.vod_name}</span>
           {video.type_name && (
             <span className="block text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-              <span className="inline-block border rounded px-2 py-0.5 border-gray-500/60 dark:border-gray-400/60 group-hover:border-green-500/60 group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors">{video.type_name}</span>
+              <span className="inline-block border rounded px-2 py-0.5 border-gray-500/60 dark:border-gray-500/60 group-hover:border-green-500/60 group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors">{video.type_name}</span>
             </span>
           )}
         </div>
