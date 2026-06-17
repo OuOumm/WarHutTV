@@ -24,6 +24,8 @@ export default function ThemeSwitcher() {
     setCurrentTheme(theme);
     saveTheme(theme.id);
     setIsOpen(false);
+    // 通知其他组件主题已更改
+    window.dispatchEvent(new CustomEvent('theme-change', { detail: theme }));
   };
 
   return (

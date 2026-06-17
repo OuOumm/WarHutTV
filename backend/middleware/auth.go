@@ -36,3 +36,10 @@ func AuthMiddleware() gin.HandlerFunc {
 		c.Next()
 	}
 }
+
+// ValidateToken 验证 JWT token（用于 SSE 等无法设置 header 的场景）
+func ValidateToken(token string) bool {
+	cfg := config.Get()
+	_, err := utils.ValidateToken(token, cfg.JWTSecret)
+	return err == nil
+}

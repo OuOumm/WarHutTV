@@ -4,22 +4,22 @@
 /* 只需修改这里即可切换整套配色 */
 @theme {
   /* 背景色 */
-  --color-deep: #0b111e;
-  --color-card: #111827;
-  --color-surface: #0f172a;
+  --color-deep: #10080c;
+  --color-card: #1a0f14;
+  --color-surface: #231520;
 
-  /* 主色调 */
-  --color-primary: #e6b91e;
-  --color-primary-dim: #b8941a;
-  --color-primary-glow: rgba(230, 185, 30, 0.15);
+  /* 主色调 - 绯红 */
+  --color-primary: #e11d48;
+  --color-primary-dim: #be123c;
+  --color-primary-glow: rgba(225, 29, 72, 0.15);
 
   /* 文字色 */
-  --color-text: #f0f0f0;
-  --color-muted: #8b95a5;
+  --color-text: #f5f0f2;
+  --color-muted: #8a7580;
 
   /* 毛玻璃 */
-  --color-glass: rgba(17, 24, 39, 0.65);
-  --color-glass-border: rgba(230, 185, 30, 0.15);
+  --color-glass: rgba(26, 15, 20, 0.65);
+  --color-glass-border: rgba(225, 29, 72, 0.15);
 }
 
 @layer utilities {
@@ -56,9 +56,9 @@ body::before {
   width: 200%;
   height: 200%;
   background: 
-    radial-gradient(ellipse at 20% 50%, var(--glow-1, rgba(230, 185, 30, 0.04)) 0%, transparent 50%),
-    radial-gradient(ellipse at 80% 20%, var(--glow-2, rgba(59, 130, 246, 0.03)) 0%, transparent 50%),
-    radial-gradient(ellipse at 50% 80%, var(--glow-3, rgba(139, 92, 246, 0.02)) 0%, transparent 50%);
+    radial-gradient(ellipse at 20% 50%, var(--glow-1, rgba(225, 29, 72, 0.05)) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 20%, var(--glow-2, rgba(244, 114, 182, 0.03)) 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 80%, var(--glow-3, rgba(251, 191, 36, 0.02)) 0%, transparent 50%);
   pointer-events: none;
   z-index: 0;
 }

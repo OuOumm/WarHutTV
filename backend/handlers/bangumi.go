@@ -44,6 +44,6 @@ func BangumiCalendar(c *gin.Context) {
 		return
 	}
 
-	services.AppCache.Set(cacheKey, body, 12*time.Hour)
+	services.AppCache.Set(cacheKey, string(body), 12*time.Hour)
 	c.Data(http.StatusOK, "application/json", body)
 }

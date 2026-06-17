@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"time"
 
@@ -76,11 +77,20 @@ func ProxyDetail(siteKey, vodID string) (*DetailResult, error) {
 	cfg := config.Get()
 	site, ok := cfg.APISite[siteKey]
 	if !ok {
+		log.Printf("[ProxyDetail] site not found: %s, available sites: %v", siteKey, getSiteKeys(cfg))
 		return nil, fmt.Errorf("site not found: %s", siteKey)
 	}
 
 	url := fmt.Sprintf("%s?ac=detail&ids=%s", site.API, vodID)
 	return doRequest[DetailResult](url)
+}
+
+func getSiteKeys(cfg *config.Config) []string {
+	keys := make([]string, 0, len(cfg.APISite))
+	for k := range cfg.APISite {
+		keys = append(keys, k)
+	}
+	return keys
 }
 
 func ProxyPlay(siteKey, vodID, episode string) (string, error) {

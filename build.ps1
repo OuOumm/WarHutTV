@@ -11,16 +11,15 @@ Write-Host "  WarHutTV Build" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 
 # 1. Clean
-Write-Host "`n[1/6] Cleaning..." -ForegroundColor Yellow
+Write-Host "`n[1/5] Cleaning..." -ForegroundColor Yellow
 if (Test-Path "bin") { Remove-Item -Recurse -Force "bin" }
 if (Test-Path "frontend\dist") { Remove-Item -Recurse -Force "frontend\dist" }
 if (Test-Path "backend\frontend") { Remove-Item -Recurse -Force "backend\frontend" }
-New-Item -ItemType Directory -Force -Path "bin\data" | Out-Null
-New-Item -ItemType Directory -Force -Path "bin\data\cache" | Out-Null
+New-Item -ItemType Directory -Force -Path "bin" | Out-Null
 Write-Host "  Done" -ForegroundColor Green
 
 # 2. Build frontend
-Write-Host "`n[2/6] Building frontend..." -ForegroundColor Yellow
+Write-Host "`n[2/5] Building frontend..." -ForegroundColor Yellow
 Push-Location "frontend"
 npm run build
 $frontendOk = $LASTEXITCODE -eq 0
@@ -31,14 +30,10 @@ if (-not $frontendOk) {
 }
 Write-Host "  Done" -ForegroundColor Green
 
-# 3. Copy frontend to backend
-Write-Host "`n[3/6] Copying frontend..." -ForegroundColor Yellow
-Copy-Item -Path "frontend\dist" -Destination "backend\frontend\dist" -Recurse -Force
-Write-Host "  Done" -ForegroundColor Green
-
-# 4. Build backend
-Write-Host "`n[4/6] Building backend..." -ForegroundColor Yellow
+# 3. Build backend
+Write-Host "`n[3/5] Building backend..." -ForegroundColor Yellow
 Push-Location "backend"
+Copy-Item -Path "..\frontend\dist" -Destination "frontend\dist" -Recurse -Force
 
 Write-Host "  Building Windows amd64..." -ForegroundColor Gray
 $env:GOOS = "windows"
@@ -47,11 +42,6 @@ go build -o "..\bin\warhutv-windows-amd64.exe" -ldflags="-s -w" .
 $winOk = $LASTEXITCODE -eq 0
 Remove-Item Env:GOOS -ErrorAction SilentlyContinue
 Remove-Item Env:GOARCH -ErrorAction SilentlyContinue
-if (-not $winOk) {
-    Pop-Location
-    Write-Host "  Windows build failed!" -ForegroundColor Red
-    exit 1
-}
 
 Write-Host "  Building Linux amd64..." -ForegroundColor Gray
 $env:GOOS = "linux"
@@ -60,35 +50,33 @@ go build -o "..\bin\warhutv-linux-amd64" -ldflags="-s -w" .
 $linOk = $LASTEXITCODE -eq 0
 Remove-Item Env:GOOS -ErrorAction SilentlyContinue
 Remove-Item Env:GOARCH -ErrorAction SilentlyContinue
+
+Remove-Item -Recurse -Force "frontend" -ErrorAction SilentlyContinue
 Pop-Location
 
-if (-not $linOk) {
-    Write-Host "  Linux build failed!" -ForegroundColor Red
+if (-not $winOk -or -not $linOk) {
+    Write-Host "  Backend build failed!" -ForegroundColor Red
     exit 1
 }
 Write-Host "  Done" -ForegroundColor Green
 
-# 5. Copy config (skip if already exists)
-Write-Host "`n[5/6] Copying config..." -ForegroundColor Yellow
-if (Test-Path "data\config.json") {
-    if (Test-Path "bin\data\config.json") {
-        Write-Host "  Skipped: bin\data\config.json already exists" -ForegroundColor Gray
-    } else {
-        Copy-Item -Path "data\config.json" -Destination "bin\data\config.json"
-        Write-Host "  Done" -ForegroundColor Green
-    }
+# 4. Compress with UPX
+Write-Host "`n[4/5] Compressing with UPX..." -ForegroundColor Yellow
+$upxAvailable = Get-Command upx -ErrorAction SilentlyContinue
+if ($upxAvailable) {
+    Write-Host "  Compressing Windows binary..." -ForegroundColor Gray
+    upx --best --lzma "bin\warhutv-windows-amd64.exe" 2>&1 | Out-Null
+    
+    Write-Host "  Compressing Linux binary..." -ForegroundColor Gray
+    upx --best --lzma "bin\warhutv-linux-amd64" 2>&1 | Out-Null
+    
+    Write-Host "  Done" -ForegroundColor Green
 } else {
-    Write-Host "  Skipped: data\config.json not found" -ForegroundColor Gray
+    Write-Host "  UPX not found, skipping compression" -ForegroundColor Yellow
 }
 
-# 6. Cleanup
-Write-Host "`n[6/6] Cleaning up..." -ForegroundColor Yellow
-Remove-Item -Recurse -Force "backend\frontend" -ErrorAction SilentlyContinue
-Write-Host "  Done" -ForegroundColor Green
-
-# Result
-Write-Host "`n========================================" -ForegroundColor Cyan
-Write-Host "  Build Complete!" -ForegroundColor Green
+# 5. Result
+Write-Host "`n[5/5] Build Complete!" -ForegroundColor Green
 Write-Host "========================================" -ForegroundColor Cyan
 
 Write-Host "`nOutput files:" -ForegroundColor Yellow
@@ -99,7 +87,6 @@ Get-ChildItem "bin" -Recurse | Where-Object { -not $_.PSIsContainer } | ForEach-
 }
 
 Write-Host ""
-Write-Host "Run: cd bin && warhutv-windows-amd64.exe" -ForegroundColor Gray
 
 } finally {
     $env:MISE_SHELL = $OrigMiseShell

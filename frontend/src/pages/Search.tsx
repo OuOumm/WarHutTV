@@ -1,10 +1,15 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import SearchBar from '../components/SearchBar';
 import VideoCard from '../components/VideoCard';
-import apiClient from '../api/client';
 import type { VideoItem } from '../types';
 import { filterYellowItems } from '../utils/filter';
+
+interface StreamProgress {
+  completed: number;
+  total: number;
+  currentSite: string;
+}
 
 const Search = () => {
   const [searchParams] = useSearchParams();
@@ -12,6 +17,8 @@ const Search = () => {
   const [results, setResults] = useState<VideoItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [streamProgress, setStreamProgress] = useState<StreamProgress | null>(null);
+  const eventSourceRef = useRef<EventSource | null>(null);
 
   const getDefaultAggregate = () => {
     try {
@@ -24,31 +31,82 @@ const Search = () => {
 
   useEffect(() => {
     if (keyword) searchVideos(keyword);
+    return () => {
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+        eventSourceRef.current = null;
+      }
+    };
   }, [keyword]);
 
-  const searchVideos = async (wd: string) => {
+  // SSE 流式搜索
+  const searchVideos = (wd: string) => {
     setLoading(true);
     setError('');
-    try {
-      const response = await apiClient.get('/search', { params: { wd } });
-      const allResults: VideoItem[] = [];
-      const data = response.data;
-      if (Array.isArray(data)) {
-        allResults.push(...data);
-      } else if (typeof data === 'object') {
-        Object.values(data).forEach((siteResult: any) => {
-          if (siteResult?.list) allResults.push(...siteResult.list);
-        });
-      }
-      setResults(filterYellowItems(allResults));
-    } catch (err: any) {
-      setError(err.response?.data?.error || '搜索失败');
-    } finally {
-      setLoading(false);
+    setResults([]);
+    setStreamProgress({ completed: 0, total: 0, currentSite: '' });
+
+    if (eventSourceRef.current) {
+      eventSourceRef.current.close();
     }
+
+    const token = localStorage.getItem('token') || '';
+    const url = `/api/search/stream?wd=${encodeURIComponent(wd)}&token=${token}`;
+    
+    const eventSource = new EventSource(url);
+    eventSourceRef.current = eventSource;
+
+    const allResults: VideoItem[] = [];
+
+    eventSource.addEventListener('start', (e) => {
+      const data = JSON.parse(e.data);
+      setStreamProgress({ completed: 0, total: data.site_count, currentSite: '' });
+    });
+
+    eventSource.addEventListener('result', (e) => {
+      const data = JSON.parse(e.data);
+      const siteResult = data.data;
+      if (siteResult?.list) {
+        allResults.push(...siteResult.list);
+        setResults([...allResults]);
+      }
+      setStreamProgress({
+        completed: data.completed,
+        total: data.total,
+        currentSite: data.name,
+      });
+    });
+
+    eventSource.addEventListener('error', () => {
+      if (eventSource.readyState === EventSource.CLOSED) {
+        setLoading(false);
+        setStreamProgress(null);
+        if (allResults.length === 0) setError('搜索连接失败');
+      }
+    });
+
+    eventSource.addEventListener('timeout', () => {
+      setStreamProgress(prev => prev ? { ...prev, currentSite: '超时' } : null);
+    });
+
+    eventSource.addEventListener('done', () => {
+      setLoading(false);
+      setStreamProgress(null);
+      eventSource.close();
+      eventSourceRef.current = null;
+      setResults(filterYellowItems(allResults));
+    });
+
+    eventSource.onerror = () => {
+      if (eventSource.readyState === EventSource.CLOSED) {
+        setLoading(false);
+        setStreamProgress(null);
+        if (allResults.length === 0) setError('搜索连接失败');
+      }
+    };
   };
 
-  // 聚合结果：按标题+年份分组
+  // 聚合结果
   const aggregatedResults = useMemo(() => {
     const map = new Map<string, VideoItem[]>();
     const keyOrder: string[] = [];
@@ -87,9 +145,35 @@ const Search = () => {
       </div>
 
       <div className="max-w-[95%] mx-auto mt-12 overflow-visible">
-        {loading && (
-          <div className="flex justify-center items-center h-40">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+        {/* 流式搜索进度 */}
+        {streamProgress && (
+          <div className="mb-6 bg-surface/50 backdrop-blur-sm rounded-xl p-4 border border-glass-border">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="flex-shrink-0">
+                <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+              </div>
+              <div className="flex-1">
+                <div className="text-sm text-text font-medium">
+                  正在搜索 {streamProgress.completed}/{streamProgress.total} 个源
+                </div>
+                {streamProgress.currentSite && (
+                  <div className="text-xs text-muted mt-0.5">
+                    刚收到: {streamProgress.currentSite}
+                  </div>
+                )}
+              </div>
+              {results.length > 0 && (
+                <div className="text-sm text-primary font-medium">
+                  已找到 {results.length} 个结果
+                </div>
+              )}
+            </div>
+            <div className="w-full h-1.5 bg-card rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-primary rounded-full transition-all duration-300 ease-out"
+                style={{ width: `${streamProgress.total > 0 ? (streamProgress.completed / streamProgress.total) * 100 : 0}%` }}
+              />
+            </div>
           </div>
         )}
 
@@ -97,14 +181,13 @@ const Search = () => {
           <div className="text-center text-red-500 py-8">{error}</div>
         )}
 
-        {!loading && !error && results.length === 0 && keyword && (
+        {!loading && !error && results.length === 0 && keyword && !streamProgress && (
           <div className="text-center text-muted py-8">未找到相关结果</div>
         )}
 
         {results.length > 0 && (
           <>
-            {/* 标题 + 聚合开关 */}
-            <div className="mb-6 flex items-center justify-between">
+            <div className="mb-6 flex items-center justify-between flex-wrap gap-3">
               <h2 className="text-xl font-bold text-text">
                 搜索结果
                 <span className="ml-2 text-sm font-normal text-muted">
@@ -126,7 +209,6 @@ const Search = () => {
               </label>
             </div>
 
-            {/* 结果网格 */}
             <div className="grid grid-cols-3 gap-x-2 gap-y-12 sm:grid-cols-[repeat(auto-fill,minmax(160px,1fr))] sm:gap-x-8 sm:gap-y-20">
               {viewMode === 'agg'
                 ? aggregatedResults.map((agg) => (
@@ -142,8 +224,8 @@ const Search = () => {
                       )}
                     </div>
                   ))
-                : results.map((item) => (
-                    <div key={`${item.vod_id}-${item.type_name}`} className="w-full">
+                : results.map((item, index) => (
+                    <div key={`${item.vod_id}-${item.type_name}-${index}`} className="w-full">
                       <VideoCard video={item} from="vod" />
                     </div>
                   ))

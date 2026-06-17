@@ -33,6 +33,7 @@ func main() {
 		api.POST("/auth/login", handlers.Login)
 		api.GET("/proxy/m3u8", handlers.ProxyM3U8)
 		api.GET("/proxy/logo", handlers.ProxyLogo)
+		api.GET("/search/stream", handlers.SearchStream)
 	}
 
 	auth := r.Group("/api")
@@ -40,6 +41,7 @@ func main() {
 	{
 		auth.GET("/auth/verify", handlers.Verify)
 		auth.GET("/search", handlers.Search)
+		
 		auth.GET("/detail", handlers.Detail)
 		auth.GET("/play", handlers.Play)
 		auth.GET("/adblock/status", handlers.GetAdBlockStatus)
@@ -85,7 +87,7 @@ func main() {
 			}
 
 			// 尝试从嵌入的文件系统中读取静态文件
-			if strings.HasPrefix(path, "/assets/") || strings.HasSuffix(path, ".js") || strings.HasSuffix(path, ".css") || strings.HasSuffix(path, ".svg") {
+			if strings.HasPrefix(path, "/assets/") || strings.HasSuffix(path, ".js") || strings.HasSuffix(path, ".css") || strings.HasSuffix(path, ".svg") || strings.HasSuffix(path, ".json") || strings.HasSuffix(path, ".ico") || strings.HasSuffix(path, ".png") || strings.HasSuffix(path, ".woff2") || strings.HasSuffix(path, ".woff") {
 				filePath := path[1:] // 去掉开头的 /
 				f, err := distFS.Open(filePath)
 				if err == nil {
