@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"time"
 
@@ -77,7 +76,6 @@ func ProxyDetail(siteKey, vodID string) (*DetailResult, error) {
 	cfg := config.Get()
 	site, ok := cfg.APISite[siteKey]
 	if !ok {
-		log.Printf("[ProxyDetail] site not found: %s, available sites: %v", siteKey, getSiteKeys(cfg))
 		return nil, fmt.Errorf("site not found: %s", siteKey)
 	}
 

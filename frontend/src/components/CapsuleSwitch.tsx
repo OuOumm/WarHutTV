@@ -31,8 +31,12 @@ const CapsuleSwitch = ({ options, active, onChange }: CapsuleSwitchProps) => {
     <div ref={containerRef} className="relative inline-flex bg-surface rounded-full p-1">
       {indicator.width > 0 && (
         <div
-          className="absolute top-1 bottom-1 bg-card rounded-full shadow-sm transition-all duration-300 ease-out"
-          style={{ left: `${indicator.left}px`, width: `${indicator.width}px` }}
+          className="absolute top-1 bottom-1 bg-card rounded-full shadow-md transition-all duration-300 ease-out"
+          style={{ 
+            left: `${indicator.left}px`, 
+            width: `${indicator.width}px`,
+            boxShadow: '0 0 12px var(--color-primary-glow), 0 2px 8px rgba(0,0,0,0.2)',
+          }}
         />
       )}
       {options.map((opt, index) => (

@@ -66,7 +66,7 @@ export default function UserMenu() {
       </button>
 
       {showDropdown && !showSettings && (
-        <div className="absolute right-0 top-full mt-1 w-40 bg-card rounded-xl shadow-xl border border-glass-border overflow-hidden z-[100]">
+        <div className="absolute right-0 top-full mt-2 w-40 glass-panel rounded-xl shadow-2xl overflow-hidden z-[100]">
           <button
             onClick={() => setShowSettings(true)}
             className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-text hover:bg-surface transition-colors"
@@ -91,7 +91,7 @@ export default function UserMenu() {
       )}
 
       {showDropdown && showSettings && (
-        <div className="absolute right-0 top-full mt-1 w-72 bg-card rounded-xl shadow-xl border border-glass-border overflow-hidden z-[100]">
+        <div className="absolute right-0 top-full mt-2 w-72 glass-panel rounded-xl shadow-2xl overflow-hidden z-[100]">
           <div className="flex items-center justify-between px-4 py-3 border-b border-glass-border">
             <span className="text-sm font-medium text-text">设置</span>
             <button onClick={() => setShowSettings(false)} className="text-muted hover:text-text">

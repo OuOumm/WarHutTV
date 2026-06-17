@@ -471,87 +471,132 @@ const Play = () => {
 
           <div className="md:col-span-1 h-[300px] lg:h-full">
             <div className="h-full bg-card rounded-xl overflow-hidden flex flex-col">
-              <div className="flex border-b border-glass-border flex-shrink-0">
-                <button onClick={() => setActiveTab('episodes')} className={`flex-1 px-3 py-2.5 text-sm font-medium transition-colors ${activeTab === 'episodes' ? 'text-primary border-b-2 border-primary bg-deep' : 'text-muted'}`}>
-                  播放集数
-                </button>
-                <button onClick={() => setActiveTab('sources')} className={`flex-1 px-3 py-2.5 text-sm font-medium transition-colors ${activeTab === 'sources' ? 'text-primary border-b-2 border-primary bg-deep' : 'text-muted'}`}>
-                  换源
-                </button>
-              </div>
-
-              <div className="flex-1 overflow-y-auto bg-deep">
-                {activeTab === 'episodes' ? (
-                  <>
-                    {/* 分页标签 - 固定在顶部 */}
-                    {episodes.length > EPISODES_PER_PAGE && (
-                      <div className="sticky top-0 z-10 bg-surface border-b border-glass-border px-2 py-1.5">
-                        <div className="flex gap-1 overflow-x-auto scrollbar-hide">
-                          {Array.from({ length: Math.ceil(episodes.length / EPISODES_PER_PAGE) }, (_, i) => {
-                            const start = i * EPISODES_PER_PAGE + 1;
-                            const end = Math.min((i + 1) * EPISODES_PER_PAGE, episodes.length);
-                            return (
-                              <button
-                                key={i}
-                                onClick={() => setEpisodePage(i)}
-                                className={`px-2.5 py-1 text-[11px] font-medium rounded-md flex-shrink-0 transition-all ${
-                                  episodePage === i 
-                                    ? 'bg-primary text-deep shadow-sm' 
-                                    : 'text-muted hover:text-text hover:bg-card'
-                                }`}
-                              >
-                                {start}-{end}
-                              </button>
-                            );
-                          })}
+              {/* 只有一集时只显示换源，不显示集数标签 */}
+              {episodes.length <= 1 ? (
+                /* 只有换源 */
+                <div className="flex-1 overflow-y-auto bg-deep">
+                  {sourceLoading ? (
+                    <div className="flex justify-center py-4"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" /></div>
+                  ) : sources.length === 0 ? (
+                    <div className="text-center text-muted text-sm py-4">暂无其他播放源</div>
+                  ) : (
+                    <div className="space-y-1.5">
+                      {sources.map((source) => (
+                        <div key={source.key} onClick={() => handleSourceSwitch(source.key)} className={`flex gap-2.5 p-2 rounded-lg cursor-pointer transition-colors ${currentSource === source.key ? 'bg-primary-glow ring-1 ring-primary' : 'hover:bg-surface'}`}>
+                          <div className="w-12 h-16 flex-shrink-0 rounded overflow-hidden bg-surface">
+                            {source.poster ? <img src={processImageUrl(source.poster)} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-muted text-xs">暂无</div>}
+                          </div>
+                          <div className="flex-1 min-w-0 flex flex-col justify-between">
+                            <div>
+                              <div className="flex items-center justify-between">
+                                <span className="text-sm font-medium text-text truncate">{currentDetail.vod_name}</span>
+                                {source.speed && <span className="text-[10px] px-1.5 py-0.5 bg-green-900/30 text-green-400 rounded">{source.speed.quality}</span>}
+                                {source.status === 'error' && <span className="text-[10px] px-1.5 py-0.5 bg-red-900/30 text-red-400 rounded">检测失败</span>}
+                              </div>
+                              <div className="flex items-center gap-1 mt-0.5">
+                                <span className="text-[10px] px-1 py-0.5 bg-card text-muted rounded">{source.name}</span>
+                                {source.episodeCount && <span className="text-[10px] text-muted">{source.episodeCount} 集</span>}
+                              </div>
+                            </div>
+                            <div className="text-[10px]">
+                              {(() => {
+                                if (source.status === 'testing') return <span className="text-primary animate-pulse">测速中...</span>;
+                                if (source.speed) return <span><span className="text-blue-400">{source.speed.loadSpeed}</span> <span className="text-orange-500">{source.speed.pingTime}ms</span></span>;
+                                return <span className="text-muted">无测速数据</span>;
+                              })()}
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    )}
-                    {/* 集数按钮 */}
-                    <div className="p-2 grid grid-cols-5 gap-1.5">
-                      {episodes.slice(episodePage * EPISODES_PER_PAGE, (episodePage + 1) * EPISODES_PER_PAGE).map((ep, index) => (
-                        <button key={index} onClick={() => handleEpisodeClick(ep)} className={`px-2 py-1.5 text-xs rounded-md transition-colors truncate ${currentEpisode?.name === ep.name ? 'bg-primary text-deep' : 'bg-surface text-muted hover:bg-card'}`} title={ep.name}>
-                          {ep.name}
-                        </button>
                       ))}
                     </div>
-                  </>
-                ) : sourceLoading ? (
-                  <div className="flex justify-center py-4"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" /></div>
-                ) : sources.length === 0 ? (
-                  <div className="text-center text-muted text-sm py-4">暂无其他播放源</div>
-                ) : (
-                  <div className="space-y-1.5">
-                    {sources.map((source) => (
-                      <div key={source.key} onClick={() => handleSourceSwitch(source.key)} className={`flex gap-2.5 p-2 rounded-lg cursor-pointer transition-colors ${currentSource === source.key ? 'bg-primary-glow ring-1 ring-primary' : 'hover:bg-surface'}`}>
-                        <div className="w-12 h-16 flex-shrink-0 rounded overflow-hidden bg-surface">
-                          {source.poster ? <img src={processImageUrl(source.poster)} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-muted text-xs">暂无</div>}
-                        </div>
-                        <div className="flex-1 min-w-0 flex flex-col justify-between">
-                          <div>
-                            <div className="flex items-center justify-between">
-                              <span className="text-sm font-medium text-text truncate">{currentDetail.vod_name}</span>
-                              {source.speed && <span className="text-[10px] px-1.5 py-0.5 bg-green-900/30 text-green-400 rounded">{source.speed.quality}</span>}
-                              {source.status === 'error' && <span className="text-[10px] px-1.5 py-0.5 bg-red-900/30 text-red-400 rounded">检测失败</span>}
-                            </div>
-                            <div className="flex items-center gap-1 mt-0.5">
-                              <span className="text-[10px] px-1 py-0.5 bg-card text-muted rounded">{source.name}</span>
-                              {source.episodeCount && <span className="text-[10px] text-muted">{source.episodeCount} 集</span>}
-                            </div>
-                          </div>
-                          <div className="text-[10px]">
-                            {(() => {
-                              if (source.status === 'testing') return <span className="text-primary animate-pulse">测速中...</span>;
-                              if (source.speed) return <span><span className="text-blue-400">{source.speed.loadSpeed}</span> <span className="text-orange-500">{source.speed.pingTime}ms</span></span>;
-                              return <span className="text-muted">无测速数据</span>;
-                            })()}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
+                  )}
+                </div>
+              ) : (
+                /* 多集时显示标签切换 */
+                <>
+                  <div className="flex border-b border-glass-border flex-shrink-0">
+                    <button onClick={() => setActiveTab('episodes')} className={`flex-1 px-3 py-2.5 text-sm font-medium transition-colors ${activeTab === 'episodes' ? 'text-primary border-b-2 border-primary bg-deep' : 'text-muted'}`}>
+                      播放集数
+                    </button>
+                    <button onClick={() => setActiveTab('sources')} className={`flex-1 px-3 py-2.5 text-sm font-medium transition-colors ${activeTab === 'sources' ? 'text-primary border-b-2 border-primary bg-deep' : 'text-muted'}`}>
+                      换源
+                    </button>
                   </div>
-                )}
-              </div>
+
+                  <div className="flex-1 overflow-y-auto bg-deep">
+                    {activeTab === 'episodes' ? (
+                      <>
+                        {/* 分页标签 - 固定在顶部 */}
+                        {episodes.length > EPISODES_PER_PAGE && (
+                          <div className="sticky top-0 z-10 bg-surface border-b border-glass-border px-2 py-1.5">
+                            <div className="flex gap-1 overflow-x-auto scrollbar-hide">
+                              {Array.from({ length: Math.ceil(episodes.length / EPISODES_PER_PAGE) }, (_, i) => {
+                                const start = i * EPISODES_PER_PAGE + 1;
+                                const end = Math.min((i + 1) * EPISODES_PER_PAGE, episodes.length);
+                                return (
+                                  <button
+                                    key={i}
+                                    onClick={() => setEpisodePage(i)}
+                                    className={`px-2.5 py-1 text-[11px] font-medium rounded-md flex-shrink-0 transition-all ${
+                                      episodePage === i 
+                                        ? 'bg-primary text-deep shadow-sm' 
+                                        : 'text-muted hover:text-text hover:bg-card'
+                                    }`}
+                                  >
+                                    {start}-{end}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+                        {/* 集数按钮 */}
+                        <div className="p-2 grid grid-cols-5 gap-1.5">
+                          {episodes.slice(episodePage * EPISODES_PER_PAGE, (episodePage + 1) * EPISODES_PER_PAGE).map((ep, index) => (
+                            <button key={index} onClick={() => handleEpisodeClick(ep)} className={`px-2 py-1.5 text-xs rounded-md transition-colors truncate ${currentEpisode?.name === ep.name ? 'bg-primary text-deep' : 'bg-surface text-muted hover:bg-card'}`} title={ep.name}>
+                              {ep.name}
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    ) : sourceLoading ? (
+                      <div className="flex justify-center py-4"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" /></div>
+                    ) : sources.length === 0 ? (
+                      <div className="text-center text-muted text-sm py-4">暂无其他播放源</div>
+                    ) : (
+                      <div className="space-y-1.5">
+                        {sources.map((source) => (
+                          <div key={source.key} onClick={() => handleSourceSwitch(source.key)} className={`flex gap-2.5 p-2 rounded-lg cursor-pointer transition-colors ${currentSource === source.key ? 'bg-primary-glow ring-1 ring-primary' : 'hover:bg-surface'}`}>
+                            <div className="w-12 h-16 flex-shrink-0 rounded overflow-hidden bg-surface">
+                              {source.poster ? <img src={processImageUrl(source.poster)} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-muted text-xs">暂无</div>}
+                            </div>
+                            <div className="flex-1 min-w-0 flex flex-col justify-between">
+                              <div>
+                                <div className="flex items-center justify-between">
+                                  <span className="text-sm font-medium text-text truncate">{currentDetail.vod_name}</span>
+                                  {source.speed && <span className="text-[10px] px-1.5 py-0.5 bg-green-900/30 text-green-400 rounded">{source.speed.quality}</span>}
+                                  {source.status === 'error' && <span className="text-[10px] px-1.5 py-0.5 bg-red-900/30 text-red-400 rounded">检测失败</span>}
+                                </div>
+                                <div className="flex items-center gap-1 mt-0.5">
+                                  <span className="text-[10px] px-1 py-0.5 bg-card text-muted rounded">{source.name}</span>
+                                  {source.episodeCount && <span className="text-[10px] text-muted">{source.episodeCount} 集</span>}
+                                </div>
+                              </div>
+                              <div className="text-[10px]">
+                                {(() => {
+                                  if (source.status === 'testing') return <span className="text-primary animate-pulse">测速中...</span>;
+                                  if (source.speed) return <span><span className="text-blue-400">{source.speed.loadSpeed}</span> <span className="text-orange-500">{source.speed.pingTime}ms</span></span>;
+                                  return <span className="text-muted">无测速数据</span>;
+                                })()}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>

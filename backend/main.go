@@ -3,7 +3,6 @@ package main
 import (
 	"embed"
 	"io/fs"
-	"log"
 	"net/http"
 	"os"
 	"strings"
@@ -41,7 +40,7 @@ func main() {
 	{
 		auth.GET("/auth/verify", handlers.Verify)
 		auth.GET("/search", handlers.Search)
-		
+
 		auth.GET("/detail", handlers.Detail)
 		auth.GET("/play", handlers.Play)
 		auth.GET("/live/sources", handlers.GetLiveSources)
@@ -56,9 +55,7 @@ func main() {
 
 	// 嵌入前端静态资源
 	distFS, err := fs.Sub(frontendFS, "frontend/dist")
-	if err != nil {
-		log.Printf("Warning: failed to load frontend: %v", err)
-	} else {
+	if err == nil {
 		// 根路由直接返回index.html
 		r.GET("/", func(c *gin.Context) {
 			data, err := fs.ReadFile(distFS, "index.html")
@@ -103,10 +100,7 @@ func main() {
 			}
 			c.Data(http.StatusOK, "text/html; charset=utf-8", data)
 		})
-
-		log.Printf("Frontend embedded successfully")
 	}
 
-	log.Printf("Server starting on port %s", port)
 	r.Run(":" + port)
 }

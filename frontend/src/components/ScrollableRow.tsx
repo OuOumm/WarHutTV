@@ -1,15 +1,20 @@
-import { useRef, useState, useEffect, type ReactNode } from 'react';
+import { useRef, useState, useEffect, useCallback, type ReactNode } from 'react';
 
 interface ScrollableRowProps {
   children: ReactNode;
   scrollDistance?: number;
 }
 
-const ScrollableRow = ({ children, scrollDistance = 1000 }: ScrollableRowProps) => {
+const ScrollableRow = ({ children, scrollDistance = 800 }: ScrollableRowProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [showLeft, setShowLeft] = useState(false);
   const [showRight, setShowRight] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
+  
+  // 平滑滚动状态
+  const scrollTargetRef = useRef(0);
+  const isScrollingRef = useRef(false);
+  const rafRef = useRef<number | null>(null);
 
   const checkScroll = () => {
     if (!containerRef.current) return;
@@ -36,38 +41,141 @@ const ScrollableRow = ({ children, scrollDistance = 1000 }: ScrollableRowProps) 
     return () => mo.disconnect();
   }, []);
 
+  // 平滑滚动动画
+  const smoothScroll = useCallback(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    
+    const current = el.scrollLeft;
+    const target = scrollTargetRef.current;
+    const diff = target - current;
+    
+    // 如果差距很小，直接停止
+    if (Math.abs(diff) < 0.5) {
+      el.scrollLeft = target;
+      isScrollingRef.current = false;
+      checkScroll();
+      return;
+    }
+    
+    // 缓动系数（越大越快跟上，0-1之间）
+    const ease = 0.12;
+    el.scrollLeft = current + diff * ease;
+    
+    checkScroll();
+    rafRef.current = requestAnimationFrame(smoothScroll);
+  }, []);
+
+  // 鼠标滚轮水平滚动 - 平滑版
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    
+    const handler = (e: WheelEvent) => {
+      if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+        const maxScroll = el.scrollWidth - el.clientWidth;
+        const currentScroll = el.scrollLeft;
+        
+        // 只有在可以水平滚动时才拦截
+        const canScrollLeft = currentScroll > 1;
+        const canScrollRight = currentScroll < maxScroll - 1;
+        const scrollingLeft = e.deltaY < 0;
+        const scrollingRight = e.deltaY > 0;
+        
+        // 向左滚且还能向左，或向右滚且还能向右
+        if ((scrollingLeft && canScrollLeft) || (scrollingRight && canScrollRight)) {
+          e.preventDefault();
+          
+          // 累加目标位置
+          scrollTargetRef.current += e.deltaY * 1.2;
+          scrollTargetRef.current = Math.max(0, Math.min(scrollTargetRef.current, maxScroll));
+          
+          // 启动动画
+          if (!isScrollingRef.current) {
+            isScrollingRef.current = true;
+            rafRef.current = requestAnimationFrame(smoothScroll);
+          }
+        }
+        // 否则不阻止默认行为，让页面正常上下滚动
+      }
+    };
+    
+    el.addEventListener('wheel', handler, { passive: false });
+    return () => {
+      el.removeEventListener('wheel', handler);
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+      }
+    };
+  }, [smoothScroll]);
+
   const scroll = (dir: 'left' | 'right') => {
-    containerRef.current?.scrollBy({ left: dir === 'left' ? -scrollDistance : scrollDistance, behavior: 'smooth' });
+    const el = containerRef.current;
+    if (!el) return;
+    
+    const target = dir === 'left' 
+      ? el.scrollLeft - scrollDistance 
+      : el.scrollLeft + scrollDistance;
+    
+    scrollTargetRef.current = Math.max(0, Math.min(target, el.scrollWidth - el.clientWidth));
+    
+    if (!isScrollingRef.current) {
+      isScrollingRef.current = true;
+      rafRef.current = requestAnimationFrame(smoothScroll);
+    }
   };
 
   return (
-    <div className="relative" onMouseEnter={() => { setIsHovered(true); checkScroll(); }} onMouseLeave={() => setIsHovered(false)}>
+    <div 
+      className="relative group/row" 
+      onMouseEnter={() => { setIsHovered(true); checkScroll(); }} 
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      {/* Left fade */}
+      {showLeft && (
+        <div className="absolute left-0 top-0 bottom-0 w-12 sm:w-20 z-[7] pointer-events-none bg-gradient-to-r from-deep to-transparent opacity-0 group-hover/row:opacity-100 transition-opacity duration-300" />
+      )}
+      {/* Right fade */}
+      {showRight && (
+        <div className="absolute right-0 top-0 bottom-0 w-12 sm:w-20 z-[7] pointer-events-none bg-gradient-to-l from-deep to-transparent opacity-0 group-hover/row:opacity-100 transition-opacity duration-300" />
+      )}
+
       <div 
         ref={containerRef} 
-        className="flex gap-5 overflow-x-auto overflow-y-visible scrollbar-hide py-6 sm:py-8 pb-16 sm:pb-20 px-4 sm:px-6 [&>*]:flex-shrink-0 [&>*]:w-[170px] sm:[&>*]:w-[185px]" 
+        className="flex gap-5 overflow-x-auto overflow-y-visible scrollbar-hide py-2 px-4 sm:px-6 [&>*]:flex-shrink-0 [&>*]:w-[170px] sm:[&>*]:w-[185px]" 
         onScroll={checkScroll}
       >
         {children}
       </div>
 
+      {/* Left scroll button */}
       {showLeft && (
-        <div className={`hidden sm:flex absolute left-0 top-0 bottom-0 w-16 items-center justify-center z-[600] transition-opacity duration-200 ${isHovered ? 'opacity-100' : 'opacity-0'}`} style={{ pointerEvents: 'none' }}>
-          <div className="absolute inset-0 flex items-center justify-center" style={{ top: '40%', bottom: '60%', left: '-4.5rem', pointerEvents: 'auto' }}>
-            <button onClick={() => scroll('left')} className="w-12 h-12 bg-card rounded-full shadow-lg flex items-center justify-center hover:bg-surface border border-glass-border transition-transform hover:scale-105">
-              <svg className="w-6 h-6 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
-            </button>
-          </div>
-        </div>
+        <button 
+          onClick={() => scroll('left')} 
+          className={`hidden sm:flex absolute left-2 top-[40%] -translate-y-1/2 z-[8] w-10 h-10 rounded-full glass-panel items-center justify-center transition-all duration-200 hover:scale-110 hover:border-primary/30 ${
+            isHovered ? 'opacity-100' : 'opacity-0'
+          }`}
+          style={{ pointerEvents: isHovered ? 'auto' : 'none' }}
+        >
+          <svg className="w-5 h-5 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
       )}
 
+      {/* Right scroll button */}
       {showRight && (
-        <div className={`hidden sm:flex absolute right-0 top-0 bottom-0 w-16 items-center justify-center z-[600] transition-opacity duration-200 ${isHovered ? 'opacity-100' : 'opacity-0'}`} style={{ pointerEvents: 'none' }}>
-          <div className="absolute inset-0 flex items-center justify-center" style={{ top: '40%', bottom: '60%', right: '-4.5rem', pointerEvents: 'auto' }}>
-            <button onClick={() => scroll('right')} className="w-12 h-12 bg-card rounded-full shadow-lg flex items-center justify-center hover:bg-surface border border-glass-border transition-transform hover:scale-105">
-              <svg className="w-6 h-6 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-            </button>
-          </div>
-        </div>
+        <button 
+          onClick={() => scroll('right')} 
+          className={`hidden sm:flex absolute right-2 top-[40%] -translate-y-1/2 z-[8] w-10 h-10 rounded-full glass-panel items-center justify-center transition-all duration-200 hover:scale-110 hover:border-primary/30 ${
+            isHovered ? 'opacity-100' : 'opacity-0'
+          }`}
+          style={{ pointerEvents: isHovered ? 'auto' : 'none' }}
+        >
+          <svg className="w-5 h-5 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
       )}
     </div>
   );
