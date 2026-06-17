@@ -11,10 +11,16 @@ import History from './pages/History';
 import SpeedTest from './pages/SpeedTest';
 import Douban from './pages/Douban';
 import { getCurrentTheme, applyTheme } from './store/theme';
+import { detailCacheStore } from './store/detailCache';
+import { apiCacheStore } from './store/apiCache';
 
 // Force dark mode & apply saved theme
 document.documentElement.classList.add('dark');
 applyTheme(getCurrentTheme());
+
+// 清理过期缓存
+detailCacheStore.cleanExpired().catch(() => {});
+apiCacheStore.cleanExpired().catch(() => {});
 
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated, isLoading } = useAuth();

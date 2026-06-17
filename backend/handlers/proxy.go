@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"strings"
@@ -47,7 +48,8 @@ func ProxyM3U8(c *gin.Context) {
 
 	resp, err := proxyClient.Do(req)
 	if err != nil {
-		c.JSON(http.StatusBadGateway, gin.H{"error": "请求失败"})
+		log.Printf("[ProxyM3U8] 请求失败: url=%s, error=%v", m3u8URL, err)
+		c.JSON(http.StatusBadGateway, gin.H{"error": "请求失败: " + err.Error()})
 		return
 	}
 	defer resp.Body.Close()
@@ -66,6 +68,7 @@ func ProxyM3U8(c *gin.Context) {
 		}
 
 		// Parse base URL for resolving relative paths
+		m3u8Content := string(body)
 		baseURL, _ := url.Parse(m3u8URL)
 		basePath := ""
 		if baseURL != nil {
@@ -75,7 +78,7 @@ func ProxyM3U8(c *gin.Context) {
 			}
 		}
 
-		lines := strings.Split(string(body), "\n")
+		lines := strings.Split(m3u8Content, "\n")
 		for i, line := range lines {
 			line = strings.TrimSpace(line)
 			if line == "" || strings.HasPrefix(line, "#") {

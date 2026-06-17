@@ -1,35 +1,10 @@
 import apiClient from './client';
+import { apiCacheStore } from '../store/apiCache';
 import type { BangumiCalendarData } from '../types';
 
-const CACHE_KEY = 'bangumi_calendar';
-const CACHE_TTL = 12 * 60 * 60 * 1000; // 12小时
-
-function getCached(): BangumiCalendarData[] | null {
-  try {
-    const raw = localStorage.getItem(CACHE_KEY);
-    if (!raw) return null;
-    const entry = JSON.parse(raw);
-    if (Date.now() > entry.expiry) {
-      localStorage.removeItem(CACHE_KEY);
-      return null;
-    }
-    return entry.data;
-  } catch {
-    return null;
-  }
-}
-
-function setCache(data: BangumiCalendarData[]) {
-  try {
-    localStorage.setItem(CACHE_KEY, JSON.stringify({
-      data,
-      expiry: Date.now() + CACHE_TTL,
-    }));
-  } catch {}
-}
-
 export async function getBangumiCalendar(): Promise<BangumiCalendarData[]> {
-  const cached = getCached();
+  // 检查缓存
+  const cached = await apiCacheStore.get<BangumiCalendarData[]>('bangumi', 'calendar');
   if (cached) return cached;
 
   try {
@@ -46,10 +21,11 @@ export async function getBangumiCalendar(): Promise<BangumiCalendarData[]> {
       ...item,
       items: item.items.filter((bangumi) => bangumi.images),
     }));
-    setCache(result);
+    
+    // 存入缓存
+    await apiCacheStore.set('bangumi', 'calendar', result);
     return result;
   } catch {
     return [];
   }
 }
-

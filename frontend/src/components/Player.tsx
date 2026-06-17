@@ -3,6 +3,7 @@ import Artplayer from 'artplayer';
 import Hls from 'hls.js';
 import { getCurrentTheme } from '../store/theme';
 
+
 interface PlayerProps {
   url: string;
   title?: string;
@@ -71,7 +72,7 @@ const Player = ({ url, title, currentTime, onTimeUpdate, isLive = false }: Playe
       airplay: true,
       theme: theme.colors.primary,
       lang: navigator.language.toLowerCase() === 'zh-cn' ? 'zh-cn' : 'en',
-      hotkey: false,
+      hotkey: true,
       fastForward: true,
       autoOrientation: true,
       lock: true,
