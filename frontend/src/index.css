@@ -1,23 +1,15 @@
 @import "tailwindcss";
 
 /* ==================== THEME DEFINITION ==================== */
-/* 只需修改这里即可切换整套配色 */
 @theme {
-  /* 背景色 */
   --color-deep: #10080c;
   --color-card: #1a0f14;
   --color-surface: #231520;
-
-  /* 主色调 - 绯红 */
   --color-primary: #e11d48;
   --color-primary-dim: #be123c;
   --color-primary-glow: rgba(225, 29, 72, 0.15);
-
-  /* 文字色 */
   --color-text: #f5f0f2;
   --color-muted: #8a7580;
-
-  /* 毛玻璃 */
   --color-glass: rgba(26, 15, 20, 0.65);
   --color-glass-border: rgba(225, 29, 72, 0.15);
 }
@@ -43,72 +35,343 @@ body {
   font-family: 'Inter', sans-serif;
   background-color: var(--color-deep);
   color: var(--color-text);
-  transition: background-color 0.3s ease, color 0.3s ease;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* 背景氛围光晕 */
-body::before {
-  content: '';
-  position: fixed;
-  top: -50%;
-  left: -50%;
-  width: 200%;
-  height: 200%;
-  background: 
-    radial-gradient(ellipse at 20% 50%, var(--glow-1, rgba(225, 29, 72, 0.05)) 0%, transparent 50%),
-    radial-gradient(ellipse at 80% 20%, var(--glow-2, rgba(244, 114, 182, 0.03)) 0%, transparent 50%),
-    radial-gradient(ellipse at 50% 80%, var(--glow-3, rgba(251, 191, 36, 0.02)) 0%, transparent 50%);
-  pointer-events: none;
-  z-index: 0;
+/* ==================== ELASTIC ANIMATION SYSTEM ==================== */
+/* 韧劲 - 所有过渡动画使用弹性缓动，拒绝机械的 ease-in-out */
+
+:root {
+  --ease-elastic: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* 胶片颗粒纹理 */
-body::after {
+/* ==================== GLOW BACKGROUND (theme-specific) ==================== */
+
+[data-theme="crimson-cinema"] body::before {
   content: '';
   position: fixed;
   inset: 0;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+  background: 
+    radial-gradient(ellipse at 20% 50%, rgba(225, 29, 72, 0.08) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 20%, rgba(244, 114, 182, 0.05) 0%, transparent 40%),
+    radial-gradient(ellipse at 50% 80%, rgba(251, 191, 36, 0.03) 0%, transparent 45%);
   pointer-events: none;
   z-index: 0;
-  opacity: 0.5;
+  animation: crimsonBreathe 3s ease-in-out infinite;
 }
 
-* {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
+@keyframes crimsonBreathe {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.75; transform: scale(1.02); }
 }
-*::-webkit-scrollbar { display: none; }
+
+[data-theme="cinema-gold"] body::before {
+  content: '';
+  position: fixed;
+  inset: -50%;
+  width: 200%;
+  height: 200%;
+  background: 
+    radial-gradient(circle at 30% 40%, rgba(230, 185, 30, 0.06) 0%, transparent 40%),
+    radial-gradient(circle at 70% 60%, rgba(255, 215, 0, 0.04) 0%, transparent 35%);
+  pointer-events: none;
+  z-index: 0;
+  animation: goldDrift 8s ease-in-out infinite;
+}
+
+@keyframes goldDrift {
+  0% { transform: translate(0, 0) rotate(0deg); }
+  25% { transform: translate(3%, -2%) rotate(1deg); }
+  50% { transform: translate(-2%, 3%) rotate(-0.5deg); }
+  75% { transform: translate(1%, -1%) rotate(0.5deg); }
+  100% { transform: translate(0, 0) rotate(0deg); }
+}
+
+[data-theme="nebula-purple"] body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: 
+    radial-gradient(ellipse at 30% 30%, rgba(0, 212, 255, 0.08) 0%, transparent 50%),
+    radial-gradient(ellipse at 70% 70%, rgba(139, 92, 246, 0.1) 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 50%, rgba(236, 72, 153, 0.04) 0%, transparent 60%);
+  pointer-events: none;
+  z-index: 0;
+  animation: nebulaAurora 12s ease-in-out infinite alternate;
+  filter: hue-rotate(0deg);
+}
+
+@keyframes nebulaAurora {
+  0% { filter: hue-rotate(0deg); opacity: 1; }
+  33% { filter: hue-rotate(15deg); opacity: 0.9; }
+  66% { filter: hue-rotate(-10deg); opacity: 1; }
+  100% { filter: hue-rotate(5deg); opacity: 0.95; }
+}
+
+[data-theme="emerald-night"] body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: 
+    radial-gradient(ellipse at 25% 60%, rgba(245, 158, 11, 0.06) 0%, transparent 50%),
+    radial-gradient(ellipse at 75% 40%, rgba(16, 185, 129, 0.04) 0%, transparent 40%);
+  pointer-events: none;
+  z-index: 0;
+  animation: emeraldBreathe 5s ease-in-out infinite;
+}
+
+@keyframes emeraldBreathe {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+[data-theme="arctic-ice"] body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: 
+    radial-gradient(ellipse at 50% 30%, rgba(96, 165, 250, 0.05) 0%, transparent 60%),
+    radial-gradient(ellipse at 20% 70%, rgba(147, 197, 253, 0.03) 0%, transparent 50%);
+  pointer-events: none;
+  z-index: 0;
+  animation: iceShimmer 6s ease-in-out infinite alternate;
+}
+
+@keyframes iceShimmer {
+  0% { opacity: 1; }
+  50% { opacity: 0.85; }
+  100% { opacity: 1; }
+}
+
+[data-theme="rose-velvet"] body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: 
+    radial-gradient(ellipse at 30% 50%, rgba(249, 168, 212, 0.07) 0%, transparent 50%),
+    radial-gradient(ellipse at 70% 30%, rgba(244, 114, 182, 0.05) 0%, transparent 45%),
+    radial-gradient(ellipse at 50% 80%, rgba(251, 146, 60, 0.03) 0%, transparent 40%);
+  pointer-events: none;
+  z-index: 0;
+  animation: roseBreathe 4s ease-in-out infinite;
+}
+
+@keyframes roseBreathe {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.8; transform: scale(1.01); }
+}
+
+/* ==================== THEME TEXTURES ==================== */
+
+/* 绯红影院 - 织物纹理（帷幕感） */
+[data-texture="fabric"] body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: 
+    repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.015) 2px, rgba(255,255,255,0.015) 3px),
+    repeating-linear-gradient(90deg, transparent, transparent 2px, rgba(255,255,255,0.01) 2px, rgba(255,255,255,0.01) 3px);
+  pointer-events: none;
+  z-index: 0;
+  opacity: var(--texture-opacity, 0.04);
+  mix-blend-mode: overlay;
+}
+
+/* 影院金 - 胶片颗粒 */
+[data-texture="grain"] body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.06'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 0;
+  opacity: var(--texture-opacity, 0.035);
+  mix-blend-mode: overlay;
+}
+
+/* 星云紫 - 科技噪点闪烁 */
+[data-texture="noise"] body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='turbulence' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 0;
+  opacity: var(--texture-opacity, 0.03);
+  mix-blend-mode: difference;
+  animation: noiseFlicker 0.5s steps(2) infinite;
+}
+
+@keyframes noiseFlicker {
+  0% { transform: translate(0, 0); }
+  50% { transform: translate(-2px, 1px); }
+  100% { transform: translate(0, 0); }
+}
+
+/* 翡翠夜 - 哑光木纹 */
+[data-texture="bark"] body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: 
+    repeating-linear-gradient(175deg, transparent, transparent 6px, rgba(245,158,11,0.02) 6px, rgba(245,158,11,0.02) 7px),
+    repeating-linear-gradient(185deg, transparent, transparent 10px, rgba(16,185,129,0.015) 10px, rgba(16,185,129,0.015) 11px),
+    repeating-linear-gradient(170deg, transparent, transparent 14px, rgba(255,255,255,0.008) 14px, rgba(255,255,255,0.008) 15px);
+  pointer-events: none;
+  z-index: 0;
+  opacity: var(--texture-opacity, 0.03);
+}
+
+/* 极地冰 - 冰晶网格 */
+[data-texture="crystal"] body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: 
+    linear-gradient(60deg, transparent 48%, rgba(96,165,250,0.015) 49%, rgba(96,165,250,0.015) 51%, transparent 52%),
+    linear-gradient(-60deg, transparent 48%, rgba(96,165,250,0.015) 49%, rgba(96,165,250,0.015) 51%, transparent 52%),
+    linear-gradient(0deg, transparent 48%, rgba(147,197,253,0.01) 49%, rgba(147,197,253,0.01) 51%, transparent 52%);
+  background-size: 60px 60px;
+  pointer-events: none;
+  z-index: 0;
+  opacity: var(--texture-opacity, 0.025);
+}
+
+/* 玫瑰绒 - 丝绸渐变噪点 */
+[data-texture="silk"] body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: 
+    radial-gradient(ellipse at 20% 50%, rgba(249,168,212,0.03) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 30%, rgba(244,114,182,0.02) 0%, transparent 40%),
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.5' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.02'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 0;
+  opacity: var(--texture-opacity, 0.03);
+  mix-blend-mode: soft-light;
+}
+
+/* ==================== CARD EFFECTS (theme-specific) ==================== */
+
+/* 绯红影院 - 剧场顶光高光（左上角）+ 帷幕凹陷阴影 */
+[data-accent-effect="curtain"] .card-base {
+  box-shadow: 
+    inset 1px 1px 0 rgba(255,255,255,0.06),
+    inset -1px -1px 0 rgba(0,0,0,0.2);
+}
+[data-accent-effect="curtain"] .card-base:hover {
+  box-shadow: 
+    inset 1px 1px 0 rgba(255,255,255,0.1),
+    inset -1px -1px 0 rgba(0,0,0,0.3),
+    0 8px 32px rgba(225, 29, 72, 0.15),
+    0 0 0 1px rgba(225, 29, 72, 0.1);
+}
+
+/* 影院金 - 0.5px 亮金细线 + 锐利倒影 */
+[data-accent-effect="filmstrip"] .card-base {
+  box-shadow: inset 0 0 0 0.5px rgba(230, 185, 30, 0.12);
+}
+[data-accent-effect="filmstrip"] .card-base:hover {
+  box-shadow: 
+    inset 0 0 0 0.5px rgba(230, 185, 30, 0.3),
+    0 4px 16px rgba(0,0,0,0.4),
+    0 0 20px rgba(230, 185, 30, 0.08);
+}
+
+/* 星云紫 - 霓虹多层光晕 + hue-rotate */
+[data-accent-effect="nebula"] .card-base {
+  box-shadow: 0 0 0 1px rgba(0, 212, 255, 0.08);
+}
+[data-accent-effect="nebula"] .card-base:hover {
+  box-shadow: 
+    0 0 15px rgba(0, 212, 255, 0.15),
+    0 0 30px rgba(139, 92, 246, 0.1),
+    0 0 45px rgba(0, 212, 255, 0.05),
+    0 8px 24px rgba(0,0,0,0.3);
+  filter: hue-rotate(5deg);
+}
+
+/* 极地冰 - 冰霜冷凝边框 */
+[data-accent-effect="frost"] .card-base {
+  box-shadow: inset 0 0 0 1px rgba(96, 165, 250, 0.06);
+}
+[data-accent-effect="frost"] .card-base:hover {
+  box-shadow: 
+    inset 0 0 0 1px rgba(96, 165, 250, 0.2),
+    inset 0 0 20px rgba(96, 165, 250, 0.03),
+    0 4px 16px rgba(0,0,0,0.2);
+}
+
+/* 翡翠夜 - 余烬光（底部温暖颗粒感橙色辉光） */
+[data-accent-effect="ember"] .card-base {
+  box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.05);
+}
+[data-accent-effect="ember"] .card-base:hover {
+  box-shadow: 
+    0 8px 24px rgba(0,0,0,0.3),
+    0 4px 20px rgba(245, 158, 11, 0.12),
+    0 -4px 30px rgba(245, 158, 11, 0.08);
+}
+
+/* 玫瑰绒 - 柔光镜效果 + 深浮雕 */
+[data-accent-effect="petal"] .card-base {
+  box-shadow: 
+    inset 1px 1px 0 rgba(255,255,255,0.04),
+    inset -1px -1px 0 rgba(0,0,0,0.15);
+}
+[data-accent-effect="petal"] .card-base:hover {
+  box-shadow: 
+    inset 1px 1px 0 rgba(255,255,255,0.08),
+    inset -1px -1px 0 rgba(0,0,0,0.25),
+    0 12px 36px rgba(249, 168, 212, 0.15),
+    0 0 60px rgba(244, 114, 182, 0.06);
+}
 
 /* ==================== CARD ANIMATIONS ==================== */
 @keyframes shineSwipe {
-  from { transform: translateX(-100%); }
-  to { transform: translateX(100%); }
+  from { transform: translateX(-100%) skewX(-15deg); }
+  to { transform: translateX(200%) skewX(-15deg); }
 }
 
 @keyframes ratingBounce {
   0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.25); }
+  50% { transform: scale(1.2); }
+}
+
+@keyframes cardEntrance {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .card-shine {
   position: absolute;
   inset: 0;
   background: linear-gradient(
-    115deg,
+    105deg,
     transparent 30%,
-    rgba(255, 255, 255, 0.08) 45%,
-    rgba(255, 255, 255, 0.15) 50%,
-    rgba(255, 255, 255, 0.08) 55%,
-    transparent 70%
+    rgba(255, 255, 255, 0.06) 42%,
+    rgba(255, 255, 255, 0.12) 48%,
+    rgba(255, 255, 255, 0.06) 54%,
+    transparent 66%
   );
-  transform: translateX(-100%);
+  transform: translateX(-100%) skewX(-15deg);
   pointer-events: none;
   z-index: 2;
+  will-change: transform;
 }
 
 .group:hover .card-shine {
-  animation: shineSwipe 0.6s ease forwards;
+  animation: shineSwipe 0.7s var(--ease-out-expo) forwards;
 }
 
 .card-rating {
@@ -118,20 +381,164 @@ body::after {
 }
 
 .group:hover .card-rating {
-  animation: ratingBounce 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+  animation: ratingBounce 0.5s var(--ease-elastic);
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .card-shine,
-  .card-rating {
-    animation: none !important;
+.card-entrance {
+  animation: cardEntrance 0.4s var(--ease-spring) backwards;
+}
+
+/* Staggered entrance for grid items */
+.grid > *:nth-child(1) .card-entrance { animation-delay: 0ms; }
+.grid > *:nth-child(2) .card-entrance { animation-delay: 50ms; }
+.grid > *:nth-child(3) .card-entrance { animation-delay: 100ms; }
+.grid > *:nth-child(4) .card-entrance { animation-delay: 150ms; }
+.grid > *:nth-child(5) .card-entrance { animation-delay: 200ms; }
+.grid > *:nth-child(6) .card-entrance { animation-delay: 250ms; }
+
+/* ==================== PAGE TRANSITIONS ==================== */
+@keyframes pageEnter {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
+.page-enter {
+  animation: pageEnter 0.4s var(--ease-spring);
+}
+
+/* ==================== SECTION SCROLL REVEAL ==================== */
+.section-reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.6s var(--ease-out-expo), transform 0.6s var(--ease-out-expo);
+}
+
+.section-reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ==================== TYPOGRAPHY ==================== */
+
+/* 影院金 - 宽松字距（颁奖典礼庄重感） */
+[data-theme="cinema-gold"] {
+  letter-spacing: 0.02em;
+}
+[data-theme="cinema-gold"] h1, 
+[data-theme="cinema-gold"] h2, 
+[data-theme="cinema-gold"] h3 {
+  letter-spacing: 0.08em;
+}
+
+/* 翡翠夜 - 舒适行高（纸墨质感） */
+[data-theme="emerald-night"] {
+  line-height: 1.8;
+}
+[data-theme="emerald-night"] p {
+  line-height: 1.8;
+}
+
+/* 玫瑰绒 - 手写衬线标题感（香氛广告） */
+[data-theme="rose-velvet"] h1,
+[data-theme="rose-velvet"] h2,
+[data-theme="rose-velvet"] h3 {
+  font-style: italic;
+  letter-spacing: 0.04em;
+}
+
+/* ==================== GLASS MORPHISM ==================== */
+
+/* 星云紫 - 极致毛玻璃（紫/青双色反射） */
+[data-theme="nebula-purple"] .glass-panel {
+  backdrop-filter: blur(20px) saturate(1.4);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  background: 
+    linear-gradient(135deg, rgba(139, 92, 246, 0.08), rgba(0, 212, 255, 0.05)),
+    var(--color-glass);
+}
+
+/* 极地冰 - 高透毛玻璃 */
+[data-theme="arctic-ice"] .glass-panel {
+  backdrop-filter: blur(24px) saturate(1.8);
+  -webkit-backdrop-filter: blur(24px) saturate(1.8);
+  background: rgba(12, 18, 34, 0.5);
+}
+
+.glass-panel {
+  background: var(--color-glass);
+  backdrop-filter: blur(16px) saturate(1.2);
+  -webkit-backdrop-filter: blur(16px) saturate(1.2);
+  border: 1px solid var(--color-glass-border);
+}
+
+/* ==================== BUTTON FEEL ==================== */
+
+/* 绯红影院 - 老式机械开关 */
+[data-theme="crimson-cinema"] button:active {
+  transform: scale(0.95) translateY(1px);
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
+  transition-duration: 0.05s;
+}
+
+/* 通用按钮弹性反馈 */
+button {
+  transition: all 0.2s var(--ease-elastic);
+}
+button:active {
+  transform: scale(0.96);
+}
+
+/* ==================== SCROLLBAR (theme-aware) ==================== */
+
+/* 翡翠夜 - 极细自动隐藏滚动条 */
+[data-theme="emerald-night"] * {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(245, 158, 11, 0.15) transparent;
+}
+
+* {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+*::-webkit-scrollbar { display: none; }
+
+/* ==================== REDUCED MOTION ==================== */
+@media (prefers-reduced-motion: reduce) {
+  .card-shine,
+  .card-rating,
+  .card-entrance,
+  .page-enter,
+  .section-reveal {
+    animation: none !important;
+    transition: none !important;
+  }
+  body::before {
+    animation: none !important;
+  }
+  [data-texture] body::after {
+    animation: none !important;
+  }
+  #p5-bg {
+    display: none !important;
+  }
+}
+
+/* ==================== MOBILE ==================== */
 @media (max-width: 767px) {
   html, body {
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
   html::-webkit-scrollbar, body::-webkit-scrollbar { display: none; }
+  
+  /* 移动端减弱粒子效果 */
+  #p5-bg canvas {
+    opacity: 0.5 !important;
+  }
 }

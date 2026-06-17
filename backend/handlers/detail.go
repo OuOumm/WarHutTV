@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -19,7 +18,6 @@ func Detail(c *gin.Context) {
 
 	result, err := services.ProxyDetail(site, vodID)
 	if err != nil {
-		log.Printf("[Detail] site=%s, ids=%s, error=%v", site, vodID, err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

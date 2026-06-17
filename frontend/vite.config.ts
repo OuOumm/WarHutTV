@@ -26,8 +26,8 @@ export default defineConfig({
           if (id.includes('node_modules/dexie')) {
             return 'storage'
           }
-          if (id.includes('node_modules/react-router')) {
-            return 'react-vendor'
+          if (id.includes('node_modules/')) {
+            return 'vendor'
           }
         }
       }

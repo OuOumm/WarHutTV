@@ -16,15 +16,28 @@ export interface ThemeColors {
   glow3: string;
 }
 
+export interface ThemeVisual {
+  // 纹理类型
+  texture: 'grain' | 'noise' | 'fabric' | 'crystal' | 'silk' | 'bark';
+  textureOpacity: number;
+  // 光晕动画
+  glowAnimation: 'pulse' | 'drift' | 'shimmer' | 'breathe' | 'aurora' | 'none';
+  // 卡片风格
+  cardStyle: 'sharp' | 'soft' | 'glass' | 'elevated';
+  // 强调色特效
+  accentEffect: 'curtain' | 'filmstrip' | 'nebula' | 'ember' | 'frost' | 'petal';
+}
+
 export interface Theme {
   id: string;
   name: string;
   nameEn: string;
   description: string;
   colors: ThemeColors;
+  visual: ThemeVisual;
 }
 
-// 主题定义
+// 主题定义 - 每个主题都有独特的视觉个性
 export const themes: Theme[] = [
   {
     id: 'crimson-cinema',
@@ -42,9 +55,16 @@ export const themes: Theme[] = [
       muted: '#8a7580',
       glass: 'rgba(26, 15, 20, 0.65)',
       glassBorder: 'rgba(225, 29, 72, 0.15)',
-      glow1: 'rgba(225, 29, 72, 0.05)',
-      glow2: 'rgba(244, 114, 182, 0.03)',
+      glow1: 'rgba(225, 29, 72, 0.06)',
+      glow2: 'rgba(244, 114, 182, 0.04)',
       glow3: 'rgba(251, 191, 36, 0.02)',
+    },
+    visual: {
+      texture: 'fabric',
+      textureOpacity: 0.04,
+      glowAnimation: 'pulse',
+      cardStyle: 'elevated',
+      accentEffect: 'curtain',
     },
   },
   {
@@ -63,9 +83,16 @@ export const themes: Theme[] = [
       muted: '#8b95a5',
       glass: 'rgba(17, 24, 39, 0.65)',
       glassBorder: 'rgba(230, 185, 30, 0.15)',
-      glow1: 'rgba(230, 185, 30, 0.04)',
+      glow1: 'rgba(230, 185, 30, 0.05)',
       glow2: 'rgba(59, 130, 246, 0.03)',
       glow3: 'rgba(139, 92, 246, 0.02)',
+    },
+    visual: {
+      texture: 'grain',
+      textureOpacity: 0.035,
+      glowAnimation: 'drift',
+      cardStyle: 'sharp',
+      accentEffect: 'filmstrip',
     },
   },
   {
@@ -84,9 +111,16 @@ export const themes: Theme[] = [
       muted: '#7a7590',
       glass: 'rgba(19, 16, 42, 0.65)',
       glassBorder: 'rgba(0, 212, 255, 0.15)',
-      glow1: 'rgba(0, 212, 255, 0.04)',
-      glow2: 'rgba(139, 92, 246, 0.05)',
+      glow1: 'rgba(0, 212, 255, 0.05)',
+      glow2: 'rgba(139, 92, 246, 0.06)',
       glow3: 'rgba(236, 72, 153, 0.03)',
+    },
+    visual: {
+      texture: 'noise',
+      textureOpacity: 0.03,
+      glowAnimation: 'aurora',
+      cardStyle: 'glass',
+      accentEffect: 'nebula',
     },
   },
   {
@@ -105,9 +139,16 @@ export const themes: Theme[] = [
       muted: '#6b8a7a',
       glass: 'rgba(15, 31, 24, 0.65)',
       glassBorder: 'rgba(245, 158, 11, 0.15)',
-      glow1: 'rgba(245, 158, 11, 0.04)',
-      glow2: 'rgba(16, 185, 129, 0.04)',
+      glow1: 'rgba(245, 158, 11, 0.05)',
+      glow2: 'rgba(16, 185, 129, 0.05)',
       glow3: 'rgba(52, 211, 153, 0.03)',
+    },
+    visual: {
+      texture: 'bark',
+      textureOpacity: 0.03,
+      glowAnimation: 'breathe',
+      cardStyle: 'soft',
+      accentEffect: 'ember',
     },
   },
   {
@@ -126,9 +167,16 @@ export const themes: Theme[] = [
       muted: '#7a8ba5',
       glass: 'rgba(17, 27, 46, 0.65)',
       glassBorder: 'rgba(96, 165, 250, 0.15)',
-      glow1: 'rgba(96, 165, 250, 0.04)',
-      glow2: 'rgba(147, 197, 253, 0.03)',
+      glow1: 'rgba(96, 165, 250, 0.05)',
+      glow2: 'rgba(147, 197, 253, 0.04)',
       glow3: 'rgba(196, 181, 253, 0.02)',
+    },
+    visual: {
+      texture: 'crystal',
+      textureOpacity: 0.025,
+      glowAnimation: 'shimmer',
+      cardStyle: 'glass',
+      accentEffect: 'frost',
     },
   },
   {
@@ -147,9 +195,16 @@ export const themes: Theme[] = [
       muted: '#a5789a',
       glass: 'rgba(37, 16, 32, 0.65)',
       glassBorder: 'rgba(249, 168, 212, 0.15)',
-      glow1: 'rgba(249, 168, 212, 0.04)',
-      glow2: 'rgba(244, 114, 182, 0.04)',
-      glow3: 'rgba(251, 146, 60, 0.02)',
+      glow1: 'rgba(249, 168, 212, 0.05)',
+      glow2: 'rgba(244, 114, 182, 0.05)',
+      glow3: 'rgba(251, 146, 60, 0.03)',
+    },
+    visual: {
+      texture: 'silk',
+      textureOpacity: 0.03,
+      glowAnimation: 'breathe',
+      cardStyle: 'elevated',
+      accentEffect: 'petal',
     },
   },
 ];
@@ -164,7 +219,6 @@ export function getCurrentTheme(): Theme {
     const found = themes.find(t => t.id === saved);
     if (found) return found;
   }
-  // 默认绯红影院
   return themes.find(t => t.id === 'crimson-cinema') || themes[0];
 }
 
@@ -176,8 +230,9 @@ export function saveTheme(themeId: string): void {
 // 应用主题到 CSS 变量
 export function applyTheme(theme: Theme): void {
   const root = document.documentElement;
-  const { colors } = theme;
+  const { colors, visual } = theme;
   
+  // 颜色变量
   root.style.setProperty('--color-deep', colors.deep);
   root.style.setProperty('--color-card', colors.card);
   root.style.setProperty('--color-surface', colors.surface);
@@ -191,4 +246,12 @@ export function applyTheme(theme: Theme): void {
   root.style.setProperty('--glow-1', colors.glow1);
   root.style.setProperty('--glow-2', colors.glow2);
   root.style.setProperty('--glow-3', colors.glow3);
+  
+  // 视觉风格变量
+  root.style.setProperty('--texture-opacity', String(visual.textureOpacity));
+  root.dataset.theme = theme.id;
+  root.dataset.texture = visual.texture;
+  root.dataset.glowAnim = visual.glowAnimation;
+  root.dataset.cardStyle = visual.cardStyle;
+  root.dataset.accentEffect = visual.accentEffect;
 }

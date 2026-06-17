@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"io"
-	"log"
 	"net/http"
 	"net/url"
 	"strings"
@@ -48,7 +47,6 @@ func ProxyM3U8(c *gin.Context) {
 
 	resp, err := proxyClient.Do(req)
 	if err != nil {
-		log.Printf("[ProxyM3U8] 请求失败: url=%s, error=%v", m3u8URL, err)
 		c.JSON(http.StatusBadGateway, gin.H{"error": "请求失败: " + err.Error()})
 		return
 	}
@@ -146,5 +144,3 @@ func ProxyLogo(c *gin.Context) {
 
 	io.Copy(c.Writer, resp.Body)
 }
-
-
