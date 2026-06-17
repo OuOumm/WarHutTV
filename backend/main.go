@@ -44,8 +44,6 @@ func main() {
 		
 		auth.GET("/detail", handlers.Detail)
 		auth.GET("/play", handlers.Play)
-		auth.GET("/adblock/status", handlers.GetAdBlockStatus)
-		auth.POST("/adblock/status", handlers.SetAdBlockStatus)
 		auth.GET("/live/sources", handlers.GetLiveSources)
 		auth.GET("/live/channels", handlers.GetLiveChannels)
 		auth.GET("/live/precheck", handlers.PrecheckLiveStream)

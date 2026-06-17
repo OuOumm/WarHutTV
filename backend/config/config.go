@@ -23,13 +23,12 @@ type LiveSource struct {
 }
 
 type Config struct {
-	SiteName       string                `json:"site_name"`
-	Announcement   string                `json:"announcement"`
-	Password       string                `json:"password"`
-	JWTSecret      string                `json:"jwt_secret"`
-	AdBlockEnabled bool                  `json:"ad_block_enabled"`
-	APISite        map[string]SiteConfig `json:"api_site"`
-	LiveConfig     []LiveSource          `json:"live_config,omitempty"`
+	SiteName     string                `json:"site_name"`
+	Announcement string                `json:"announcement"`
+	Password     string                `json:"password"`
+	JWTSecret    string                `json:"jwt_secret"`
+	APISite      map[string]SiteConfig `json:"api_site"`
+	LiveConfig   []LiveSource          `json:"live_config,omitempty"`
 
 	mu sync.RWMutex
 }
@@ -38,12 +37,11 @@ var globalConfig *Config
 
 func defaultConfig() *Config {
 	return &Config{
-		SiteName:       "WarHutTV",
-		Announcement:   "本网站仅提供影视信息搜索服务",
-		Password:       "admin123",
-		JWTSecret:      "change-me-in-production",
-		AdBlockEnabled: true,
-		APISite:        make(map[string]SiteConfig),
+		SiteName:     "WarHutTV",
+		Announcement: "本网站仅提供影视信息搜索服务",
+		Password:     "admin123",
+		JWTSecret:    "change-me-in-production",
+		APISite:      make(map[string]SiteConfig),
 	}
 }
 
@@ -84,9 +82,6 @@ func (c *Config) Update(newConfig *Config) {
 	}
 	if newConfig.Announcement != "" {
 		c.Announcement = newConfig.Announcement
-	}
-	if newConfig.AdBlockEnabled {
-		c.AdBlockEnabled = newConfig.AdBlockEnabled
 	}
 	if newConfig.LiveConfig != nil {
 		c.LiveConfig = newConfig.LiveConfig

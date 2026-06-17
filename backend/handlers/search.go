@@ -15,7 +15,12 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-
+type siteResult struct {
+	SiteKey string              `json:"site_key"`
+	Name    string              `json:"name"`
+	List    []services.VideoItem `json:"list"`
+	Error   string              `json:"error,omitempty"`
+}
 
 func Search(c *gin.Context) {
 	keyword := c.Query("wd")
@@ -29,6 +34,13 @@ func Search(c *gin.Context) {
 
 	if keyword == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "搜索关键词不能为空"})
+		return
+	}
+
+	// 检查缓存
+	cacheKey := fmt.Sprintf("search:%s:%d", keyword, pg)
+	if cached, ok := services.AppCache.Get(cacheKey); ok {
+		c.JSON(http.StatusOK, cached)
 		return
 	}
 
@@ -48,13 +60,6 @@ func Search(c *gin.Context) {
 	}
 
 	// 多源并发搜索
-	type siteResult struct {
-		SiteKey string             `json:"site_key"`
-		Name    string             `json:"name"`
-		List    []services.VideoItem `json:"list"`
-		Error   string             `json:"error,omitempty"`
-	}
-
 	results := make([]siteResult, 0, len(cfg.APISite))
 	var mu sync.Mutex
 	var wg sync.WaitGroup
@@ -111,6 +116,9 @@ func Search(c *gin.Context) {
 	}
 
 	wg.Wait()
+	
+	// 缓存搜索结果（2小时）
+	services.AppCache.Set(cacheKey, results, 2*time.Hour)
 	c.JSON(http.StatusOK, results)
 }
 
@@ -131,6 +139,46 @@ func SearchStream(c *gin.Context) {
 
 	cfg := config.Get()
 	siteCount := len(cfg.APISite)
+
+	// 检查缓存
+	cacheKey := fmt.Sprintf("search:%s:%d", keyword, pg)
+	if cached, ok := services.AppCache.Get(cacheKey); ok {
+		// 有缓存，直接流式返回
+		c.Header("Content-Type", "text/event-stream")
+		c.Header("Cache-Control", "no-cache")
+		c.Header("Connection", "keep-alive")
+		c.Header("X-Accel-Buffering", "no")
+
+		if _, ok := c.Writer.(http.Flusher); !ok {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Streaming not supported"})
+			return
+		}
+
+		// 从缓存恢复类型（磁盘读取的 JSON 会丢失类型）
+		var results []siteResult
+		cacheJSON, _ := json.Marshal(cached)
+		if err := json.Unmarshal(cacheJSON, &results); err == nil && len(results) > 0 {
+			jsonData, _ := json.Marshal(map[string]interface{}{"keyword": keyword, "site_count": len(results)})
+			fmt.Fprintf(c.Writer, "event: start\ndata: %s\n\n", jsonData)
+
+			for i, r := range results {
+				jsonData, _ := json.Marshal(map[string]interface{}{
+					"site":      r.SiteKey,
+					"name":      r.Name,
+					"data":      r,
+					"completed": i + 1,
+					"total":     len(results),
+				})
+				fmt.Fprintf(c.Writer, "event: result\ndata: %s\n\n", jsonData)
+				c.Writer.Flush()
+			}
+
+			doneData, _ := json.Marshal(map[string]interface{}{"completed": len(results), "total": len(results)})
+			fmt.Fprintf(c.Writer, "event: done\ndata: %s\n\n", doneData)
+			c.Writer.Flush()
+			return
+		}
+	}
 
 	// SSE 响应头
 	c.Header("Content-Type", "text/event-stream")
@@ -182,6 +230,7 @@ func SearchStream(c *gin.Context) {
 	var mu sync.Mutex
 	var wg sync.WaitGroup
 	completed := 0
+	var results []siteResult
 
 	for siteKey := range cfg.APISite {
 		wg.Add(1)
@@ -207,6 +256,11 @@ func SearchStream(c *gin.Context) {
 			mu.Lock()
 			completed++
 			current := completed
+			results = append(results, siteResult{
+				SiteKey: key,
+				Name:    siteName,
+				List:    result.List,
+			})
 			mu.Unlock()
 
 			sendSSE("result", map[string]interface{}{
@@ -245,4 +299,7 @@ func SearchStream(c *gin.Context) {
 		"completed": finalCompleted,
 		"total":     siteCount,
 	})
+
+	// 缓存结果
+	services.AppCache.Set(cacheKey, results, 2*time.Hour)
 }

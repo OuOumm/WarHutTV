@@ -156,11 +156,7 @@ const Search = () => {
                 <div className="text-sm text-text font-medium">
                   正在搜索 {streamProgress.completed}/{streamProgress.total} 个源
                 </div>
-                {streamProgress.currentSite && (
-                  <div className="text-xs text-muted mt-0.5">
-                    刚收到: {streamProgress.currentSite}
-                  </div>
-                )}
+
               </div>
               {results.length > 0 && (
                 <div className="text-sm text-primary font-medium">

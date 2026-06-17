@@ -5,6 +5,9 @@ import apiClient from '../api/client';
 import type { VideoDetail } from '../types';
 import { favoritesStore } from '../store/favorites';
 import { historyStore } from '../store/history';
+import { detailCacheStore } from '../store/detailCache';
+import { apiCacheStore } from '../store/apiCache';
+import { fetchAndFilterM3U8 } from '../utils/adblock';
 import { testVideoSpeed, type SpeedTestResult } from '../utils/speedtest';
 import { processImageUrl } from '../utils/image';
 
@@ -128,7 +131,7 @@ const Play = () => {
   const [currentEpisode, setCurrentEpisode] = useState<Episode | null>(null);
   const [playUrl, setPlayUrl] = useState('');
   const [isFavorite, setIsFavorite] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true); // 初始为 true，避免闪烁
   const [activeTab, setActiveTab] = useState<'episodes' | 'sources'>('episodes');
   const [sources, setSources] = useState<SourceItem[]>([]);
   const [currentSource, setCurrentSource] = useState('');
@@ -139,9 +142,18 @@ const Play = () => {
   const [toast, setToast] = useState('');
   const [historyVodId, setHistoryVodId] = useState<string | number>('');
   const [optimizeComplete, setOptimizeComplete] = useState(false);
-  const detailCache = useState(() => new Map<string, { data: any; ts: number }>())[0];
-  const CACHE_TTL = 5 * 60 * 1000;
+  const [episodePage, setEpisodePage] = useState(0);
+  const EPISODES_PER_PAGE = 50;
   const optimizeStarted = useRef(false);
+
+  // m3u8 前端处理（支持去广告）
+  const getPlayableUrl = async (url: string) => {
+    if (!url) return url;
+    if (url.includes('.m3u8')) {
+      return await fetchAndFilterM3U8(url);
+    }
+    return url;
+  };
 
   useEffect(() => { 
     if (site && id) {
@@ -172,8 +184,14 @@ const Play = () => {
     }
     
     try {
-      const response = await apiClient.get('/detail', { params: { site, ids: id } });
-      const data = response.data;
+      // 检查缓存
+      const cacheKey = `${site}:${id}`;
+      let data = await detailCacheStore.get(cacheKey);
+      if (!data) {
+        const response = await apiClient.get('/detail', { params: { site, ids: id } });
+        data = response.data;
+        if (data) await detailCacheStore.set(cacheKey, data);
+      }
       if (data?.list?.length > 0) {
         const videoDetail = data.list[0];
         setDetail(videoDetail);
@@ -225,9 +243,15 @@ const Play = () => {
   const startOptimize = async (title: string) => {
     setSourceLoading(true);
     try {
-      // 加载所有源
-      const response = await apiClient.get('/search', { params: { wd: title } });
-      const data = response.data;
+      // 检查搜索缓存
+      const searchCacheKey = `search:${title}`;
+      let data = await apiCacheStore.get('search', searchCacheKey);
+      
+      if (!data) {
+        const response = await apiClient.get('/search', { params: { wd: title } });
+        data = response.data;
+        if (data) await apiCacheStore.set('search', searchCacheKey, data);
+      }
       const sourceList: SourceItem[] = [];
       
       // data 是数组 [{site_key, name, list}, ...]
@@ -253,7 +277,7 @@ const Play = () => {
         setOptimizeComplete(true);
         const epList = episodes;
         if (epList.length > 0 && epList[0].url) {
-          setPlayUrl(epList[0].url);
+          getPlayableUrl(epList[0].url).then(setPlayUrl);
         }
         return;
       }
@@ -328,7 +352,7 @@ const Play = () => {
             setEpisodes(epList);
             if (epList.length > 0) {
               setCurrentEpisode(epList[0]);
-              setPlayUrl(epList[0].url); // 现在才设置播放URL
+              getPlayableUrl(epList[0].url).then(setPlayUrl); // 现在才设置播放URL
             }
           }
           // 更新历史记录
@@ -339,7 +363,7 @@ const Play = () => {
         // 没有有效结果，使用原始源
         const epList = episodes;
         if (epList.length > 0 && epList[0].url) {
-          setPlayUrl(epList[0].url);
+          getPlayableUrl(epList[0].url).then(setPlayUrl);
         }
       }
       
@@ -348,7 +372,7 @@ const Play = () => {
       // 优选失败，使用原始源
       const epList = episodes;
       if (epList.length > 0 && epList[0].url) {
-        setPlayUrl(epList[0].url);
+        getPlayableUrl(epList[0].url).then(setPlayUrl);
       }
     } finally {
       setSourceLoading(false);
@@ -360,11 +384,11 @@ const Play = () => {
 
   const getCachedDetail = async (sourceKey: string, vodId: string) => {
     const cacheKey = `${sourceKey}:${vodId}`;
-    const cached = detailCache.get(cacheKey);
-    if (cached && Date.now() - cached.ts < CACHE_TTL) return cached.data;
+    const cached = await detailCacheStore.get(cacheKey);
+    if (cached) return cached?.list?.[0];
     const res = await apiClient.get('/detail', { params: { site: sourceKey, ids: vodId } });
     const data = res.data?.list?.[0];
-    if (data) detailCache.set(cacheKey, { data, ts: Date.now() });
+    if (res.data) await detailCacheStore.set(cacheKey, res.data);
     return data;
   };
 
@@ -386,7 +410,7 @@ const Play = () => {
           if (newDetail.vod_play_url) {
             const epList = parseEpisodes(newDetail.vod_play_url);
             setEpisodes(epList);
-            if (epList.length > 0) { setCurrentEpisode(epList[0]); if (epList[0].url) setPlayUrl(epList[0].url); }
+            if (epList.length > 0) { setCurrentEpisode(epList[0]); if (epList[0].url) getPlayableUrl(epList[0].url).then(setPlayUrl); }
           }
           setActiveTab('episodes');
           await historyStore.updateSource(historyVodId, sourceKey, item.vod_id);
@@ -398,16 +422,22 @@ const Play = () => {
 
   const handleEpisodeClick = (ep: Episode) => {
     setCurrentEpisode(ep);
-    if (ep.url) { setPlayUrl(ep.url); } else {
+    if (ep.url) {
+      getPlayableUrl(ep.url).then(setPlayUrl);
+    } else {
       apiClient.get('/play', { params: { site: currentSource, ids: id, episode: ep.name } })
-        .then((res) => { if (res.data.url) setPlayUrl(res.data.url); }).catch(console.error);
+        .then((res) => { if (res.data.url) getPlayableUrl(res.data.url).then(setPlayUrl); }).catch(console.error);
     }
   };
 
   const toggleFavorite = async () => { if (!detail) return; const result = await favoritesStore.toggle(detail); setIsFavorite(result); };
 
+  // 加载中显示加载动画
   if (loading && !isOptimizing) return <div className="flex justify-center items-center h-[60vh]"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>;
-  if (!detail) return <div className="text-center text-muted py-8">未找到视频</div>;
+  // 未找到视频（且不在优化中）
+  if (!detail && !isOptimizing) return <div className="text-center text-muted py-8">未找到视频</div>;
+  // 优化中但 detail 还没加载，使用占位符
+  const currentDetail = detail || { vod_id: id || '', vod_name: '', vod_pic: '', vod_play_url: '' } as any;
 
   return (
     <div>
@@ -420,7 +450,7 @@ const Play = () => {
       <div className="flex flex-col gap-4 py-4 px-5 lg:px-[3rem] 2xl:px-20">
         <div className="py-1">
           <h1 className="text-xl font-semibold text-text">
-            {detail.vod_name}
+            {currentDetail.vod_name}
             {currentEpisode && <span className="text-muted">{` > ${currentEpisode.name}`}</span>}
           </h1>
         </div>
@@ -432,7 +462,7 @@ const Play = () => {
               {isOptimizing && <OptimizingOverlay sources={sources} />}
               
               {playUrl && optimizeComplete ? (
-                <Player url={playUrl} title={detail.vod_name} currentTime={currentTime} onTimeUpdate={(t) => { setCurrentTime(t); if (historyVodId) historyStore.updateProgress(historyVodId, t, 0); }} />
+                <Player url={playUrl} title={currentDetail.vod_name} currentTime={currentTime} onTimeUpdate={(t) => { setCurrentTime(t); if (historyVodId) historyStore.updateProgress(historyVodId, t, 0); }} />
               ) : !isOptimizing && optimizeComplete ? (
                 <div className="w-full h-full flex items-center justify-center text-muted">选择集数开始播放</div>
               ) : null}
@@ -450,15 +480,42 @@ const Play = () => {
                 </button>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-2 bg-deep">
+              <div className="flex-1 overflow-y-auto bg-deep">
                 {activeTab === 'episodes' ? (
-                  <div className="grid grid-cols-3 gap-1.5">
-                    {episodes.map((ep, index) => (
-                      <button key={index} onClick={() => handleEpisodeClick(ep)} className={`px-2 py-1.5 text-xs rounded-md transition-colors truncate ${currentEpisode?.name === ep.name ? 'bg-primary text-deep' : 'bg-surface text-muted hover:bg-card'}`} title={ep.name}>
-                        {ep.name}
-                      </button>
-                    ))}
-                  </div>
+                  <>
+                    {/* 分页标签 - 固定在顶部 */}
+                    {episodes.length > EPISODES_PER_PAGE && (
+                      <div className="sticky top-0 z-10 bg-surface border-b border-glass-border px-2 py-1.5">
+                        <div className="flex gap-1 overflow-x-auto scrollbar-hide">
+                          {Array.from({ length: Math.ceil(episodes.length / EPISODES_PER_PAGE) }, (_, i) => {
+                            const start = i * EPISODES_PER_PAGE + 1;
+                            const end = Math.min((i + 1) * EPISODES_PER_PAGE, episodes.length);
+                            return (
+                              <button
+                                key={i}
+                                onClick={() => setEpisodePage(i)}
+                                className={`px-2.5 py-1 text-[11px] font-medium rounded-md flex-shrink-0 transition-all ${
+                                  episodePage === i 
+                                    ? 'bg-primary text-deep shadow-sm' 
+                                    : 'text-muted hover:text-text hover:bg-card'
+                                }`}
+                              >
+                                {start}-{end}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                    {/* 集数按钮 */}
+                    <div className="p-2 grid grid-cols-5 gap-1.5">
+                      {episodes.slice(episodePage * EPISODES_PER_PAGE, (episodePage + 1) * EPISODES_PER_PAGE).map((ep, index) => (
+                        <button key={index} onClick={() => handleEpisodeClick(ep)} className={`px-2 py-1.5 text-xs rounded-md transition-colors truncate ${currentEpisode?.name === ep.name ? 'bg-primary text-deep' : 'bg-surface text-muted hover:bg-card'}`} title={ep.name}>
+                          {ep.name}
+                        </button>
+                      ))}
+                    </div>
+                  </>
                 ) : sourceLoading ? (
                   <div className="flex justify-center py-4"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" /></div>
                 ) : sources.length === 0 ? (
@@ -473,7 +530,7 @@ const Play = () => {
                         <div className="flex-1 min-w-0 flex flex-col justify-between">
                           <div>
                             <div className="flex items-center justify-between">
-                              <span className="text-sm font-medium text-text truncate">{detail.vod_name}</span>
+                              <span className="text-sm font-medium text-text truncate">{currentDetail.vod_name}</span>
                               {source.speed && <span className="text-[10px] px-1.5 py-0.5 bg-green-900/30 text-green-400 rounded">{source.speed.quality}</span>}
                               {source.status === 'error' && <span className="text-[10px] px-1.5 py-0.5 bg-red-900/30 text-red-400 rounded">检测失败</span>}
                             </div>
@@ -503,7 +560,7 @@ const Play = () => {
           <div className="hidden md:block md:col-span-1 md:order-first">
             <div className="pr-6">
               <div className="relative aspect-[2/3] rounded-xl overflow-hidden shadow-lg">
-                <img src={detail.vod_pic || '/placeholder.jpg'} alt={detail.vod_name} className="w-full h-full object-cover" />
+                <img src={currentDetail.vod_pic || '/placeholder.jpg'} alt={currentDetail.vod_name} className="w-full h-full object-cover" />
               </div>
             </div>
           </div>
@@ -511,7 +568,7 @@ const Play = () => {
           <div className="md:col-span-3">
             <div className="p-4">
               <h1 className="text-2xl sm:text-3xl font-bold text-text mb-2 flex items-center gap-3">
-                {detail.vod_name}
+                {currentDetail.vod_name}
                 <button onClick={toggleFavorite} className="flex-shrink-0 hover:opacity-80 transition-opacity">
                   {isFavorite ? (
                     <svg className="h-7 w-7" viewBox="0 0 24 24" fill="#ef4444" stroke="#ef4444" strokeWidth="2"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" /></svg>
@@ -522,17 +579,17 @@ const Play = () => {
               </h1>
 
               <div className="flex flex-wrap items-center gap-3 text-base mb-4">
-                {detail.type_name && <span className="text-primary font-semibold">{detail.type_name}</span>}
-                {detail.vod_year && <span className="text-muted">{detail.vod_year}</span>}
+                {currentDetail.type_name && <span className="text-primary font-semibold">{currentDetail.type_name}</span>}
+                {currentDetail.vod_year && <span className="text-muted">{currentDetail.vod_year}</span>}
                 <span className="border border-glass-border px-2 py-0.5 rounded text-muted text-sm">
                   {sources.find(s => s.key === currentSource)?.name || site}
                 </span>
-                {detail.vod_remarks && <span className="text-muted">{detail.vod_remarks}</span>}
+                {currentDetail.vod_remarks && <span className="text-muted">{currentDetail.vod_remarks}</span>}
               </div>
 
-              {detail.vod_content && (
+              {currentDetail.vod_content && (
                 <div className="text-base leading-relaxed text-muted" style={{ whiteSpace: 'pre-line' }}>
-                  {detail.vod_content.replace(/<[^>]*>/g, '')}
+                  {currentDetail.vod_content.replace(/<[^>]*>/g, '')}
                   {site && /^\d+$/.test(site) && (
                     <div className="mt-4">
                       <button 

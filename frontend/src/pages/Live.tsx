@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import Player from '../components/Player';
 import apiClient from '../api/client';
+import { apiCacheStore } from '../store/apiCache';
 import type { LiveChannel, LiveSource } from '../types';
 
 const Live = () => {
@@ -79,8 +80,18 @@ const Live = () => {
   const fetchLiveSources = async () => {
     try {
       setLoading(true);
-      const response = await apiClient.get('/live/sources');
-      const sources: LiveSource[] = response.data.data || [];
+      
+      // 检查缓存
+      let sources: LiveSource[] = await apiCacheStore.get('liveSources', 'list') || [];
+      
+      if (sources.length === 0) {
+        const response = await apiClient.get('/live/sources');
+        sources = response.data.data || [];
+        if (sources.length > 0) {
+          await apiCacheStore.set('liveSources', 'list', sources);
+        }
+      }
+      
       setLiveSources(sources);
 
       if (sources.length > 0) {
@@ -97,8 +108,17 @@ const Live = () => {
 
   const fetchChannels = async (source: LiveSource) => {
     try {
-      const response = await apiClient.get(`/live/channels?source=${source.key}`);
-      const data: LiveChannel[] = response.data.data || [];
+      // 检查缓存
+      let data: LiveChannel[] = await apiCacheStore.get('liveChannels', source.key) || [];
+      
+      if (data.length === 0) {
+        const response = await apiClient.get(`/live/channels?source=${source.key}`);
+        data = response.data.data || [];
+        if (data.length > 0) {
+          await apiCacheStore.set('liveChannels', source.key, data);
+        }
+      }
+      
       setChannels(data);
 
       const grouped: Record<string, LiveChannel[]> = { '全部': data };
