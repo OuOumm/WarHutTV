@@ -1,6 +1,7 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Artplayer from 'artplayer';
 import Hls from 'hls.js';
+import { getCurrentTheme } from '../store/theme';
 
 interface PlayerProps {
   url: string;
@@ -13,6 +14,17 @@ interface PlayerProps {
 const Player = ({ url, title, currentTime, onTimeUpdate, isLive = false }: PlayerProps) => {
   const artRef = useRef<HTMLDivElement>(null);
   const artInstance = useRef<Artplayer | null>(null);
+  const [themeId, setThemeId] = useState(getCurrentTheme().id);
+
+  useEffect(() => {
+    const handleThemeChange = (e: CustomEvent) => {
+      if (e.detail?.id) {
+        setThemeId(e.detail.id);
+      }
+    };
+    window.addEventListener('theme-change', handleThemeChange as EventListener);
+    return () => window.removeEventListener('theme-change', handleThemeChange as EventListener);
+  }, []);
 
   useEffect(() => {
     if (!artRef.current || !url) return;
@@ -30,6 +42,8 @@ const Player = ({ url, title, currentTime, onTimeUpdate, isLive = false }: Playe
     Artplayer.PLAYBACK_RATE = [0.5, 0.75, 1, 1.25, 1.5, 2, 3];
     Artplayer.USE_RAF = false;
     Artplayer.FULLSCREEN_WEB_IN_BODY = true;
+
+    const theme = getCurrentTheme();
 
     const art = new Artplayer({
       container: artRef.current,
@@ -55,7 +69,7 @@ const Player = ({ url, title, currentTime, onTimeUpdate, isLive = false }: Playe
       playsInline: true,
       autoPlayback: false,
       airplay: true,
-      theme: '#22c55e',
+      theme: theme.colors.primary,
       lang: navigator.language.toLowerCase() === 'zh-cn' ? 'zh-cn' : 'en',
       hotkey: false,
       fastForward: true,
@@ -137,7 +151,7 @@ const Player = ({ url, title, currentTime, onTimeUpdate, isLive = false }: Playe
       } catch {}
       artInstance.current = null;
     };
-  }, [url]);
+  }, [url, themeId]);
 
   useEffect(() => {
     if (artInstance.current && title) {

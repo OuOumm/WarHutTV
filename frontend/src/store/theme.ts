@@ -27,6 +27,27 @@ export interface Theme {
 // 主题定义
 export const themes: Theme[] = [
   {
+    id: 'crimson-cinema',
+    name: '绯红影院',
+    nameEn: 'Crimson Cinema',
+    description: '剧院帷幕风格，暗红底色配绯红主调',
+    colors: {
+      deep: '#10080c',
+      card: '#1a0f14',
+      surface: '#231520',
+      primary: '#e11d48',
+      primaryDim: '#be123c',
+      primaryGlow: 'rgba(225, 29, 72, 0.15)',
+      text: '#f5f0f2',
+      muted: '#8a7580',
+      glass: 'rgba(26, 15, 20, 0.65)',
+      glassBorder: 'rgba(225, 29, 72, 0.15)',
+      glow1: 'rgba(225, 29, 72, 0.05)',
+      glow2: 'rgba(244, 114, 182, 0.03)',
+      glow3: 'rgba(251, 191, 36, 0.02)',
+    },
+  },
+  {
     id: 'cinema-gold',
     name: '影院金',
     nameEn: 'Cinema Gold',
@@ -143,7 +164,8 @@ export function getCurrentTheme(): Theme {
     const found = themes.find(t => t.id === saved);
     if (found) return found;
   }
-  return themes[0]; // 默认影院金
+  // 默认绯红影院
+  return themes.find(t => t.id === 'crimson-cinema') || themes[0];
 }
 
 // 保存主题
