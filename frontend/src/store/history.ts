@@ -44,7 +44,19 @@ export const historyStore = {
   },
 
   async remove(vodId: string | number): Promise<void> {
-    await db.watchHistory.where('vod_id').equals(vodId).delete();
+    // 先获取要删除的记录，以便按名称删除所有相同记录
+    const record = await db.watchHistory.where('vod_id').equals(vodId).first();
+    if (record) {
+      // 删除所有相同名称的记录
+      await db.watchHistory.where('vod_name').equals(record.vod_name).delete();
+    } else {
+      // 如果没找到，直接按 id 删除
+      await db.watchHistory.where('vod_id').equals(vodId).delete();
+    }
+  },
+
+  async removeByName(vodName: string): Promise<void> {
+    await db.watchHistory.where('vod_name').equals(vodName).delete();
   },
 
   async getAll(): Promise<WatchHistory[]> {
@@ -52,7 +64,19 @@ export const historyStore = {
   },
 
   async getRecent(limit: number = 10): Promise<WatchHistory[]> {
-    return db.watchHistory.orderBy('watchedAt').reverse().limit(limit).toArray();
+    // 获取所有记录，按时间倒序
+    const allRecords = await db.watchHistory.orderBy('watchedAt').reverse().toArray();
+    // 按 vod_name 去重，只保留每个电影的最新记录
+    const seen = new Set<string>();
+    const uniqueRecords: WatchHistory[] = [];
+    for (const record of allRecords) {
+      const name = record.vod_name || '';
+      if (!seen.has(name)) {
+        seen.add(name);
+        uniqueRecords.push(record);
+      }
+    }
+    return uniqueRecords.slice(0, limit);
   },
 
   async clear(): Promise<void> {

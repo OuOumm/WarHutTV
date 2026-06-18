@@ -1,10 +1,17 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 const SearchBar = () => {
-  const [keyword, setKeyword] = useState('');
+  const [searchParams] = useSearchParams();
+  const wd = searchParams.get('wd') || '';
+  const [keyword, setKeyword] = useState(wd);
   const [focused, setFocused] = useState(false);
   const navigate = useNavigate();
+
+  // 当 URL 参数变化时，更新搜索框内容
+  useEffect(() => {
+    setKeyword(wd);
+  }, [wd]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

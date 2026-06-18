@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import SearchBar from '../components/SearchBar';
 import VideoCard from '../components/VideoCard';
 import type { VideoItem } from '../types';
-import { filterYellowItems } from '../utils/filter';
+import { filterYellowItems, isExactMatch } from '../utils/filter';
 
 interface StreamProgress {
   completed: number;
@@ -19,6 +19,11 @@ const Search = () => {
   const [error, setError] = useState('');
   const [streamProgress, setStreamProgress] = useState<StreamProgress | null>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
+  const [exactMatch, setExactMatch] = useState(() => {
+    try {
+      return localStorage.getItem('searchExactMatch') !== 'false';
+    } catch { return true; }
+  });
 
   const getDefaultAggregate = () => {
     try {
@@ -28,6 +33,15 @@ const Search = () => {
   };
 
   const [viewMode, setViewMode] = useState<'agg' | 'all'>(getDefaultAggregate() ? 'agg' : 'all');
+
+  // 保存精确匹配设置
+  const toggleExactMatch = () => {
+    const newValue = !exactMatch;
+    setExactMatch(newValue);
+    try {
+      localStorage.setItem('searchExactMatch', String(newValue));
+    } catch {}
+  };
 
   useEffect(() => {
     if (keyword) searchVideos(keyword);
@@ -56,7 +70,8 @@ const Search = () => {
     const eventSource = new EventSource(url);
     eventSourceRef.current = eventSource;
 
-    const allResults: VideoItem[] = [];
+    // 只维护一个 siteResults 数组
+    const siteResults: any[] = [];
 
     eventSource.addEventListener('start', (e) => {
       const data = JSON.parse(e.data);
@@ -66,9 +81,14 @@ const Search = () => {
     eventSource.addEventListener('result', (e) => {
       const data = JSON.parse(e.data);
       const siteResult = data.data;
-      if (siteResult?.list) {
-        allResults.push(...siteResult.list);
-        setResults(filterYellowItems([...allResults]));
+      if (siteResult) {
+        // 添加 site_key 到 siteResult，供播放页复用
+        siteResult.site_key = data.site;
+        siteResult.name = data.name;
+        siteResults.push(siteResult);
+        // 从 siteResults 提取扁平列表用于显示
+        const flatList = siteResults.flatMap(r => r.list || []);
+        setResults(filterYellowItems(flatList));
       }
       setStreamProgress({
         completed: data.completed,
@@ -81,7 +101,7 @@ const Search = () => {
       if (eventSource.readyState === EventSource.CLOSED) {
         setLoading(false);
         setStreamProgress(null);
-        if (allResults.length === 0) setError('搜索连接失败');
+        if (siteResults.length === 0) setError('搜索连接失败');
       }
     });
 
@@ -94,24 +114,37 @@ const Search = () => {
       setStreamProgress(null);
       eventSource.close();
       eventSourceRef.current = null;
-      setResults(filterYellowItems(allResults));
+      const flatList = siteResults.flatMap(r => r.list || []);
+      setResults(filterYellowItems(flatList));
+      
+      // 存储 siteResults，供播放页面复用
+      try {
+        sessionStorage.setItem(`search_results:${wd}`, JSON.stringify(siteResults));
+      } catch {}
     });
 
     eventSource.onerror = () => {
       if (eventSource.readyState === EventSource.CLOSED) {
         setLoading(false);
         setStreamProgress(null);
-        if (allResults.length === 0) setError('搜索连接失败');
+        if (siteResults.length === 0) setError('搜索连接失败');
       }
     };
   };
 
-  // 聚合结果
+  // 聚合结果（应用精确匹配筛选）
   const aggregatedResults = useMemo(() => {
     const map = new Map<string, VideoItem[]>();
     const keyOrder: string[] = [];
 
     results.forEach((item) => {
+      // 精确匹配筛选
+      if (exactMatch && keyword) {
+        if (!isExactMatch(item.vod_name || '', keyword)) {
+          return;
+        }
+      }
+      
       const key = `${(item.vod_name || '').replaceAll(' ', '')}-${item.vod_year || 'unknown'}`;
       const arr = map.get(key) || [];
       if (arr.length === 0) keyOrder.push(key);
@@ -134,7 +167,7 @@ const Search = () => {
         item: group[0],
       };
     });
-  }, [results]);
+  }, [results, keyword, exactMatch]);
 
   return (
     <div className="px-4 sm:px-10 py-4 sm:py-8 overflow-visible mb-10">
@@ -190,19 +223,34 @@ const Search = () => {
                   {viewMode === 'agg' ? aggregatedResults.length : results.length} 个结果
                 </span>
               </h2>
-              <label className="flex items-center gap-2 cursor-pointer select-none">
-                <span className="text-sm text-muted">聚合</span>
-                <div className="relative">
-                  <input
-                    type="checkbox"
-                    className="sr-only peer"
-                    checked={viewMode === 'agg'}
-                    onChange={() => setViewMode(viewMode === 'agg' ? 'all' : 'agg')}
-                  />
-                  <div className="w-9 h-5 bg-surface rounded-full peer-checked:bg-primary transition-colors" />
-                  <div className="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-4" />
-                </div>
-              </label>
+              <div className="flex items-center gap-3">
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <span className="text-sm text-muted">精确匹配</span>
+                  <div className="relative">
+                    <input
+                      type="checkbox"
+                      className="sr-only peer"
+                      checked={exactMatch}
+                      onChange={toggleExactMatch}
+                    />
+                    <div className="w-9 h-5 bg-surface rounded-full peer-checked:bg-primary transition-colors" />
+                    <div className="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-4" />
+                  </div>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <span className="text-sm text-muted">聚合</span>
+                  <div className="relative">
+                    <input
+                      type="checkbox"
+                      className="sr-only peer"
+                      checked={viewMode === 'agg'}
+                      onChange={() => setViewMode(viewMode === 'agg' ? 'all' : 'agg')}
+                    />
+                    <div className="w-9 h-5 bg-surface rounded-full peer-checked:bg-primary transition-colors" />
+                    <div className="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-4" />
+                  </div>
+                </label>
+              </div>
             </div>
 
             <div className="grid grid-cols-3 gap-x-2 gap-y-12 sm:grid-cols-[repeat(auto-fill,minmax(160px,1fr))] sm:gap-x-8 sm:gap-y-20">
@@ -220,11 +268,16 @@ const Search = () => {
                       )}
                     </div>
                   ))
-                : results.map((item, index) => (
-                    <div key={`${item.vod_id}-${item.type_name}-${index}`} className="w-full">
-                      <VideoCard video={item} from="vod" />
-                    </div>
-                  ))
+                : results
+                    .filter((item) => {
+                      if (!exactMatch || !keyword) return true;
+                      return isExactMatch(item.vod_name || '', keyword);
+                    })
+                    .map((item, index) => (
+                      <div key={`${item.vod_id}-${item.type_name}-${index}`} className="w-full">
+                        <VideoCard video={item} from="vod" />
+                      </div>
+                    ))
               }
             </div>
           </>

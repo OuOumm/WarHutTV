@@ -8,10 +8,10 @@ import type { VideoDetail } from '../types';
 import { favoritesStore } from '../store/favorites';
 import { historyStore } from '../store/history';
 import { detailCacheStore } from '../store/detailCache';
-import { apiCacheStore } from '../store/apiCache';
 import { fetchAndFilterM3U8 } from '../utils/adblock';
 import { testVideoSpeed, type SpeedTestResult } from '../utils/speedtest';
 import { processImageUrl } from '../utils/image';
+import { filterYellowItems, isExactMatch } from '../utils/filter';
 
 interface Episode {
   name: string;
@@ -34,6 +34,64 @@ function parseEpisodes(playUrl: string): Episode[] {
     return { name: parts[0] || '播放', url: parts[1] || '' };
   });
 }
+
+// 搜索播放源动画组件
+const SearchingOverlay = ({ progress }: { progress: { completed: number; total: number; currentSite: string } | null }) => {
+  return (
+    <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/90 backdrop-blur-sm">
+      {/* 动态扫描线 */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-primary to-transparent animate-scan-line" />
+        <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-primary to-transparent animate-scan-line-reverse" />
+        <div className="absolute top-0 bottom-0 left-0 w-[2px] bg-gradient-to-b from-transparent via-primary to-transparent animate-scan-vertical" />
+        <div className="absolute top-0 bottom-0 right-0 w-[2px] bg-gradient-to-b from-transparent via-primary to-transparent animate-scan-vertical-reverse" />
+      </div>
+
+      {/* 中心内容 */}
+      <div className="relative flex flex-col items-center gap-6">
+        {/* 搜索动画 */}
+        <div className="relative w-24 h-24">
+          <div className="absolute inset-0 rounded-full border-2 border-primary/20 animate-pulse" />
+          <div className="absolute inset-3 rounded-full border border-primary/30" />
+          <div className="absolute inset-6 rounded-full border border-primary/40" />
+          {/* 搜索图标 */}
+          <div className="absolute inset-0 flex items-center justify-center">
+            <svg className="w-10 h-10 text-primary animate-bounce" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </div>
+        </div>
+
+        {/* 文字信息 */}
+        <div className="text-center space-y-2">
+          <h3 className="text-lg font-semibold text-text">正在搜索播放源</h3>
+          <p className="text-sm text-muted">
+            {progress ? (
+              <span>已搜索 {progress.completed}/{progress.total} 个源</span>
+            ) : (
+              <span>正在连接...</span>
+            )}
+          </p>
+          {progress?.currentSite && (
+            <p className="text-xs text-primary">当前: {progress.currentSite}</p>
+          )}
+        </div>
+
+        {/* 进度条 */}
+        {progress && (
+          <div className="w-48 space-y-1.5">
+            <div className="w-full h-1.5 bg-card rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-gradient-to-r from-primary-dim to-primary rounded-full transition-all duration-300 ease-out"
+                style={{ width: `${progress.total > 0 ? (progress.completed / progress.total) * 100 : 0}%` }}
+              />
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
 
 // 优选动画组件
 const OptimizingOverlay = ({ sources }: { sources: SourceItem[] }) => {
@@ -146,8 +204,10 @@ const Play = () => {
   const [historyVodId, setHistoryVodId] = useState<string | number>('');
   const [optimizeComplete, setOptimizeComplete] = useState(false);
   const [episodePage, setEpisodePage] = useState(0);
+  const [searchProgress, setSearchProgress] = useState<{ completed: number; total: number; currentSite: string } | null>(null);
   const EPISODES_PER_PAGE = 50;
   const optimizeStarted = useRef(false);
+  const eventSourceRef = useRef<EventSource | null>(null);
 
   // m3u8 前端处理（支持去广告）- 使用 useCallback 优化
   const getPlayableUrl = useCallback(async (url: string) => {
@@ -165,6 +225,14 @@ const Play = () => {
       setPlayUrl('');
       loadDetail(); 
     }
+    
+    // 组件卸载时关闭 EventSource
+    return () => {
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+        eventSourceRef.current = null;
+      }
+    };
   }, [site, id]);
 
   const loadDetail = async () => {
@@ -245,37 +313,58 @@ const Play = () => {
 
   const startOptimize = async (title: string) => {
     setSourceLoading(true);
+    setSearchProgress({ completed: 0, total: 0, currentSite: '' });
+    
     try {
-      // 检查搜索缓存
-      const searchCacheKey = `search:${title}`;
-      let data = await apiCacheStore.get('search', searchCacheKey);
+      // 优先从 sessionStorage 读取搜索页面的结果
+      let data = null;
+      try {
+        const cached = sessionStorage.getItem(`search_results:${title}`);
+        if (cached) {
+          data = JSON.parse(cached);
+          console.log('复用搜索页面结果');
+        }
+      } catch {}
       
+      // 如果没有缓存，使用流式搜索
       if (!data) {
-        const response = await apiClient.get('/search', { params: { wd: title } });
-        data = response.data;
-        if (data) await apiCacheStore.set('search', searchCacheKey, data);
+        data = await streamSearch(title);
       }
-      const sourceList: SourceItem[] = [];
       
-      // data 是数组 [{site_key, name, list}, ...]
-      if (Array.isArray(data)) {
-        data.forEach((item: any) => {
-          if (item?.list?.length > 0) {
-            const firstItem = item.list[0];
-            sourceList.push({ 
-              key: item.site_key, 
-              name: firstItem.source_name || item.name || item.site_key, 
-              poster: firstItem.vod_pic, 
-              episodeCount: item.list.length, 
-              speed: null, 
-              status: 'pending' 
-            });
-          }
-        });
+      if (!data || !Array.isArray(data) || data.length === 0) {
+        // 没有找到其他源，使用原始源
+        setIsOptimizing(false);
+        setOptimizeComplete(true);
+        const epList = episodes;
+        if (epList.length > 0 && epList[0].url) {
+          getPlayableUrl(epList[0].url).then(setPlayUrl);
+        }
+        return;
       }
+      
+      // 构建源列表
+      const sourceList: SourceItem[] = [];
+      data.forEach((item: any) => {
+        if (item?.list?.length > 0) {
+          // 过滤黄色内容
+          let filteredList = filterYellowItems(item.list) as any[];
+          // 精确匹配筛选
+          filteredList = filteredList.filter(item => isExactMatch(item.vod_name || '', title));
+          if (filteredList.length === 0) return;
+          
+          const firstItem = filteredList[0];
+          sourceList.push({ 
+            key: item.site_key, 
+            name: firstItem.source_name || item.name || item.site_key, 
+            poster: firstItem.vod_pic, 
+            episodeCount: filteredList.length, 
+            speed: null, 
+            status: 'pending' 
+          });
+        }
+      });
       
       if (sourceList.length === 0) {
-        // 没有找到其他源，使用原始源
         setIsOptimizing(false);
         setOptimizeComplete(true);
         const epList = episodes;
@@ -288,14 +377,13 @@ const Play = () => {
       setSources(sourceList);
       setSearchDataCache(data);
       setSourceLoading(false);
+      setSearchProgress(null);
       
       // 并发测速所有源
       const testPromises = sourceList.map(async (source, index) => {
-        // 更新状态为测试中
         setSources(prev => prev.map((s, i) => i === index ? { ...s, status: 'testing' as const } : s));
         
         try {
-          // data 是数组，需要根据 site_key 查找
           const siteData = Array.isArray(data) 
             ? data.find((item: any) => item.site_key === source.key)
             : data[source.key];
@@ -323,7 +411,6 @@ const Play = () => {
         .map(r => (r as PromiseFulfilledResult<any>).value);
       
       if (validResults.length > 0) {
-        // 按速度排序，选择最快的（需要统一单位）
         const parseSpeed = (speedStr: string): number => {
           const match = speedStr.match(/([\d.]+)\s*(KB|MB|GB)\/s/i);
           if (!match) return 0;
@@ -331,7 +418,7 @@ const Play = () => {
           const unit = match[2].toUpperCase();
           if (unit === 'GB') return value * 1024;
           if (unit === 'MB') return value;
-          return value / 1024; // KB 转 MB
+          return value / 1024;
         };
         validResults.sort((a, b) => {
           const speedA = parseSpeed(a.result.loadSpeed);
@@ -346,7 +433,6 @@ const Play = () => {
         setToast(`已选择最佳源: ${bestSource.name} (${bestResult.loadSpeed})`);
         setTimeout(() => setToast(''), 3000);
         
-        // 切换到最佳源并设置播放URL
         setCurrentSource(bestSource.key);
         if (bestDetail) {
           setDetail(bestDetail);
@@ -355,15 +441,40 @@ const Play = () => {
             setEpisodes(epList);
             if (epList.length > 0) {
               setCurrentEpisode(epList[0]);
-              getPlayableUrl(epList[0].url).then(setPlayUrl); // 现在才设置播放URL
+              getPlayableUrl(epList[0].url).then(setPlayUrl);
             }
           }
-          // 更新历史记录
           await historyStore.updateSource(historyVodId, bestSource.key, bestDetail.vod_id);
           setHistoryVodId(bestDetail.vod_id);
         }
+      } else if (sourceList.length > 0) {
+        // 所有测速都失败，选择第一个源
+        const firstSource = sourceList[0];
+        setToast(`测速失败，使用默认源: ${firstSource.name}`);
+        setTimeout(() => setToast(''), 3000);
+        
+        setCurrentSource(firstSource.key);
+        // 获取第一个源的详情
+        const siteData = data.find((item: any) => item.site_key === firstSource.key);
+        if (siteData?.list?.length > 0) {
+          const firstItem = siteData.list[0];
+          const detail = await getCachedDetail(firstSource.key, firstItem.vod_id);
+          if (detail) {
+            setDetail(detail);
+            if (detail.vod_play_url) {
+              const epList = parseEpisodes(detail.vod_play_url);
+              setEpisodes(epList);
+              if (epList.length > 0) {
+                setCurrentEpisode(epList[0]);
+                getPlayableUrl(epList[0].url).then(setPlayUrl);
+              }
+            }
+            await historyStore.updateSource(historyVodId, firstSource.key, detail.vod_id);
+            setHistoryVodId(detail.vod_id);
+          }
+        }
       } else {
-        // 没有有效结果，使用原始源
+        // 没有可用源，使用原始源
         const epList = episodes;
         if (epList.length > 0 && epList[0].url) {
           getPlayableUrl(epList[0].url).then(setPlayUrl);
@@ -372,7 +483,6 @@ const Play = () => {
       
     } catch (err) {
       console.error('优选失败:', err);
-      // 优选失败，使用原始源
       const epList = episodes;
       if (epList.length > 0 && epList[0].url) {
         getPlayableUrl(epList[0].url).then(setPlayUrl);
@@ -380,9 +490,73 @@ const Play = () => {
     } finally {
       setSourceLoading(false);
       setOptimizeComplete(true);
-      // 延迟关闭动画，让用户看到完成状态
+      setSearchProgress(null);
       setTimeout(() => setIsOptimizing(false), 800);
     }
+  };
+
+  // 流式搜索函数
+  const streamSearch = (wd: string): Promise<any[]> => {
+    return new Promise((resolve) => {
+      const token = localStorage.getItem('token') || '';
+      const url = `/api/search/stream?wd=${encodeURIComponent(wd)}&token=${token}`;
+      
+      const eventSource = new EventSource(url);
+      eventSourceRef.current = eventSource;
+      const allResults: any[] = [];
+      let siteCount = 0;
+      
+      eventSource.addEventListener('start', (e) => {
+        const data = JSON.parse(e.data);
+        siteCount = data.site_count;
+        setSearchProgress({ completed: 0, total: siteCount, currentSite: '' });
+      });
+      
+      eventSource.addEventListener('result', (e) => {
+        const data = JSON.parse(e.data);
+        const siteResult = data.data;
+        if (siteResult) {
+          allResults.push(siteResult);
+        }
+        setSearchProgress({
+          completed: data.completed,
+          total: data.total,
+          currentSite: data.name,
+        });
+      });
+      
+      eventSource.addEventListener('done', () => {
+        eventSource.close();
+        eventSourceRef.current = null;
+        // 缓存结果
+        try {
+          sessionStorage.setItem(`search_results:${wd}`, JSON.stringify(allResults));
+        } catch {}
+        resolve(allResults);
+      });
+      
+      eventSource.addEventListener('error', () => {
+        if (eventSource.readyState === EventSource.CLOSED) {
+          eventSource.close();
+          eventSourceRef.current = null;
+          resolve(allResults);
+        }
+      });
+      
+      eventSource.addEventListener('timeout', () => {
+        eventSource.close();
+        eventSourceRef.current = null;
+        resolve(allResults);
+      });
+      
+      eventSource.onerror = () => {
+        if (eventSource.readyState === EventSource.CLOSED) {
+          eventSource.close();
+          eventSourceRef.current = null;
+          resolve(allResults);
+        }
+      };
+    });
   };
 
   const getCachedDetail = async (sourceKey: string, vodId: string) => {
@@ -406,7 +580,13 @@ const Play = () => {
         ? response.data.find((item: any) => item.site_key === sourceKey)
         : response.data[sourceKey];
       if (siteData?.list?.length > 0) {
-        const item = siteData.list[0];
+        // 过滤掉黄色内容
+        const filteredList = filterYellowItems(siteData.list) as any[];
+        if (filteredList.length === 0) {
+          setLoading(false);
+          return;
+        }
+        const item = filteredList[0];
         const newDetail = await getCachedDetail(sourceKey, item.vod_id);
         if (newDetail) {
           setDetail(newDetail);
@@ -470,8 +650,10 @@ const Play = () => {
         <div className="grid gap-4 lg:h-[500px] xl:h-[650px] grid-cols-1 md:grid-cols-4">
           <div className="md:col-span-3 h-full">
             <div className="relative w-full h-[300px] lg:h-full bg-black rounded-xl overflow-hidden ring-1 ring-white/10 shadow-2xl">
+              {/* 搜索播放源动画 */}
+              {searchProgress && <SearchingOverlay progress={searchProgress} />}
               {/* 优选动画覆盖层 */}
-              {isOptimizing && <OptimizingOverlay sources={sources} />}
+              {isOptimizing && !searchProgress && <OptimizingOverlay sources={sources} />}
               
               {playUrl && optimizeComplete ? (
                 <Suspense fallback={<div className="w-full h-full flex items-center justify-center text-muted">加载播放器...</div>}>

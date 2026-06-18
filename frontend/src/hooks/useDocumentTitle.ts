@@ -31,7 +31,7 @@ export function useDocumentTitle() {
       description.setAttribute('name', 'description');
       document.head.appendChild(description);
     }
-    description.setAttribute('content', `${siteName} - 影视聚合播放器`);
+    description.setAttribute('content', `${siteName} - 聚合影视信息`);
 
   }, [siteName]);
 }
