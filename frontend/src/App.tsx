@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { useAuth } from './hooks/useAuth';
+import { AuthProvider, useAuth } from './store/auth';
+import { ConfigProvider } from './store/config';
 import Layout from './components/Layout';
 import Login from './pages/Login';
 import Home from './pages/Home';
@@ -13,6 +14,8 @@ import Douban from './pages/Douban';
 import { getCurrentTheme, applyTheme } from './store/theme';
 import { detailCacheStore } from './store/detailCache';
 import { apiCacheStore } from './store/apiCache';
+import Announcement from './components/Announcement';
+import { useAnnouncement } from './hooks/useAnnouncement';
 
 // Force dark mode & apply saved theme
 document.documentElement.classList.add('dark');
@@ -22,28 +25,57 @@ applyTheme(getCurrentTheme());
 detailCacheStore.cleanExpired().catch(() => {});
 apiCacheStore.cleanExpired().catch(() => {});
 
-const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
-  const { isAuthenticated, isLoading } = useAuth();
+interface PrivateRouteProps {
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  children: React.ReactNode;
+}
+
+const PrivateRoute = ({ isAuthenticated, isLoading, children }: PrivateRouteProps) => {
   if (isLoading) {
     return <div className="min-h-screen flex items-center justify-center bg-deep"><div className="text-text">加载中...</div></div>;
   }
   return isAuthenticated ? <>{children}</> : <Navigate to="/login" />;
 };
 
+function AppContent() {
+  const { isAuthenticated, isLoading } = useAuth();
+  const { config, isVisible, dismiss } = useAnnouncement(isAuthenticated);
+
+  return (
+    <>
+      {/* 公告弹窗 */}
+      {isVisible && config && (
+        <Announcement
+          content={config.announcement}
+          siteName={config.site_name}
+          onDismiss={dismiss}
+        />
+      )}
+
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route path="/" element={<PrivateRoute isAuthenticated={isAuthenticated} isLoading={isLoading}><Layout><Home /></Layout></PrivateRoute>} />
+        <Route path="/search" element={<PrivateRoute isAuthenticated={isAuthenticated} isLoading={isLoading}><Layout><Search /></Layout></PrivateRoute>} />
+        <Route path="/play/:site/:id" element={<PrivateRoute isAuthenticated={isAuthenticated} isLoading={isLoading}><Layout><Play /></Layout></PrivateRoute>} />
+        <Route path="/live" element={<PrivateRoute isAuthenticated={isAuthenticated} isLoading={isLoading}><Layout><Live /></Layout></PrivateRoute>} />
+        <Route path="/favorites" element={<PrivateRoute isAuthenticated={isAuthenticated} isLoading={isLoading}><Layout><Favorites /></Layout></PrivateRoute>} />
+        <Route path="/history" element={<PrivateRoute isAuthenticated={isAuthenticated} isLoading={isLoading}><Layout><History /></Layout></PrivateRoute>} />
+        <Route path="/speed" element={<PrivateRoute isAuthenticated={isAuthenticated} isLoading={isLoading}><Layout><SpeedTest /></Layout></PrivateRoute>} />
+        <Route path="/douban" element={<PrivateRoute isAuthenticated={isAuthenticated} isLoading={isLoading}><Layout><Douban /></Layout></PrivateRoute>} />
+      </Routes>
+    </>
+  );
+}
+
 function App() {
   return (
     <BrowserRouter>
-      <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="/" element={<PrivateRoute><Layout><Home /></Layout></PrivateRoute>} />
-        <Route path="/search" element={<PrivateRoute><Layout><Search /></Layout></PrivateRoute>} />
-        <Route path="/play/:site/:id" element={<PrivateRoute><Layout><Play /></Layout></PrivateRoute>} />
-        <Route path="/live" element={<PrivateRoute><Layout><Live /></Layout></PrivateRoute>} />
-        <Route path="/favorites" element={<PrivateRoute><Layout><Favorites /></Layout></PrivateRoute>} />
-        <Route path="/history" element={<PrivateRoute><Layout><History /></Layout></PrivateRoute>} />
-        <Route path="/speed" element={<PrivateRoute><Layout><SpeedTest /></Layout></PrivateRoute>} />
-        <Route path="/douban" element={<PrivateRoute><Layout><Douban /></Layout></PrivateRoute>} />
-      </Routes>
+      <ConfigProvider>
+        <AuthProvider>
+          <AppContent />
+        </AuthProvider>
+      </ConfigProvider>
     </BrowserRouter>
   );
 }

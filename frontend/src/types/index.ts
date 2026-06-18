@@ -76,6 +76,12 @@ export interface DoubanResult {
   list: DoubanItem[];
 }
 
+export interface SiteConfig {
+  site_name: string;
+  announcement: string;
+  api_site: Record<string, unknown>;
+}
+
 export interface BangumiCalendarData {
   weekday: {
     en: string;

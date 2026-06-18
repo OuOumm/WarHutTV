@@ -5,6 +5,7 @@ import Sidebar from './Sidebar';
 import MobileNav from './MobileNav';
 import ThemeSwitcher from './ThemeSwitcher';
 import UserMenu from './SettingsPanel';
+import { useConfig } from '../store/config';
 
 interface LayoutProps {
   children: ReactNode;
@@ -13,9 +14,18 @@ interface LayoutProps {
 const Layout = ({ children }: LayoutProps) => {
   const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(false);
+  const { siteName } = useConfig();
 
   return (
-    <div className="w-full min-h-screen relative">
+    <div className="w-full min-h-screen relative" style={{ background: 'transparent' }}>
+      {/* 浮动光球层 */}
+      <div id="orb-layer">
+        <div className="orb orb-a" style={{ top: '10%', left: '10%' }} />
+        <div className="orb orb-b" style={{ top: '55%', left: '60%' }} />
+        <div className="orb orb-c" style={{ top: '30%', left: '45%' }} />
+      </div>
+
+      {/* 桌面端侧边栏 */}
       <div className="hidden md:block">
         <Sidebar collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} />
       </div>
@@ -33,7 +43,7 @@ const Layout = ({ children }: LayoutProps) => {
           </button>
 
           <span className="text-lg font-bold tracking-tight absolute left-1/2 -translate-x-1/2">
-            <span className="text-text">War</span><span className="text-primary">Hut</span><span className="text-text">TV</span>
+            {siteName}
           </span>
 
           <div className="flex items-center gap-0.5">
@@ -43,22 +53,28 @@ const Layout = ({ children }: LayoutProps) => {
         </div>
       </div>
 
-      <div 
-        className="hidden md:block transition-all duration-300 min-h-screen relative z-[1]"
+      {/* 内容区域 — 使用相对定位，跟随侧边栏缩进 */}
+      <div
+        className="hidden md:block transition-all duration-300 min-h-screen relative"
         style={{ marginLeft: collapsed ? 64 : 256 }}
       >
-        <div className="absolute top-3 right-4 z-20 flex items-center gap-1.5">
-          <ThemeSwitcher />
-          <UserMenu />
+        {/* 顶部操作栏 */}
+        <div className="sticky top-0 z-20 flex items-center justify-end gap-1.5 px-4 py-3">
+          <div className="glass-panel rounded-full px-2 py-1 flex items-center gap-1">
+            <ThemeSwitcher />
+            <div className="w-px h-5 bg-glass-border/50 mx-0.5" />
+            <UserMenu />
+          </div>
         </div>
 
-        <main className="mb-14 md:mb-0" style={{ paddingBottom: 'calc(3.5rem + env(safe-area-inset-bottom))' }}>
+        <main className="px-4 sm:px-6 pb-14 md:pb-0">
           {children}
         </main>
       </div>
 
+      {/* 移动端 */}
       <div className="md:hidden">
-        <div className="pt-14 mb-14" style={{ paddingBottom: 'calc(3.5rem + env(safe-area-inset-bottom))' }}>
+        <div className="pt-14 pb-14 px-3" style={{ paddingBottom: 'calc(3.5rem + env(safe-area-inset-bottom))' }}>
           {children}
         </div>
         <MobileNav />

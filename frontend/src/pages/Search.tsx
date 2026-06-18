@@ -68,7 +68,7 @@ const Search = () => {
       const siteResult = data.data;
       if (siteResult?.list) {
         allResults.push(...siteResult.list);
-        setResults([...allResults]);
+        setResults(filterYellowItems([...allResults]));
       }
       setStreamProgress({
         completed: data.completed,

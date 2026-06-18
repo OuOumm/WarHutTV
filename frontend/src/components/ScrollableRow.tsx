@@ -142,7 +142,7 @@ const ScrollableRow = ({ children, scrollDistance = 800 }: ScrollableRowProps) =
 
       <div 
         ref={containerRef} 
-        className="flex gap-5 overflow-x-auto overflow-y-visible scrollbar-hide py-2 px-4 sm:px-6 [&>*]:flex-shrink-0 [&>*]:w-[170px] sm:[&>*]:w-[185px]" 
+        className="scroll-row-soft-mask flex gap-5 overflow-x-auto overflow-y-visible scrollbar-hide py-4 px-4 sm:px-6 [&>*]:flex-shrink-0 [&>*]:w-[170px] sm:[&>*]:w-[185px]" 
         onScroll={checkScroll}
       >
         {children}

@@ -110,9 +110,6 @@ const CardBase = ({ to, poster, title, badge, children, actions }: {
         }}
       />
       
-      {/* Shine sweep effect */}
-      <div className="card-shine" />
-      
       {/* Play icon */}
       <PlayOverlay />
 
@@ -121,7 +118,7 @@ const CardBase = ({ to, poster, title, badge, children, actions }: {
 
       {/* Action buttons */}
       {actions && (
-        <div className="absolute bottom-14 left-0 right-0 flex justify-center gap-2 opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all duration-300 z-[4]" style={{ transitionTimingFunction: 'var(--ease-elastic)' }}>
+        <div className="absolute bottom-14 left-0 right-0 flex justify-center gap-2 opacity-100 translate-y-0 sm:opacity-0 sm:translate-y-2 sm:group-hover:opacity-100 sm:group-hover:translate-y-0 transition-all duration-300 z-[4]" style={{ transitionTimingFunction: 'var(--ease-elastic)' }}>
           {actions}
         </div>
       )}
