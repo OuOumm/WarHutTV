@@ -215,7 +215,16 @@ const Home = () => {
                   </div>
                   <ScrollableRow>
                     {continueWatching.map((item: any) => (
-                      <VideoCard key={item.vod_id} video={item} from="vod" showActions onDelete={() => setContinueWatching(prev => prev.filter((i: any) => i.vod_id !== item.vod_id))} />
+                      <VideoCard 
+                        key={item.vod_name} 
+                        video={item} 
+                        from="vod" 
+                        showActions 
+                        onDelete={async () => {
+                          await historyStore.removeByName(item.vod_name);
+                          setContinueWatching(prev => prev.filter((i: any) => i.vod_name !== item.vod_name));
+                        }} 
+                      />
                     ))}
                   </ScrollableRow>
                 </Section>
