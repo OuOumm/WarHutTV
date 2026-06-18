@@ -26,7 +26,7 @@ const Announcement = ({ content, siteName, onDismiss }: AnnouncementProps) => {
   // 根据主题获取特色装饰
   const getThemeDecoration = () => {
     const { accentEffect } = theme.visual;
-    
+
     const decorations: Record<string, { icon: string; gradient: string }> = {
       curtain: {
         icon: '🎭',
@@ -132,21 +132,6 @@ const Announcement = ({ content, siteName, onDismiss }: AnnouncementProps) => {
                   </p>
                 </div>
               </div>
-
-              {/* 关闭按钮 */}
-              <button
-                onClick={handleDismiss}
-                className="w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110"
-                style={{
-                  background: 'var(--color-glass)',
-                  border: '1px solid var(--color-glass-border)',
-                  color: 'var(--color-muted)',
-                }}
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
             </div>
 
             {/* 公告内容 */}
@@ -180,14 +165,6 @@ const Announcement = ({ content, siteName, onDismiss }: AnnouncementProps) => {
             >
               我已知晓
             </button>
-
-            {/* 底部装饰 */}
-            <p
-              className="text-center mt-4 text-[10px] tracking-[0.2em] uppercase"
-              style={{ color: 'var(--color-muted)', opacity: 0.4 }}
-            >
-              点击按钮后不再显示
-            </p>
           </div>
         </div>
       </div>

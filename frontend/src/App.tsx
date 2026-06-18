@@ -16,6 +16,7 @@ import { detailCacheStore } from './store/detailCache';
 import { apiCacheStore } from './store/apiCache';
 import Announcement from './components/Announcement';
 import { useAnnouncement } from './hooks/useAnnouncement';
+import { useDocumentTitle, useDynamicManifest } from './hooks/useDocumentTitle';
 
 // Force dark mode & apply saved theme
 document.documentElement.classList.add('dark');
@@ -41,6 +42,10 @@ const PrivateRoute = ({ isAuthenticated, isLoading, children }: PrivateRouteProp
 function AppContent() {
   const { isAuthenticated, isLoading } = useAuth();
   const { config, isVisible, dismiss } = useAnnouncement(isAuthenticated);
+
+  // 动态更新文档标题和 manifest
+  useDocumentTitle();
+  useDynamicManifest();
 
   return (
     <>

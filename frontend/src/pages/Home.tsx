@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback, memo } from 'react';
 import { Link } from 'react-router-dom';
 
 import VideoCard from '../components/VideoCard';
@@ -54,30 +54,30 @@ const SectionHeader = ({ title, href, icon }: { title: string; href?: string; ic
   </div>
 );
 
-// Section icons
-const FilmIcon = () => (
+// Section icons - 提取为静态常量，避免每次渲染重新创建
+const FilmIcon = memo(() => (
   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
     <path strokeLinecap="round" strokeLinejoin="round" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
   </svg>
-);
+));
 
-const TvIcon = () => (
+const TvIcon = memo(() => (
   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
     <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
   </svg>
-);
+));
 
-const StarIcon = () => (
+const StarIcon = memo(() => (
   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
     <path strokeLinecap="round" strokeLinejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
   </svg>
-);
+));
 
-const ClockIcon = () => (
+const ClockIcon = memo(() => (
   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
     <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
   </svg>
-);
+));
 
 const Home = () => {
   const [activeTab, setActiveTab] = useState('home');
@@ -150,13 +150,26 @@ const Home = () => {
     setLoading(false);
   };
 
-  const getTodayBangumi = () => {
+  // 使用 useMemo 缓存今日番剧数据，避免每次渲染重新计算
+  const todayBangumi = useMemo(() => {
     const today = new Date();
     const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     const currentWeekday = weekdays[today.getDay()];
     const todayData = bangumiData.find((item) => item.weekday.en === currentWeekday);
     return todayData?.items || [];
-  };
+  }, [bangumiData]);
+
+  // 使用 useCallback 缓存清空历史记录的函数
+  const handleClearHistory = useCallback(async () => {
+    await historyStore.clear();
+    setContinueWatching([]);
+  }, []);
+
+  // 使用 useCallback 缓存清空收藏夹的函数
+  const handleClearFavorites = useCallback(async () => {
+    await favoritesStore.clear();
+    setFavoriteItems([]);
+  }, []);
 
   return (
     <div className="px-2 sm:px-10 py-4 sm:py-8 overflow-visible page-enter">
@@ -198,7 +211,7 @@ const Home = () => {
                       <ClockIcon />
                       继续观看
                     </h2>
-                    <button onClick={async () => { await historyStore.clear(); setContinueWatching([]); }} className="text-sm text-muted hover:text-primary transition-colors">清空</button>
+                    <button onClick={handleClearHistory} className="text-sm text-muted hover:text-primary transition-colors">清空</button>
                   </div>
                   <ScrollableRow>
                     {continueWatching.map((item: any) => (
@@ -230,11 +243,11 @@ const Home = () => {
                 </Section>
               )}
 
-              {getTodayBangumi().length > 0 && (
+              {todayBangumi.length > 0 && (
                 <Section>
                   <SectionHeader title="新番放送" href="/douban?type=anime" icon={<StarIcon />} />
                   <ScrollableRow>
-                    {getTodayBangumi().map((anime) => (
+                    {todayBangumi.map((anime) => (
                       <VideoCard key={anime.id} bangumi={anime} from="bangumi" />
                     ))}
                   </ScrollableRow>
@@ -270,7 +283,7 @@ const Home = () => {
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-xl font-bold text-text">我的收藏</h2>
               {favoriteItems.length > 0 && (
-                <button onClick={async () => { await favoritesStore.clear(); setFavoriteItems([]); }} className="text-sm text-muted hover:text-primary transition-colors">清空</button>
+                <button onClick={handleClearFavorites} className="text-sm text-muted hover:text-primary transition-colors">清空</button>
               )}
             </div>
             {favoriteItems.length === 0 ? (

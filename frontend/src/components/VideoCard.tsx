@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo, useCallback, memo } from 'react';
 import { Link } from 'react-router-dom';
 import type { VideoItem, DoubanItem, BangumiItem } from '../types';
 import { processImageUrl } from '../utils/image';
@@ -14,8 +14,8 @@ interface VideoCardProps {
   showActions?: boolean;
 }
 
-// Play icon overlay with ripple
-const PlayOverlay = () => (
+// Play icon overlay with ripple - 使用 memo 优化
+const PlayOverlay = memo(() => (
   <div className="absolute inset-0 flex items-center justify-center z-[3] opacity-0 group-hover:opacity-100 transition-opacity duration-300">
     <div className="relative">
       {/* Ripple ring */}
@@ -28,10 +28,10 @@ const PlayOverlay = () => (
       </div>
     </div>
   </div>
-);
+));
 
-// Top-right badge
-const Badge = ({ children, variant = 'default' }: { children: React.ReactNode; variant?: 'default' | 'highlight' }) => (
+// Top-right badge - 使用 memo 优化
+const Badge = memo(({ children, variant = 'default' }: { children: React.ReactNode; variant?: 'default' | 'highlight' }) => (
   <div className={`absolute top-2.5 right-2.5 text-[10px] font-bold px-2 py-0.5 rounded-md z-[1] backdrop-blur-sm tracking-wide ${
     variant === 'highlight' 
       ? 'bg-primary/90 text-deep shadow-sm shadow-primary/20' 
@@ -39,10 +39,10 @@ const Badge = ({ children, variant = 'default' }: { children: React.ReactNode; v
   }`}>
     {children}
   </div>
-);
+));
 
-// Action button
-const ActionButton = ({ onClick, variant, children }: {
+// Action button - 使用 memo 优化
+const ActionButton = memo(({ onClick, variant, children }: {
   onClick: (e: React.MouseEvent) => void;
   variant: 'delete' | 'favorite';
   children: React.ReactNode;
@@ -57,103 +57,116 @@ const ActionButton = ({ onClick, variant, children }: {
   >
     {children}
   </button>
-);
+));
 
-// Base card component - 使用 card-base 类名让主题 CSS 控制阴影
-const CardBase = ({ to, poster, title, badge, children, actions }: {
+// Base card component - 使用 card-base 类名让主题 CSS 控制阴影，使用 memo 优化
+const CardBase = memo(({ to, poster, title, badge, children, actions }: {
   to: string;
   poster: string;
   title: string;
   badge?: React.ReactNode;
   children?: React.ReactNode;
   actions?: React.ReactNode;
-}) => (
-  <Link
-    to={to}
-    className="group relative block rounded-xl overflow-hidden cursor-pointer w-full card-entrance card-base"
-    style={{
-      transition: 'transform 0.35s var(--ease-elastic), box-shadow 0.35s var(--ease-out-expo)',
-    }}
-    onMouseEnter={(e) => {
-      e.currentTarget.style.transform = 'translateY(-6px) scale(1.02)';
-    }}
-    onMouseLeave={(e) => {
-      e.currentTarget.style.transform = '';
-    }}
-  >
-    {/* Image container */}
-    <div className="relative aspect-[2/3] overflow-hidden bg-surface">
-      <img 
-        src={poster} 
-        alt={title} 
-        className="w-full h-full object-cover transition-transform duration-[800ms] group-hover:scale-[1.08]"
-        style={{ transitionTimingFunction: 'var(--ease-out-expo)' }}
-        loading="lazy" 
-      />
-      
-      {/* Multi-layer gradient overlay */}
-      <div 
-        className="absolute inset-0 pointer-events-none transition-opacity duration-500"
-        style={{
-          background: `
-            linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.4) 30%, transparent 55%),
-            linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, transparent 20%)
-          `
-        }}
-      />
-      
-      {/* Theme accent glow on hover */}
-      <div 
-        className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
-        style={{
-          background: 'radial-gradient(ellipse at center bottom, var(--color-primary-glow) 0%, transparent 60%)'
-        }}
-      />
-      
-      {/* Play icon */}
-      <PlayOverlay />
+}) => {
+  // 使用 useCallback 缓存事件处理函数
+  const handleMouseEnter = useCallback((e: React.MouseEvent<HTMLElement>) => {
+    e.currentTarget.style.transform = 'translateY(-6px) scale(1.02)';
+  }, []);
 
-      {/* Top-right badge */}
-      {badge}
+  const handleMouseLeave = useCallback((e: React.MouseEvent<HTMLElement>) => {
+    e.currentTarget.style.transform = '';
+  }, []);
 
-      {/* Action buttons */}
-      {actions && (
-        <div className="absolute bottom-14 left-0 right-0 flex justify-center gap-2 opacity-100 translate-y-0 sm:opacity-0 sm:translate-y-2 sm:group-hover:opacity-100 sm:group-hover:translate-y-0 transition-all duration-300 z-[4]" style={{ transitionTimingFunction: 'var(--ease-elastic)' }}>
-          {actions}
+  return (
+    <Link
+      to={to}
+      className="group relative block rounded-xl overflow-hidden cursor-pointer w-full card-entrance card-base"
+      style={{
+        transition: 'transform 0.35s var(--ease-elastic), box-shadow 0.35s var(--ease-out-expo)',
+      }}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
+      {/* Image container */}
+      <div className="relative aspect-[2/3] overflow-hidden bg-surface">
+        <img 
+          src={poster} 
+          alt={title} 
+          className="w-full h-full object-cover transition-transform duration-[800ms] group-hover:scale-[1.08]"
+          style={{ transitionTimingFunction: 'var(--ease-out-expo)' }}
+          loading="lazy" 
+        />
+        
+        {/* Multi-layer gradient overlay */}
+        <div 
+          className="absolute inset-0 pointer-events-none transition-opacity duration-500"
+          style={{
+            background: `
+              linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.4) 30%, transparent 55%),
+              linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, transparent 20%)
+            `
+          }}
+        />
+        
+        {/* Theme accent glow on hover */}
+        <div 
+          className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
+          style={{
+            background: 'radial-gradient(ellipse at center bottom, var(--color-primary-glow) 0%, transparent 60%)'
+          }}
+        />
+        
+        {/* Play icon */}
+        <PlayOverlay />
+
+        {/* Top-right badge */}
+        {badge}
+
+        {/* Action buttons */}
+        {actions && (
+          <div className="absolute bottom-14 left-0 right-0 flex justify-center gap-2 opacity-100 translate-y-0 sm:opacity-0 sm:translate-y-2 sm:group-hover:opacity-100 sm:group-hover:translate-y-0 transition-all duration-300 z-[4]" style={{ transitionTimingFunction: 'var(--ease-elastic)' }}>
+            {actions}
+          </div>
+        )}
+
+        {/* Bottom info */}
+        <div className="absolute bottom-0 left-0 right-0 px-3 pb-3 z-[1]">
+          {children}
         </div>
-      )}
-
-      {/* Bottom info */}
-      <div className="absolute bottom-0 left-0 right-0 px-3 pb-3 z-[1]">
-        {children}
       </div>
-    </div>
-  </Link>
-);
+    </Link>
+  );
+});
 
-const VideoCard = ({ video, douban, bangumi, from = 'vod', onDelete, showActions = false }: VideoCardProps) => {
+const VideoCard = memo(({ video, douban, bangumi, from = 'vod', onDelete, showActions = false }: VideoCardProps) => {
   const [isFavorited, setIsFavorited] = useState(false);
 
-  const handleFavoriteClick = async (e: React.MouseEvent) => {
+  // 使用 useCallback 缓存事件处理函数
+  const handleFavoriteClick = useCallback(async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     if (!video) return;
     const result = await favoritesStore.toggle(video);
     setIsFavorited(result);
-  };
+  }, [video]);
 
-  const handleDeleteClick = (e: React.MouseEvent) => {
+  const handleDeleteClick = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     if (!video) return;
     onDelete ? onDelete() : historyStore.remove(video.vod_id);
-  };
+  }, [video, onDelete]);
 
-  // Douban card
+  // Douban card - 使用 useMemo 缓存计算结果
+  const doubanSearchUrl = useMemo(() => {
+    if (!douban) return '';
+    return `/search?wd=${encodeURIComponent(douban.title.replace(/\s+/g, ''))}`;
+  }, [douban]);
+
   if (from === 'douban' && douban) {
     return (
       <CardBase
-        to={`/search?wd=${encodeURIComponent(douban.title.replace(/\s+/g, ''))}`}
+        to={doubanSearchUrl}
         poster={processImageUrl(douban.poster)}
         title={douban.title}
         badge={douban.rate ? <Badge variant="highlight">{douban.rate}</Badge> : undefined}
@@ -170,38 +183,69 @@ const VideoCard = ({ video, douban, bangumi, from = 'vod', onDelete, showActions
     );
   }
 
-  // Bangumi card
+  // Bangumi card - 使用 useMemo 缓存计算结果
+  const bangumiSearchUrl = useMemo(() => {
+    if (!bangumi) return '';
+    return `/search?wd=${encodeURIComponent((bangumi.name_cn || bangumi.name).replace(/\s+/g, ''))}`;
+  }, [bangumi]);
+
+  const bangumiPoster = useMemo(() => {
+    if (!bangumi) return '';
+    return processImageUrl(bangumi.images?.large || bangumi.images?.common || bangumi.images?.medium || '');
+  }, [bangumi]);
+
+  const bangumiTitle = useMemo(() => {
+    if (!bangumi) return '';
+    return bangumi.name_cn || bangumi.name;
+  }, [bangumi]);
+
+  const bangumiRating = useMemo(() => {
+    if (!bangumi) return null;
+    return bangumi.rating?.score > 0 ? bangumi.rating.score.toFixed(1) : null;
+  }, [bangumi]);
+
+  const bangumiYear = useMemo(() => {
+    if (!bangumi?.air_date) return null;
+    return bangumi.air_date.split('-')[0];
+  }, [bangumi?.air_date]);
+
   if (from === 'bangumi' && bangumi) {
-    const rating = bangumi.rating?.score > 0 ? bangumi.rating.score.toFixed(1) : null;
     return (
       <CardBase
-        to={`/search?wd=${encodeURIComponent((bangumi.name_cn || bangumi.name).replace(/\s+/g, ''))}`}
-        poster={processImageUrl(bangumi.images?.large || bangumi.images?.common || bangumi.images?.medium || '')}
-        title={bangumi.name_cn || bangumi.name}
-        badge={rating ? <Badge variant="highlight">{rating}</Badge> : undefined}
+        to={bangumiSearchUrl}
+        poster={bangumiPoster}
+        title={bangumiTitle}
+        badge={bangumiRating ? <Badge variant="highlight">{bangumiRating}</Badge> : undefined}
       >
         <h3 className="font-['Anton'] text-[13px] text-white uppercase tracking-wider leading-tight mb-1.5 truncate drop-shadow-sm">
-          {bangumi.name_cn || bangumi.name}
+          {bangumiTitle}
         </h3>
         <div className="flex items-center gap-1.5">
-          {bangumi.air_date && (
-            <span className="text-[11px] text-white/50 font-medium tracking-wide">{bangumi.air_date.split('-')[0]}</span>
+          {bangumiYear && (
+            <span className="text-[11px] text-white/50 font-medium tracking-wide">{bangumiYear}</span>
           )}
         </div>
       </CardBase>
     );
   }
 
-  // VOD card
+  // VOD card - 使用 useMemo 缓存计算结果
+  const vodPlayUrl = useMemo(() => {
+    if (!video) return '';
+    return `/play/${(video as any).site_key || 'default'}/${video.vod_id}`;
+  }, [video]);
+
+  const vodMetaParts = useMemo(() => {
+    if (!video) return [];
+    return [video.vod_year, video.type_name].filter(Boolean);
+  }, [video?.vod_year, video?.type_name]);
+
   if (from === 'vod' && video) {
-    const year = video.vod_year;
-    const type = video.type_name;
     const remarks = video.vod_remarks;
-    const metaParts = [year, type].filter(Boolean);
     
     return (
       <CardBase
-        to={`/play/${(video as any).site_key || 'default'}/${video.vod_id}`}
+        to={vodPlayUrl}
         poster={video.vod_pic || '/placeholder.jpg'}
         title={video.vod_name}
         badge={remarks ? <Badge>{remarks}</Badge> : undefined}
@@ -225,9 +269,9 @@ const VideoCard = ({ video, douban, bangumi, from = 'vod', onDelete, showActions
         <h3 className="font-['Anton'] text-[13px] text-white uppercase tracking-wider leading-tight mb-1.5 truncate drop-shadow-sm">
           {video.vod_name}
         </h3>
-        {metaParts.length > 0 && (
+        {vodMetaParts.length > 0 && (
           <div className="flex items-center">
-            <span className="text-[11px] text-white/50 font-medium tracking-wide">{metaParts.join(' · ')}</span>
+            <span className="text-[11px] text-white/50 font-medium tracking-wide">{vodMetaParts.join(' · ')}</span>
           </div>
         )}
       </CardBase>
@@ -235,6 +279,6 @@ const VideoCard = ({ video, douban, bangumi, from = 'vod', onDelete, showActions
   }
 
   return null;
-};
+});
 
 export default VideoCard;

@@ -1,11 +1,11 @@
-import { useRef, useState, useEffect, useCallback, type ReactNode } from 'react';
+import { useRef, useState, useEffect, useCallback, memo, type ReactNode } from 'react';
 
 interface ScrollableRowProps {
   children: ReactNode;
   scrollDistance?: number;
 }
 
-const ScrollableRow = ({ children, scrollDistance = 800 }: ScrollableRowProps) => {
+const ScrollableRow = memo(({ children, scrollDistance = 800 }: ScrollableRowProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [showLeft, setShowLeft] = useState(false);
   const [showRight, setShowRight] = useState(false);
@@ -179,6 +179,6 @@ const ScrollableRow = ({ children, scrollDistance = 800 }: ScrollableRowProps) =
       )}
     </div>
   );
-};
+});
 
 export default ScrollableRow;

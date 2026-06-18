@@ -79,7 +79,11 @@ export default function UserMenu() {
           </button>
           <div className="border-t border-glass-border" />
           <button
-            onClick={() => { logout(); window.location.href = '/login'; }}
+            onClick={() => {
+              logout();
+              // React Router 的 <Navigate> 会自动重定向到 /login
+              // 不需要手动调用 navigate
+            }}
             className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-500 hover:bg-red-900/20 transition-colors"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">

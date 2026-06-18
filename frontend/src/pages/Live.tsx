@@ -1,8 +1,10 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
-import Player from '../components/Player';
+import { useState, useEffect, useRef, useMemo, lazy, Suspense } from 'react';
 import apiClient from '../api/client';
 import { apiCacheStore } from '../store/apiCache';
 import type { LiveChannel, LiveSource } from '../types';
+
+// 动态导入 Player 组件 - 与 Play.tsx 保持一致
+const Player = lazy(() => import('../components/Player'));
 
 const Live = () => {
   const [loading, setLoading] = useState(true);
@@ -247,7 +249,9 @@ const Live = () => {
         <div className="md:col-span-3 h-full">
           <div className="relative w-full h-[300px] lg:h-full bg-black rounded-xl overflow-hidden ring-1 ring-white/10 shadow-2xl">
             {currentChannel ? (
-              <Player url={`/api/proxy/m3u8?url=${encodeURIComponent(currentChannel.url)}&moontv-source=${currentSource?.key || ''}`} title={currentChannel.name} isLive />
+              <Suspense fallback={<div className="w-full h-full flex items-center justify-center text-muted">加载播放器...</div>}>
+                <Player url={`/api/proxy/m3u8?url=${encodeURIComponent(currentChannel.url)}&moontv-source=${currentSource?.key || ''}`} title={currentChannel.name} isLive />
+              </Suspense>
             ) : (
               <div className="w-full h-full flex items-center justify-center text-muted">
                 请选择频道
