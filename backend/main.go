@@ -40,8 +40,7 @@ func main() {
 	auth.Use(middleware.AuthMiddleware())
 	{
 		auth.GET("/auth/verify", handlers.Verify)
-		auth.GET("/search", handlers.Search)
-
+		
 		auth.GET("/detail", handlers.Detail)
 		auth.GET("/play", handlers.Play)
 		auth.GET("/live/sources", handlers.GetLiveSources)
