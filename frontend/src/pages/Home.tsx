@@ -8,6 +8,7 @@ import { getDoubanCategories } from '../api/douban';
 import { getBangumiCalendar } from '../api/bangumi';
 import { historyStore } from '../store/history';
 import { favoritesStore } from '../store/favorites';
+import { useConfig } from '../store/config';
 import type { DoubanItem, BangumiCalendarData } from '../types';
 
 // Section with scroll reveal
@@ -87,6 +88,7 @@ const Home = () => {
   const [continueWatching, setContinueWatching] = useState<any[]>([]);
   const [favoriteItems, setFavoriteItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const { siteName } = useConfig();
   
 
   useEffect(() => {
@@ -169,16 +171,15 @@ const Home = () => {
         />
       </div>
 
-      <div className="max-w-[95%] mx-auto">
-        {activeTab === 'home' ? (
+      {activeTab === 'home' ? (
           loading ? (
             <div className="space-y-8">
               {Array.from({ length: 3 }).map((_, i) => (
                 <div key={i}>
                   <div className="h-6 w-32 bg-surface rounded-lg animate-pulse mb-4" />
-                  <div className="flex space-x-5 overflow-hidden px-4 sm:px-6 py-2">
-                    {Array.from({ length: 6 }).map((_, j) => (
-                      <div key={j} className="min-w-[120px] w-[140px] sm:min-w-[160px] sm:w-[185px] flex-shrink-0">
+                  <div className="grid grid-cols-5 sm:grid-cols-8 gap-3 sm:gap-5">
+                    {Array.from({ length: 10 }).map((_, j) => (
+                      <div key={j} className="w-full">
                         <div className="aspect-[2/3] bg-surface rounded-xl animate-pulse" />
                         <div className="mt-2.5 h-4 bg-surface rounded animate-pulse w-3/4" />
                         <div className="mt-1.5 h-3 bg-surface/60 rounded animate-pulse w-1/2" />
@@ -258,7 +259,7 @@ const Home = () => {
                       <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                     </svg>
                   </div>
-                  <p className="text-lg text-text/80">欢迎使用 WarHutTV</p>
+                  <p className="text-lg text-text/80">欢迎使用 {siteName}</p>
                   <p className="mt-2 text-sm">使用搜索栏查找你想看的影片</p>
                 </div>
               )}
@@ -296,7 +297,6 @@ const Home = () => {
             )}
           </Section>
         )}
-      </div>
     </div>
   );
 };

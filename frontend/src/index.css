@@ -19,375 +19,455 @@
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
-  .scrollbar-hide::-webkit-scrollbar {
-    display: none;
+  .scrollbar-hide::-webkit-scrollbar { display: none; }
+
+  .scroll-row-soft-mask {
+    -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 22px, #000 calc(100% - 22px), transparent 100%);
+    mask-image: linear-gradient(90deg, transparent 0, #000 22px, #000 calc(100% - 22px), transparent 100%);
+  }
+
+  @media (min-width: 640px) {
+    .scroll-row-soft-mask {
+      -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 34px, #000 calc(100% - 34px), transparent 100%);
+      mask-image: linear-gradient(90deg, transparent 0, #000 34px, #000 calc(100% - 34px), transparent 100%);
+    }
   }
 }
 
 /* ==================== BASE ==================== */
-html, body {
+html {
   height: 100%;
   overflow-x: hidden;
   overscroll-behavior: none;
-}
-
-body {
-  font-family: 'Inter', sans-serif;
   background-color: var(--color-deep);
+}
+body {
+  height: 100%;
+  font-family: 'Inter', sans-serif;
   color: var(--color-text);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
 /* ==================== ELASTIC ANIMATION SYSTEM ==================== */
-/* 韧劲 - 所有过渡动画使用弹性缓动，拒绝机械的 ease-in-out */
-
 :root {
   --ease-elastic: cubic-bezier(0.34, 1.56, 0.64, 1);
   --ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* ==================== GLOW BACKGROUND (theme-specific) ==================== */
+/* ==================================================================
+   GLOW BACKGROUND — body::before
+   ================================================================== */
+body::before {
+  content: '';
+  position: fixed;
+  inset: -100px;
+  pointer-events: none;
+  z-index: -1;
+}
 
-[data-theme="crimson-cinema"] body::before {
+/* 绯红影院 — 呼吸红 */
+html[data-theme="crimson-cinema"] body::before {
+  background:
+    radial-gradient(ellipse 60% 45% at 25% 30%, rgba(225, 29, 72, 0.4) 0%, transparent 65%),
+    radial-gradient(ellipse 40% 35% at 75% 70%, rgba(244, 114, 182, 0.25) 0%, transparent 60%);
+  animation: glowCrimson 6s ease-in-out infinite;
+}
+@keyframes glowCrimson {
+  0%   { opacity: 0.7; transform: scale(1) translate(0%, 0%); }
+  25%  { opacity: 1;   transform: scale(1.03) translate(1%, -0.5%); }
+  50%  { opacity: 0.8; transform: scale(0.98) translate(-0.5%, 1%); }
+  75%  { opacity: 0.9; transform: scale(1.01) translate(0.5%, -0.3%); }
+  100% { opacity: 0.7; transform: scale(1) translate(0%, 0%); }
+}
+
+/* 影院金 — 斜向漂移 */
+html[data-theme="cinema-gold"] body::before {
+  background:
+    radial-gradient(ellipse 55% 50% at 30% 35%, rgba(230, 185, 30, 0.35) 0%, transparent 65%),
+    radial-gradient(ellipse 40% 35% at 70% 55%, rgba(255, 215, 0, 0.2) 0%, transparent 55%);
+  animation: glowGold 9s ease-in-out infinite;
+}
+@keyframes glowGold {
+  0%   { transform: translate(0%, 0%) scale(1); opacity: 0.7; }
+  30%  { transform: translate(4%, -2%) scale(1.04); opacity: 1; }
+  60%  { transform: translate(-3%, 3%) scale(0.96); opacity: 0.8; }
+  100% { transform: translate(0%, 0%) scale(1); opacity: 0.7; }
+}
+
+/* 星云紫 — 极光变色 */
+html[data-theme="nebula-purple"] body::before {
+  background:
+    radial-gradient(ellipse 70% 50% at 30% 25%, rgba(0, 212, 255, 0.35) 0%, transparent 65%),
+    radial-gradient(ellipse 50% 60% at 70% 65%, rgba(139, 92, 246, 0.4) 0%, transparent 60%);
+  animation: glowNebula 10s ease-in-out infinite alternate;
+}
+@keyframes glowNebula {
+  0%   { filter: hue-rotate(-10deg); opacity: 0.7; transform: scale(1) translate(0%, 0%); }
+  30%  { filter: hue-rotate(12deg);  opacity: 1;   transform: scale(1.05) translate(1.5%, -1%); }
+  60%  { filter: hue-rotate(-5deg);  opacity: 0.8; transform: scale(0.97) translate(-1%, 1.5%); }
+  100% { filter: hue-rotate(8deg);   opacity: 0.9; transform: scale(1.02) translate(0.5%, -0.5%); }
+}
+
+/* 翡翠夜 — 呼吸暖光 */
+html[data-theme="emerald-night"] body::before {
+  background:
+    radial-gradient(ellipse 50% 55% at 25% 55%, rgba(245, 158, 11, 0.35) 0%, transparent 60%),
+    radial-gradient(ellipse 55% 45% at 75% 30%, rgba(16, 185, 129, 0.25) 0%, transparent 55%);
+  animation: glowEmerald 7s ease-in-out infinite;
+}
+@keyframes glowEmerald {
+  0%   { opacity: 0.65; transform: scale(1); }
+  40%  { opacity: 1;    transform: scale(1.04); }
+  70%  { opacity: 0.75; transform: scale(0.97); }
+  100% { opacity: 0.65; transform: scale(1); }
+}
+
+/* 极地冰 — 闪烁漂移 */
+html[data-theme="arctic-ice"] body::before {
+  background:
+    radial-gradient(ellipse 60% 45% at 45% 15%, rgba(96, 165, 250, 0.3) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 35% at 30% 75%, rgba(147, 197, 253, 0.15) 0%, transparent 50%);
+  animation: glowIce 8s ease-in-out infinite alternate;
+}
+@keyframes glowIce {
+  0%   { opacity: 0.7; filter: saturate(1);   transform: translate(0%, 0%); }
+  40%  { opacity: 1;   filter: saturate(1.4); transform: translate(2%, -1.5%); }
+  80%  { opacity: 0.8; filter: saturate(0.8); transform: translate(-1.5%, 1%); }
+  100% { opacity: 0.7; filter: saturate(1);   transform: translate(0%, 0%); }
+}
+
+/* 玫瑰绒 — 柔和起伏 */
+html[data-theme="rose-velvet"] body::before {
+  background:
+    radial-gradient(ellipse 55% 45% at 30% 40%, rgba(249, 168, 212, 0.35) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 35% at 70% 25%, rgba(244, 114, 182, 0.25) 0%, transparent 55%);
+  animation: glowRose 6s ease-in-out infinite;
+}
+@keyframes glowRose {
+  0%   { opacity: 0.7; transform: scale(1) translate(0%, 0%); }
+  35%  { opacity: 1;   transform: scale(1.03) translate(-1%, 0.5%); }
+  65%  { opacity: 0.8; transform: scale(0.97) translate(1%, -0.5%); }
+  100% { opacity: 0.7; transform: scale(1) translate(0%, 0%); }
+}
+
+/* ==================================================================
+   FLOATING ORBS — 在 Layout 里渲染
+   ================================================================== */
+#orb-layer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+.orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(60px);
+  will-change: transform, opacity;
+}
+
+html[data-theme="crimson-cinema"] .orb-a { width: 300px; height: 300px; background: rgba(225, 29, 72, 0.12); animation: orbA 8s ease-in-out infinite; }
+html[data-theme="crimson-cinema"] .orb-b { width: 200px; height: 200px; background: rgba(244, 114, 182, 0.08); animation: orbB 11s ease-in-out infinite; }
+
+html[data-theme="cinema-gold"] .orb-a { width: 350px; height: 350px; background: rgba(230, 185, 30, 0.1); animation: orbA 9s ease-in-out infinite; }
+html[data-theme="cinema-gold"] .orb-b { width: 220px; height: 220px; background: rgba(255, 215, 0, 0.06); animation: orbB 12s ease-in-out infinite; }
+
+html[data-theme="nebula-purple"] .orb-a { width: 320px; height: 320px; background: rgba(0, 212, 255, 0.1); animation: orbA 7s ease-in-out infinite; }
+html[data-theme="nebula-purple"] .orb-b { width: 250px; height: 250px; background: rgba(139, 92, 246, 0.1); animation: orbB 10s ease-in-out infinite; }
+html[data-theme="nebula-purple"] .orb-c { width: 150px; height: 150px; background: rgba(236, 72, 153, 0.06); display: block; animation: orbC 13s ease-in-out infinite; }
+
+html[data-theme="emerald-night"] .orb-a { width: 280px; height: 280px; background: rgba(245, 158, 11, 0.1); animation: orbA 8s ease-in-out infinite; }
+html[data-theme="emerald-night"] .orb-b { width: 200px; height: 200px; background: rgba(16, 185, 129, 0.07); animation: orbB 10s ease-in-out infinite; }
+
+html[data-theme="arctic-ice"] .orb-a { width: 300px; height: 300px; background: rgba(96, 165, 250, 0.08); animation: orbA 9s ease-in-out infinite; }
+html[data-theme="arctic-ice"] .orb-b { width: 180px; height: 180px; background: rgba(147, 197, 253, 0.06); animation: orbB 12s ease-in-out infinite; }
+
+html[data-theme="rose-velvet"] .orb-a { width: 280px; height: 280px; background: rgba(249, 168, 212, 0.1); animation: orbA 7s ease-in-out infinite; }
+html[data-theme="rose-velvet"] .orb-b { width: 200px; height: 200px; background: rgba(244, 114, 182, 0.08); animation: orbB 10s ease-in-out infinite; }
+
+@keyframes orbA {
+  0%   { transform: translate(20%, 20%) scale(1); opacity: 0.6; }
+  25%  { transform: translate(35%, 15%) scale(1.15); opacity: 1; }
+  50%  { transform: translate(25%, 30%) scale(0.9); opacity: 0.7; }
+  75%  { transform: translate(40%, 20%) scale(1.1); opacity: 0.85; }
+  100% { transform: translate(20%, 20%) scale(1); opacity: 0.6; }
+}
+@keyframes orbB {
+  0%   { transform: translate(60%, 55%) scale(1); opacity: 0.5; }
+  33%  { transform: translate(70%, 45%) scale(1.2); opacity: 0.9; }
+  66%  { transform: translate(55%, 65%) scale(0.85); opacity: 0.6; }
+  100% { transform: translate(60%, 55%) scale(1); opacity: 0.5; }
+}
+@keyframes orbC {
+  0%   { transform: translate(45%, 30%) scale(1); opacity: 0.4; }
+  50%  { transform: translate(55%, 20%) scale(1.3); opacity: 0.8; }
+  100% { transform: translate(45%, 30%) scale(1); opacity: 0.4; }
+}
+.orb-c { display: none; }
+
+/* ==================================================================
+   THEME TEXTURES — body::after (每个主题独立指纹)
+   ================================================================== */
+body::after {
   content: '';
   position: fixed;
   inset: 0;
-  background: 
-    radial-gradient(ellipse at 20% 50%, rgba(225, 29, 72, 0.08) 0%, transparent 50%),
-    radial-gradient(ellipse at 80% 20%, rgba(244, 114, 182, 0.05) 0%, transparent 40%),
-    radial-gradient(ellipse at 50% 80%, rgba(251, 191, 36, 0.03) 0%, transparent 45%);
   pointer-events: none;
-  z-index: 0;
-  animation: crimsonBreathe 3s ease-in-out infinite;
+  z-index: -1;
 }
 
-@keyframes crimsonBreathe {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.75; transform: scale(1.02); }
+/* ---- FABRIC 绯红影院：帷幕编织 ---- */
+html[data-texture="fabric"] body::after {
+  background-image:
+    repeating-linear-gradient(90deg,
+      rgba(225, 29, 72, 0.08) 0px, rgba(225, 29, 72, 0.08) 3px,
+      transparent 3px, transparent 14px),
+    repeating-linear-gradient(0deg,
+      rgba(255, 255, 255, 0.06) 0px, rgba(255, 255, 255, 0.06) 1px,
+      transparent 1px, transparent 7px),
+    repeating-linear-gradient(45deg,
+      rgba(225, 29, 72, 0.04) 0px, rgba(225, 29, 72, 0.04) 2px,
+      transparent 2px, transparent 10px);
+  opacity: 0.5;
+  animation: texFabric 16s linear infinite;
+}
+@keyframes texFabric {
+  0%   { background-position: 0% 0%, 0% 0%, 0% 0%; }
+  100% { background-position: 8% 6%, -4% 3%, 5% -3%; }
 }
 
-[data-theme="cinema-gold"] body::before {
-  content: '';
-  position: fixed;
-  inset: -50%;
-  width: 200%;
-  height: 200%;
-  background: 
-    radial-gradient(circle at 30% 40%, rgba(230, 185, 30, 0.06) 0%, transparent 40%),
-    radial-gradient(circle at 70% 60%, rgba(255, 215, 0, 0.04) 0%, transparent 35%);
-  pointer-events: none;
-  z-index: 0;
-  animation: goldDrift 8s ease-in-out infinite;
+/* ---- GRAIN 影院金：35mm 胶片 ---- */
+html[data-texture="grain"] body::after {
+  background-image:
+    repeating-linear-gradient(0deg,
+      rgba(230, 185, 30, 0.08) 0px, rgba(230, 185, 30, 0.08) 3px,
+      transparent 3px, transparent 12px),
+    repeating-linear-gradient(0deg,
+      rgba(230, 185, 30, 0.04) 0px, transparent 2px, transparent 6px,
+      rgba(230, 185, 30, 0.03) 7px, transparent 10px, transparent 16px),
+    repeating-linear-gradient(90deg,
+      rgba(255, 215, 0, 0.04) 0px, transparent 4px,
+      rgba(230, 185, 30, 0.05) 5px, transparent 9px,
+      rgba(255, 215, 0, 0.03) 12px, transparent 15px),
+    radial-gradient(ellipse 90% 60% at 30% 40%, rgba(230, 185, 30, 0.04) 0%, transparent 60%);
+  opacity: 0.5;
+  animation: texGrain 2s steps(4) infinite;
 }
-
-@keyframes goldDrift {
-  0% { transform: translate(0, 0) rotate(0deg); }
-  25% { transform: translate(3%, -2%) rotate(1deg); }
-  50% { transform: translate(-2%, 3%) rotate(-0.5deg); }
-  75% { transform: translate(1%, -1%) rotate(0.5deg); }
-  100% { transform: translate(0, 0) rotate(0deg); }
-}
-
-[data-theme="nebula-purple"] body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  background: 
-    radial-gradient(ellipse at 30% 30%, rgba(0, 212, 255, 0.08) 0%, transparent 50%),
-    radial-gradient(ellipse at 70% 70%, rgba(139, 92, 246, 0.1) 0%, transparent 50%),
-    radial-gradient(ellipse at 50% 50%, rgba(236, 72, 153, 0.04) 0%, transparent 60%);
-  pointer-events: none;
-  z-index: 0;
-  animation: nebulaAurora 12s ease-in-out infinite alternate;
-  filter: hue-rotate(0deg);
-}
-
-@keyframes nebulaAurora {
-  0% { filter: hue-rotate(0deg); opacity: 1; }
-  33% { filter: hue-rotate(15deg); opacity: 0.9; }
-  66% { filter: hue-rotate(-10deg); opacity: 1; }
-  100% { filter: hue-rotate(5deg); opacity: 0.95; }
-}
-
-[data-theme="emerald-night"] body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  background: 
-    radial-gradient(ellipse at 25% 60%, rgba(245, 158, 11, 0.06) 0%, transparent 50%),
-    radial-gradient(ellipse at 75% 40%, rgba(16, 185, 129, 0.04) 0%, transparent 40%);
-  pointer-events: none;
-  z-index: 0;
-  animation: emeraldBreathe 5s ease-in-out infinite;
-}
-
-@keyframes emeraldBreathe {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.7; }
-}
-
-[data-theme="arctic-ice"] body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  background: 
-    radial-gradient(ellipse at 50% 30%, rgba(96, 165, 250, 0.05) 0%, transparent 60%),
-    radial-gradient(ellipse at 20% 70%, rgba(147, 197, 253, 0.03) 0%, transparent 50%);
-  pointer-events: none;
-  z-index: 0;
-  animation: iceShimmer 6s ease-in-out infinite alternate;
-}
-
-@keyframes iceShimmer {
-  0% { opacity: 1; }
-  50% { opacity: 0.85; }
-  100% { opacity: 1; }
-}
-
-[data-theme="rose-velvet"] body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  background: 
-    radial-gradient(ellipse at 30% 50%, rgba(249, 168, 212, 0.07) 0%, transparent 50%),
-    radial-gradient(ellipse at 70% 30%, rgba(244, 114, 182, 0.05) 0%, transparent 45%),
-    radial-gradient(ellipse at 50% 80%, rgba(251, 146, 60, 0.03) 0%, transparent 40%);
-  pointer-events: none;
-  z-index: 0;
-  animation: roseBreathe 4s ease-in-out infinite;
-}
-
-@keyframes roseBreathe {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.8; transform: scale(1.01); }
-}
-
-/* ==================== THEME TEXTURES ==================== */
-
-/* 绯红影院 - 织物纹理（帷幕感） */
-[data-texture="fabric"] body::after {
-  content: '';
-  position: fixed;
-  inset: 0;
-  background-image: 
-    repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.015) 2px, rgba(255,255,255,0.015) 3px),
-    repeating-linear-gradient(90deg, transparent, transparent 2px, rgba(255,255,255,0.01) 2px, rgba(255,255,255,0.01) 3px);
-  pointer-events: none;
-  z-index: 0;
-  opacity: var(--texture-opacity, 0.04);
-  mix-blend-mode: overlay;
-}
-
-/* 影院金 - 胶片颗粒 */
-[data-texture="grain"] body::after {
-  content: '';
-  position: fixed;
-  inset: 0;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.06'/%3E%3C/svg%3E");
-  pointer-events: none;
-  z-index: 0;
-  opacity: var(--texture-opacity, 0.035);
-  mix-blend-mode: overlay;
-}
-
-/* 星云紫 - 科技噪点闪烁 */
-[data-texture="noise"] body::after {
-  content: '';
-  position: fixed;
-  inset: 0;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='turbulence' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
-  pointer-events: none;
-  z-index: 0;
-  opacity: var(--texture-opacity, 0.03);
-  mix-blend-mode: difference;
-  animation: noiseFlicker 0.5s steps(2) infinite;
-}
-
-@keyframes noiseFlicker {
-  0% { transform: translate(0, 0); }
-  50% { transform: translate(-2px, 1px); }
+@keyframes texGrain {
+  0%   { transform: translate(0, 0); }
+  25%  { transform: translate(-4px, 3px); }
+  50%  { transform: translate(3px, -4px); }
+  75%  { transform: translate(-3px, -2px); }
   100% { transform: translate(0, 0); }
 }
 
-/* 翡翠夜 - 哑光木纹 */
-[data-texture="bark"] body::after {
-  content: '';
-  position: fixed;
-  inset: 0;
-  background-image: 
-    repeating-linear-gradient(175deg, transparent, transparent 6px, rgba(245,158,11,0.02) 6px, rgba(245,158,11,0.02) 7px),
-    repeating-linear-gradient(185deg, transparent, transparent 10px, rgba(16,185,129,0.015) 10px, rgba(16,185,129,0.015) 11px),
-    repeating-linear-gradient(170deg, transparent, transparent 14px, rgba(255,255,255,0.008) 14px, rgba(255,255,255,0.008) 15px);
-  pointer-events: none;
-  z-index: 0;
-  opacity: var(--texture-opacity, 0.03);
+/* ---- NOISE 星云紫：LED 像素矩阵 ---- */
+html[data-texture="noise"] body::after {
+  background-image:
+    repeating-linear-gradient(90deg,
+      rgba(0, 212, 255, 0.06) 0px, rgba(0, 212, 255, 0.06) 1px,
+      transparent 1px, transparent 16px),
+    repeating-linear-gradient(0deg,
+      rgba(139, 92, 246, 0.06) 0px, rgba(139, 92, 246, 0.06) 1px,
+      transparent 1px, transparent 16px),
+    repeating-linear-gradient(135deg,
+      rgba(0, 212, 255, 0.08) 0px, rgba(0, 212, 255, 0.08) 2px,
+      transparent 2px, transparent 32px),
+    repeating-linear-gradient(45deg,
+      rgba(139, 92, 246, 0.06) 0px, rgba(139, 92, 246, 0.06) 1px,
+      transparent 1px, transparent 48px);
+  background-size: 16px 16px, 16px 16px, auto, auto;
+  opacity: 0.4;
+  mix-blend-mode: screen;
+  animation: texNoise 0.3s steps(4) infinite;
+}
+@keyframes texNoise {
+  0%   { transform: translate(0, 0); opacity: 0.4; }
+  25%  { transform: translate(-4px, 2px); opacity: 0.5; }
+  50%  { transform: translate(3px, -4px); opacity: 0.3; }
+  75%  { transform: translate(-2px, 3px); opacity: 0.45; }
+  100% { transform: translate(0, 0); opacity: 0.4; }
 }
 
-/* 极地冰 - 冰晶网格 */
-[data-texture="crystal"] body::after {
-  content: '';
-  position: fixed;
-  inset: 0;
-  background-image: 
-    linear-gradient(60deg, transparent 48%, rgba(96,165,250,0.015) 49%, rgba(96,165,250,0.015) 51%, transparent 52%),
-    linear-gradient(-60deg, transparent 48%, rgba(96,165,250,0.015) 49%, rgba(96,165,250,0.015) 51%, transparent 52%),
-    linear-gradient(0deg, transparent 48%, rgba(147,197,253,0.01) 49%, rgba(147,197,253,0.01) 51%, transparent 52%);
-  background-size: 60px 60px;
-  pointer-events: none;
-  z-index: 0;
-  opacity: var(--texture-opacity, 0.025);
+/* ---- BARK 翡翠夜：原木宽纹 ---- */
+html[data-texture="bark"] body::after {
+  background-image:
+    repeating-linear-gradient(178deg,
+      rgba(245, 158, 11, 0.15) 0px, rgba(245, 158, 11, 0.15) 3px,
+      transparent 3px, transparent 13px),
+    repeating-linear-gradient(184deg,
+      rgba(16, 185, 129, 0.08) 0px, rgba(16, 185, 129, 0.08) 1px,
+      transparent 1px, transparent 9px),
+    radial-gradient(ellipse 30% 18% at 25% 35%, rgba(245, 158, 11, 0.12) 0%, transparent 60%),
+    radial-gradient(ellipse 20% 12% at 75% 55%, rgba(245, 158, 11, 0.08) 0%, transparent 50%),
+    radial-gradient(ellipse 15% 10% at 50% 80%, rgba(16, 185, 129, 0.06) 0%, transparent 50%);
+  opacity: 0.45;
 }
 
-/* 玫瑰绒 - 丝绸渐变噪点 */
-[data-texture="silk"] body::after {
-  content: '';
-  position: fixed;
-  inset: 0;
-  background-image: 
-    radial-gradient(ellipse at 20% 50%, rgba(249,168,212,0.03) 0%, transparent 50%),
-    radial-gradient(ellipse at 80% 30%, rgba(244,114,182,0.02) 0%, transparent 40%),
-    url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.5' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.02'/%3E%3C/svg%3E");
-  pointer-events: none;
-  z-index: 0;
-  opacity: var(--texture-opacity, 0.03);
+/* ---- CRYSTAL 极地冰：大六边形冰晶 ---- */
+html[data-texture="crystal"] body::after {
+  background-image:
+    linear-gradient(60deg,
+      transparent 44%, rgba(96, 165, 250, 0.1) 45%, rgba(96, 165, 250, 0.1) 55%, transparent 56%),
+    linear-gradient(-60deg,
+      transparent 44%, rgba(96, 165, 250, 0.1) 45%, rgba(96, 165, 250, 0.1) 55%, transparent 56%),
+    linear-gradient(0deg,
+      transparent 44%, rgba(147, 197, 253, 0.07) 45%, rgba(147, 197, 253, 0.07) 55%, transparent 56%),
+    radial-gradient(3px 3px at 20% 25%, rgba(255, 255, 255, 0.15) 0%, transparent 100%),
+    radial-gradient(3px 3px at 50% 12%, rgba(255, 255, 255, 0.12) 0%, transparent 100%),
+    radial-gradient(4px 4px at 75% 30%, rgba(255, 255, 255, 0.1) 0%, transparent 100%),
+    radial-gradient(3px 3px at 35% 50%, rgba(255, 255, 255, 0.12) 0%, transparent 100%),
+    radial-gradient(4px 4px at 65% 65%, rgba(255, 255, 255, 0.1) 0%, transparent 100%),
+    radial-gradient(3px 3px at 45% 85%, rgba(255, 255, 255, 0.12) 0%, transparent 100%),
+    radial-gradient(3px 3px at 85% 85%, rgba(255, 255, 255, 0.1) 0%, transparent 100%);
+  background-size: 80px 46px, 80px 46px, 80px 46px, auto, auto, auto, auto, auto, auto, auto;
+  background-position: 0 0, 40px 23px, 20px 11px, 0 0, 0 0, 0 0, 0 0, 0 0, 0 0, 0 0;
+  opacity: 0.4;
+  animation: texCrystal 4s ease-in-out infinite alternate;
+}
+@keyframes texCrystal {
+  0%   { filter: brightness(0.85); }
+  50%  { filter: brightness(1.3); }
+  100% { filter: brightness(1); }
+}
+
+/* ---- SILK 玫瑰绒：宽幅光泽缎带 ---- */
+html[data-texture="silk"] body::after {
+  background-image:
+    repeating-linear-gradient(168deg,
+      rgba(249, 168, 212, 0.08) 0px, rgba(249, 168, 212, 0.08) 4px,
+      transparent 4px, transparent 16px),
+    repeating-linear-gradient(78deg,
+      rgba(244, 114, 182, 0.06) 0px, rgba(244, 114, 182, 0.06) 2px,
+      transparent 2px, transparent 20px),
+    repeating-linear-gradient(0deg,
+      rgba(255, 255, 255, 0.03) 0px, rgba(255, 255, 255, 0.03) 1px,
+      transparent 1px, transparent 4px),
+    radial-gradient(ellipse 70% 35% at 20% 30%, rgba(249, 168, 212, 0.08) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 25% at 80% 70%, rgba(244, 114, 182, 0.06) 0%, transparent 55%);
   mix-blend-mode: soft-light;
+  opacity: 0.45;
+  animation: texSilk 6s ease-in-out infinite alternate;
+}
+@keyframes texSilk {
+  0%   { background-position: 0% 0%, 0% 0%, 0% 0%, 0% 0%, 0% 0%; opacity: 0.4; }
+  50%  { background-position: 4% 2%, -2% -1%, 1% 2%, 2% -1%, -1% 1%; opacity: 0.5; }
+  100% { background-position: -2% -1%, 1% 1%, -1% -1%, -1% 2%, 1% 0%; opacity: 0.42; }
 }
 
-/* ==================== CARD EFFECTS (theme-specific) ==================== */
+/* ==================================================================
+   CARD EFFECTS
+   ================================================================== */
 
-/* 绯红影院 - 剧场顶光高光（左上角）+ 帷幕凹陷阴影 */
-[data-accent-effect="curtain"] .card-base {
-  box-shadow: 
-    inset 1px 1px 0 rgba(255,255,255,0.06),
-    inset -1px -1px 0 rgba(0,0,0,0.2);
-}
-[data-accent-effect="curtain"] .card-base:hover {
-  box-shadow: 
-    inset 1px 1px 0 rgba(255,255,255,0.1),
-    inset -1px -1px 0 rgba(0,0,0,0.3),
-    0 8px 32px rgba(225, 29, 72, 0.15),
-    0 0 0 1px rgba(225, 29, 72, 0.1);
-}
-
-/* 影院金 - 0.5px 亮金细线 + 锐利倒影 */
-[data-accent-effect="filmstrip"] .card-base {
-  box-shadow: inset 0 0 0 0.5px rgba(230, 185, 30, 0.12);
-}
-[data-accent-effect="filmstrip"] .card-base:hover {
-  box-shadow: 
-    inset 0 0 0 0.5px rgba(230, 185, 30, 0.3),
-    0 4px 16px rgba(0,0,0,0.4),
-    0 0 20px rgba(230, 185, 30, 0.08);
-}
-
-/* 星云紫 - 霓虹多层光晕 + hue-rotate */
-[data-accent-effect="nebula"] .card-base {
-  box-shadow: 0 0 0 1px rgba(0, 212, 255, 0.08);
-}
-[data-accent-effect="nebula"] .card-base:hover {
-  box-shadow: 
-    0 0 15px rgba(0, 212, 255, 0.15),
-    0 0 30px rgba(139, 92, 246, 0.1),
-    0 0 45px rgba(0, 212, 255, 0.05),
-    0 8px 24px rgba(0,0,0,0.3);
-  filter: hue-rotate(5deg);
-}
-
-/* 极地冰 - 冰霜冷凝边框 */
-[data-accent-effect="frost"] .card-base {
-  box-shadow: inset 0 0 0 1px rgba(96, 165, 250, 0.06);
-}
-[data-accent-effect="frost"] .card-base:hover {
-  box-shadow: 
-    inset 0 0 0 1px rgba(96, 165, 250, 0.2),
-    inset 0 0 20px rgba(96, 165, 250, 0.03),
-    0 4px 16px rgba(0,0,0,0.2);
-}
-
-/* 翡翠夜 - 余烬光（底部温暖颗粒感橙色辉光） */
-[data-accent-effect="ember"] .card-base {
-  box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.05);
-}
-[data-accent-effect="ember"] .card-base:hover {
-  box-shadow: 
-    0 8px 24px rgba(0,0,0,0.3),
-    0 4px 20px rgba(245, 158, 11, 0.12),
-    0 -4px 30px rgba(245, 158, 11, 0.08);
-}
-
-/* 玫瑰绒 - 柔光镜效果 + 深浮雕 */
-[data-accent-effect="petal"] .card-base {
-  box-shadow: 
-    inset 1px 1px 0 rgba(255,255,255,0.04),
-    inset -1px -1px 0 rgba(0,0,0,0.15);
-}
-[data-accent-effect="petal"] .card-base:hover {
-  box-shadow: 
-    inset 1px 1px 0 rgba(255,255,255,0.08),
-    inset -1px -1px 0 rgba(0,0,0,0.25),
-    0 12px 36px rgba(249, 168, 212, 0.15),
-    0 0 60px rgba(244, 114, 182, 0.06);
-}
-
-/* ==================== CARD ANIMATIONS ==================== */
-@keyframes shineSwipe {
-  from { transform: translateX(-100%) skewX(-15deg); }
-  to { transform: translateX(200%) skewX(-15deg); }
-}
-
-@keyframes ratingBounce {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.2); }
-}
-
-@keyframes cardEntrance {
-  from {
-    opacity: 0;
-    transform: translateY(16px) scale(0.97);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-.card-shine {
+/* Shine sweep - via ::after on card base */
+.card-base::after {
+  content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(
-    105deg,
-    transparent 30%,
-    rgba(255, 255, 255, 0.06) 42%,
-    rgba(255, 255, 255, 0.12) 48%,
-    rgba(255, 255, 255, 0.06) 54%,
-    transparent 66%
-  );
-  transform: translateX(-100%) skewX(-15deg);
+  background: linear-gradient(105deg,
+    transparent 25%,
+    rgba(255, 255, 255, 0.1) 40%,
+    rgba(255, 255, 255, 0.2) 48%,
+    rgba(255, 255, 255, 0.1) 56%,
+    transparent 70%);
+  transform: translateX(-120%) skewX(-15deg);
   pointer-events: none;
   z-index: 2;
   will-change: transform;
 }
-
-.group:hover .card-shine {
-  animation: shineSwipe 0.7s var(--ease-out-expo) forwards;
+.card-base:hover::after {
+  animation: shineSwipe 0.8s var(--ease-out-expo) forwards;
 }
 
-.card-rating {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
+@keyframes shineSwipe {
+  from { transform: translateX(-120%) skewX(-15deg); }
+  to   { transform: translateX(220%) skewX(-15deg); }
 }
 
-.group:hover .card-rating {
-  animation: ratingBounce 0.5s var(--ease-elastic);
+/* Default */
+.card-base {
+  will-change: transform, box-shadow;
 }
 
+/* 绯红影院 — 帷幕高光 + 赤红辉光 */
+html[data-accent-effect="curtain"] .card-base {
+  box-shadow: inset 1px 1px 0 rgba(255,255,255,0.08), inset -1px -1px 0 rgba(0,0,0,0.3);
+}
+html[data-accent-effect="curtain"] .card-base:hover {
+  box-shadow:
+    0 0 0 1.5px rgba(225, 29, 72, 0.5),
+    0 12px 30px rgba(225, 29, 72, 0.34),
+    0 22px 48px rgba(225, 29, 72, 0.1);
+}
+
+/* 影院金 — 亮金细线边框 */
+html[data-accent-effect="filmstrip"] .card-base {
+  box-shadow: inset 0 0 0 0.5px rgba(230, 185, 30, 0.18);
+}
+html[data-accent-effect="filmstrip"] .card-base:hover {
+  box-shadow:
+    0 0 0 1px rgba(230, 185, 30, 0.6),
+    0 8px 40px rgba(0,0,0,0.5),
+    0 0 30px rgba(230, 185, 30, 0.15);
+}
+
+/* 星云紫 — 霓虹多层光晕 */
+html[data-accent-effect="nebula"] .card-base {
+  box-shadow: 0 0 0 1px rgba(0, 212, 255, 0.15);
+}
+html[data-accent-effect="nebula"] .card-base:hover {
+  box-shadow:
+    0 0 25px rgba(0, 212, 255, 0.3),
+    0 0 50px rgba(139, 92, 246, 0.25),
+    0 0 80px rgba(0, 212, 255, 0.1),
+    0 8px 40px rgba(0,0,0,0.5);
+  filter: hue-rotate(5deg);
+}
+
+/* 翡翠夜 — 余烬暖光 */
+html[data-accent-effect="ember"] .card-base {
+  box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.1);
+}
+html[data-accent-effect="ember"] .card-base:hover {
+  box-shadow:
+    0 10px 40px rgba(0,0,0,0.5),
+    0 10px 32px rgba(245, 158, 11, 0.26),
+    0 18px 44px rgba(245, 158, 11, 0.1);
+}
+
+/* 极地冰 — 冰霜冷凝边框 */
+html[data-accent-effect="frost"] .card-base {
+  box-shadow: inset 0 0 0 1px rgba(96, 165, 250, 0.12);
+}
+html[data-accent-effect="frost"] .card-base:hover {
+  box-shadow:
+    inset 0 0 25px rgba(96, 165, 250, 0.08),
+    0 0 0 1px rgba(96, 165, 250, 0.4),
+    0 8px 40px rgba(0,0,0,0.5);
+}
+
+/* 玫瑰绒 — 柔粉散光 */
+html[data-accent-effect="petal"] .card-base {
+  box-shadow: inset 1px 1px 0 rgba(255,255,255,0.05), inset -1px -1px 0 rgba(0,0,0,0.18);
+}
+html[data-accent-effect="petal"] .card-base:hover {
+  box-shadow:
+    0 14px 48px rgba(249, 168, 212, 0.3),
+    0 0 100px rgba(244, 114, 182, 0.1),
+    0 0 0 1px rgba(249, 168, 212, 0.25);
+}
+
+/* ==================== CARD ANIMATIONS ==================== */
+@keyframes cardEntrance {
+  from { opacity: 0; transform: translateY(16px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
 .card-entrance {
   animation: cardEntrance 0.4s var(--ease-spring) backwards;
 }
-
 /* Staggered entrance for grid items */
 .grid > *:nth-child(1) .card-entrance { animation-delay: 0ms; }
 .grid > *:nth-child(2) .card-entrance { animation-delay: 50ms; }
@@ -398,95 +478,50 @@ body {
 
 /* ==================== PAGE TRANSITIONS ==================== */
 @keyframes pageEnter {
-  from {
-    opacity: 0;
-    transform: translateY(12px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
-
 .page-enter {
   animation: pageEnter 0.4s var(--ease-spring);
 }
 
-/* ==================== SECTION SCROLL REVEAL ==================== */
-.section-reveal {
-  opacity: 0;
-  transform: translateY(24px);
-  transition: opacity 0.6s var(--ease-out-expo), transform 0.6s var(--ease-out-expo);
-}
-
-.section-reveal.visible {
-  opacity: 1;
-  transform: translateY(0);
-}
-
 /* ==================== TYPOGRAPHY ==================== */
+html[data-theme="cinema-gold"] { letter-spacing: 0.02em; }
+html[data-theme="cinema-gold"] h1,
+html[data-theme="cinema-gold"] h2,
+html[data-theme="cinema-gold"] h3 { letter-spacing: 0.08em; }
 
-/* 影院金 - 宽松字距（颁奖典礼庄重感） */
-[data-theme="cinema-gold"] {
-  letter-spacing: 0.02em;
-}
-[data-theme="cinema-gold"] h1, 
-[data-theme="cinema-gold"] h2, 
-[data-theme="cinema-gold"] h3 {
-  letter-spacing: 0.08em;
-}
+html[data-theme="emerald-night"] { line-height: 1.8; }
+html[data-theme="emerald-night"] p { line-height: 1.8; }
 
-/* 翡翠夜 - 舒适行高（纸墨质感） */
-[data-theme="emerald-night"] {
-  line-height: 1.8;
-}
-[data-theme="emerald-night"] p {
-  line-height: 1.8;
-}
-
-/* 玫瑰绒 - 手写衬线标题感（香氛广告） */
-[data-theme="rose-velvet"] h1,
-[data-theme="rose-velvet"] h2,
-[data-theme="rose-velvet"] h3 {
-  font-style: italic;
-  letter-spacing: 0.04em;
-}
+html[data-theme="rose-velvet"] h1,
+html[data-theme="rose-velvet"] h2,
+html[data-theme="rose-velvet"] h3 { font-style: italic; letter-spacing: 0.04em; }
 
 /* ==================== GLASS MORPHISM ==================== */
-
-/* 星云紫 - 极致毛玻璃（紫/青双色反射） */
-[data-theme="nebula-purple"] .glass-panel {
-  backdrop-filter: blur(20px) saturate(1.4);
-  -webkit-backdrop-filter: blur(20px) saturate(1.4);
-  background: 
-    linear-gradient(135deg, rgba(139, 92, 246, 0.08), rgba(0, 212, 255, 0.05)),
-    var(--color-glass);
-}
-
-/* 极地冰 - 高透毛玻璃 */
-[data-theme="arctic-ice"] .glass-panel {
-  backdrop-filter: blur(24px) saturate(1.8);
-  -webkit-backdrop-filter: blur(24px) saturate(1.8);
-  background: rgba(12, 18, 34, 0.5);
-}
-
 .glass-panel {
   background: var(--color-glass);
   backdrop-filter: blur(16px) saturate(1.2);
   -webkit-backdrop-filter: blur(16px) saturate(1.2);
   border: 1px solid var(--color-glass-border);
 }
+html[data-theme="nebula-purple"] .glass-panel {
+  backdrop-filter: blur(20px) saturate(1.4);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.08), rgba(0, 212, 255, 0.05)), var(--color-glass);
+}
+html[data-theme="arctic-ice"] .glass-panel {
+  backdrop-filter: blur(24px) saturate(1.8);
+  -webkit-backdrop-filter: blur(24px) saturate(1.8);
+  background: rgba(12, 18, 34, 0.5);
+}
 
 /* ==================== BUTTON FEEL ==================== */
-
-/* 绯红影院 - 老式机械开关 */
-[data-theme="crimson-cinema"] button:active {
+html[data-theme="crimson-cinema"] button:active {
   transform: scale(0.95) translateY(1px);
   box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
   transition-duration: 0.05s;
 }
-
-/* 通用按钮弹性反馈 */
 button {
   transition: all 0.2s var(--ease-elastic);
 }
@@ -494,51 +529,28 @@ button:active {
   transform: scale(0.96);
 }
 
-/* ==================== SCROLLBAR (theme-aware) ==================== */
-
-/* 翡翠夜 - 极细自动隐藏滚动条 */
-[data-theme="emerald-night"] * {
+/* ==================== SCROLLBAR ==================== */
+html[data-theme="emerald-night"] * {
   scrollbar-width: thin;
   scrollbar-color: rgba(245, 158, 11, 0.15) transparent;
 }
-
-* {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
+* { -ms-overflow-style: none; scrollbar-width: none; }
 *::-webkit-scrollbar { display: none; }
 
 /* ==================== REDUCED MOTION ==================== */
 @media (prefers-reduced-motion: reduce) {
-  .card-shine,
-  .card-rating,
-  .card-entrance,
-  .page-enter,
-  .section-reveal {
+  .card-shine, .card-entrance, .page-enter,
+  .orb, .card-base::after {
     animation: none !important;
     transition: none !important;
   }
-  body::before {
+  body::before, body::after {
     animation: none !important;
-  }
-  [data-texture] body::after {
-    animation: none !important;
-  }
-  #p5-bg {
-    display: none !important;
   }
 }
 
 /* ==================== MOBILE ==================== */
 @media (max-width: 767px) {
-  html, body {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
+  html, body { -ms-overflow-style: none; scrollbar-width: none; }
   html::-webkit-scrollbar, body::-webkit-scrollbar { display: none; }
-  
-  /* 移动端减弱粒子效果 */
-  #p5-bg canvas {
-    opacity: 0.5 !important;
-  }
 }
