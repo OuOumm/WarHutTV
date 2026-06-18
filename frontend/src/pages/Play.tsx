@@ -333,12 +333,14 @@ const Play = () => {
       
       if (!data || !Array.isArray(data) || data.length === 0) {
         // 没有找到其他源，使用原始源
-        setIsOptimizing(false);
-        setOptimizeComplete(true);
         const epList = episodes;
         if (epList.length > 0 && epList[0].url) {
-          getPlayableUrl(epList[0].url).then(setPlayUrl);
+          const url = await getPlayableUrl(epList[0].url);
+          setPlayUrl(url);
         }
+        setOptimizeComplete(true);
+        setSearchProgress(null);
+        setTimeout(() => setIsOptimizing(false), 500);
         return;
       }
       
@@ -365,12 +367,14 @@ const Play = () => {
       });
       
       if (sourceList.length === 0) {
-        setIsOptimizing(false);
-        setOptimizeComplete(true);
         const epList = episodes;
         if (epList.length > 0 && epList[0].url) {
-          getPlayableUrl(epList[0].url).then(setPlayUrl);
+          const url = await getPlayableUrl(epList[0].url);
+          setPlayUrl(url);
         }
+        setOptimizeComplete(true);
+        setSearchProgress(null);
+        setTimeout(() => setIsOptimizing(false), 500);
         return;
       }
       
@@ -378,6 +382,36 @@ const Play = () => {
       setSearchDataCache(data);
       setSourceLoading(false);
       setSearchProgress(null);
+      
+      // 只有一个源时，跳过测速直接使用
+      if (sourceList.length === 1) {
+        const onlySource = sourceList[0];
+        setCurrentSource(onlySource.key);
+        const siteData = Array.isArray(data)
+          ? data.find((item: any) => item.site_key === onlySource.key)
+          : data[onlySource.key];
+        if (siteData?.list?.length > 0) {
+          const onlyDetail = await getCachedDetail(onlySource.key, siteData.list[0].vod_id);
+          if (onlyDetail) {
+            setDetail(onlyDetail);
+            if (onlyDetail.vod_play_url) {
+              const epList = parseEpisodes(onlyDetail.vod_play_url);
+              setEpisodes(epList);
+              if (epList.length > 0) {
+                setCurrentEpisode(epList[0]);
+                const url = await getPlayableUrl(epList[0].url);
+                setPlayUrl(url);
+              }
+            }
+            await historyStore.updateSource(historyVodId, onlySource.key, onlyDetail.vod_id);
+            setHistoryVodId(onlyDetail.vod_id);
+          }
+        }
+        setOptimizeComplete(true);
+        setSearchProgress(null);
+        setTimeout(() => setIsOptimizing(false), 500);
+        return;
+      }
       
       // 并发测速所有源
       const testPromises = sourceList.map(async (source, index) => {
@@ -441,7 +475,8 @@ const Play = () => {
             setEpisodes(epList);
             if (epList.length > 0) {
               setCurrentEpisode(epList[0]);
-              getPlayableUrl(epList[0].url).then(setPlayUrl);
+              const url = await getPlayableUrl(epList[0].url);
+              setPlayUrl(url);
             }
           }
           await historyStore.updateSource(historyVodId, bestSource.key, bestDetail.vod_id);
@@ -454,7 +489,6 @@ const Play = () => {
         setTimeout(() => setToast(''), 3000);
         
         setCurrentSource(firstSource.key);
-        // 获取第一个源的详情
         const siteData = data.find((item: any) => item.site_key === firstSource.key);
         if (siteData?.list?.length > 0) {
           const firstItem = siteData.list[0];
@@ -466,7 +500,8 @@ const Play = () => {
               setEpisodes(epList);
               if (epList.length > 0) {
                 setCurrentEpisode(epList[0]);
-                getPlayableUrl(epList[0].url).then(setPlayUrl);
+                const url = await getPlayableUrl(epList[0].url);
+                setPlayUrl(url);
               }
             }
             await historyStore.updateSource(historyVodId, firstSource.key, detail.vod_id);
@@ -477,7 +512,8 @@ const Play = () => {
         // 没有可用源，使用原始源
         const epList = episodes;
         if (epList.length > 0 && epList[0].url) {
-          getPlayableUrl(epList[0].url).then(setPlayUrl);
+          const url = await getPlayableUrl(epList[0].url);
+          setPlayUrl(url);
         }
       }
       
@@ -485,7 +521,8 @@ const Play = () => {
       console.error('优选失败:', err);
       const epList = episodes;
       if (epList.length > 0 && epList[0].url) {
-        getPlayableUrl(epList[0].url).then(setPlayUrl);
+        const url = await getPlayableUrl(epList[0].url);
+        setPlayUrl(url);
       }
     } finally {
       setSourceLoading(false);

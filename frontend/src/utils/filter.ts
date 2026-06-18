@@ -12,12 +12,16 @@ export function isYellowContent(text: string): boolean {
   return yellowWords.some((word) => lower.includes(word));
 }
 
-export function filterYellowItems<T extends { vod_name?: string; title?: string }>(
+export function filterYellowItems<T extends { vod_name?: string; title?: string; type_name?: string; vod_remarks?: string; vod_content?: string }>(
   items: T[]
 ): T[] {
   return items.filter((item) => {
     const name = item.vod_name || item.title || '';
-    return !isYellowContent(name);
+    const typeName = item.type_name || '';
+    const remarks = item.vod_remarks || '';
+    const content = item.vod_content || '';
+    // 同时检查：名称、分类名、备注、简介
+    return !isYellowContent(name) && !isYellowContent(typeName) && !isYellowContent(remarks) && !isYellowContent(content);
   });
 }
 
