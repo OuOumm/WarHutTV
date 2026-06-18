@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback, memo } from 'react';
 import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Sidebar from './Sidebar';
@@ -7,14 +7,30 @@ import ThemeSwitcher from './ThemeSwitcher';
 import UserMenu from './SettingsPanel';
 import { useConfig } from '../store/config';
 
+// 静态SVG图标 - 使用 memo 优化
+const SearchIcon = memo(() => (
+  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+  </svg>
+));
+
 interface LayoutProps {
   children: ReactNode;
 }
 
-const Layout = ({ children }: LayoutProps) => {
+const Layout = memo(({ children }: LayoutProps) => {
   const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(false);
   const { siteName } = useConfig();
+
+  // 使用 useCallback 缓存事件处理函数
+  const handleSearchClick = useCallback(() => {
+    navigate('/search');
+  }, [navigate]);
+
+  const handleToggleSidebar = useCallback(() => {
+    setCollapsed(prev => !prev);
+  }, []);
 
   return (
     <div className="w-full min-h-screen relative" style={{ background: 'transparent' }}>
@@ -27,19 +43,17 @@ const Layout = ({ children }: LayoutProps) => {
 
       {/* 桌面端侧边栏 */}
       <div className="hidden md:block">
-        <Sidebar collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} />
+        <Sidebar collapsed={collapsed} onToggle={handleToggleSidebar} />
       </div>
 
       {/* 移动端顶部栏 */}
       <div className="md:hidden fixed top-0 left-0 right-0 z-50 glass-panel">
         <div className="flex items-center justify-between h-14 px-3">
           <button
-            onClick={() => navigate('/search')}
+            onClick={handleSearchClick}
             className="w-9 h-9 flex items-center justify-center rounded-full text-muted hover:text-primary hover:bg-primary-glow transition-all duration-200"
           >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
+            <SearchIcon />
           </button>
 
           <span className="text-lg font-bold tracking-tight absolute left-1/2 -translate-x-1/2">
@@ -81,6 +95,6 @@ const Layout = ({ children }: LayoutProps) => {
       </div>
     </div>
   );
-};
+});
 
 export default Layout;

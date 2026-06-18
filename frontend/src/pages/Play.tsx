@@ -1,7 +1,9 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
 import { useParams } from 'react-router-dom';
-import Player from '../components/Player';
 import apiClient from '../api/client';
+
+// 动态导入 Player 组件 - 减少初始包大小
+const Player = lazy(() => import('../components/Player'));
 import type { VideoDetail } from '../types';
 import { favoritesStore } from '../store/favorites';
 import { historyStore } from '../store/history';
@@ -25,6 +27,7 @@ interface SourceItem {
   status: 'pending' | 'testing' | 'done' | 'error';
 }
 
+// 使用 useMemo 缓存解析结果
 function parseEpisodes(playUrl: string): Episode[] {
   return playUrl.split('#').filter((e) => e.trim()).map((e) => {
     const parts = e.split('$');
@@ -146,14 +149,14 @@ const Play = () => {
   const EPISODES_PER_PAGE = 50;
   const optimizeStarted = useRef(false);
 
-  // m3u8 前端处理（支持去广告）
-  const getPlayableUrl = async (url: string) => {
+  // m3u8 前端处理（支持去广告）- 使用 useCallback 优化
+  const getPlayableUrl = useCallback(async (url: string) => {
     if (!url) return url;
     if (url.includes('.m3u8')) {
       return await fetchAndFilterM3U8(url);
     }
     return url;
-  };
+  }, []);
 
   useEffect(() => { 
     if (site && id) {
@@ -392,7 +395,7 @@ const Play = () => {
     return data;
   };
 
-  const handleSourceSwitch = async (sourceKey: string) => {
+  const handleSourceSwitch = useCallback(async (sourceKey: string) => {
     if (sourceKey === currentSource) return;
     setCurrentSource(sourceKey);
     setLoading(true);
@@ -418,9 +421,9 @@ const Play = () => {
         }
       }
     } catch (err) { console.error('切换源失败:', err); } finally { setLoading(false); }
-  };
+  }, [currentSource, detail?.vod_name, getPlayableUrl, historyVodId, searchDataCache]);
 
-  const handleEpisodeClick = (ep: Episode) => {
+  const handleEpisodeClick = useCallback((ep: Episode) => {
     setCurrentEpisode(ep);
     if (ep.url) {
       getPlayableUrl(ep.url).then(setPlayUrl);
@@ -428,9 +431,13 @@ const Play = () => {
       apiClient.get('/play', { params: { site: currentSource, ids: id, episode: ep.name } })
         .then((res) => { if (res.data.url) getPlayableUrl(res.data.url).then(setPlayUrl); }).catch(console.error);
     }
-  };
+  }, [currentSource, id, getPlayableUrl]);
 
-  const toggleFavorite = async () => { if (!detail) return; const result = await favoritesStore.toggle(detail); setIsFavorite(result); };
+  const toggleFavorite = useCallback(async () => { 
+    if (!detail) return; 
+    const result = await favoritesStore.toggle(detail); 
+    setIsFavorite(result); 
+  }, [detail]);
 
   // 加载中显示加载动画
   if (loading && !isOptimizing) return <div className="flex justify-center items-center h-[60vh]"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>;
@@ -442,7 +449,12 @@ const Play = () => {
   return (
     <div>
       {toast && (
-        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[1000] px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg shadow-lg">
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[1000] px-4 py-2 text-sm font-medium rounded-lg shadow-lg backdrop-blur-xl" style={{
+          background: 'var(--color-primary-glow)',
+          border: '1px solid var(--color-glass-border)',
+          color: 'var(--color-primary)',
+          boxShadow: '0 4px 16px rgba(0, 0, 0, 0.2), 0 0 12px var(--color-primary-glow)',
+        }}>
           {toast}
         </div>
       )}
@@ -462,7 +474,9 @@ const Play = () => {
               {isOptimizing && <OptimizingOverlay sources={sources} />}
               
               {playUrl && optimizeComplete ? (
-                <Player url={playUrl} title={currentDetail.vod_name} currentTime={currentTime} onTimeUpdate={(t) => { setCurrentTime(t); if (historyVodId) historyStore.updateProgress(historyVodId, t, 0); }} />
+                <Suspense fallback={<div className="w-full h-full flex items-center justify-center text-muted">加载播放器...</div>}>
+                  <Player url={playUrl} title={currentDetail.vod_name} currentTime={currentTime} onTimeUpdate={(t) => { setCurrentTime(t); if (historyVodId) historyStore.updateProgress(historyVodId, t, 0); }} />
+                </Suspense>
               ) : !isOptimizing && optimizeComplete ? (
                 <div className="w-full h-full flex items-center justify-center text-muted">选择集数开始播放</div>
               ) : null}
