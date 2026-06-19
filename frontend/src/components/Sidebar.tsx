@@ -1,5 +1,6 @@
 import { NavLink, useLocation } from 'react-router-dom';
 import { useConfig } from '../store/config';
+import { useVersionCheck, GITHUB_URL } from '../hooks/useVersionCheck';
 
 const navItems = [
   { path: '/', label: '首页', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
@@ -22,6 +23,7 @@ interface SidebarProps {
 const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
   const location = useLocation();
   const { siteName } = useConfig();
+  const { current, hasUpdate } = useVersionCheck();
 
   const isActive = (path: string) => {
     if (path === '/') return location.pathname === '/';
@@ -173,13 +175,34 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
         {/* Bottom */}
         {!collapsed && (
           <div className="relative z-[1] px-4 py-3 border-t border-glass-border/30">
-            <div className="flex items-center gap-2 text-muted/40">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400/60" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
-              </span>
-              <span className="text-[10px] tracking-wider">系统在线</span>
-            </div>
+            <a
+              href={GITHUB_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 group"
+            >
+              {hasUpdate ? (
+                <>
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400/60" />
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-orange-500" />
+                  </span>
+                  <span className="text-[10px] text-orange-400 group-hover:text-orange-300 transition-colors">
+                    v{current} · 有新版本
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400/60" />
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
+                  </span>
+                  <span className="text-[10px] text-muted/40 group-hover:text-muted/60 tracking-wider transition-colors">
+                    v{current}
+                  </span>
+                </>
+              )}
+            </a>
           </div>
         )}
       </div>

@@ -33,7 +33,8 @@ func main() {
 		api.GET("/proxy/m3u8", handlers.ProxyM3U8)
 		api.GET("/proxy/logo", handlers.ProxyLogo)
 		api.GET("/search/stream", handlers.SearchStream)
-		api.GET("/config", handlers.GetConfig) // 配置接口无需认证
+		api.GET("/config", handlers.GetConfig)
+		r.GET("/api/version", handlers.GetVersion) // 配置接口无需认证
 	}
 
 	auth := r.Group("/api")
