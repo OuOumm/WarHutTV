@@ -153,9 +153,8 @@ const ScrollableRow = memo(({ children, scrollDistance = 800 }: ScrollableRowPro
         <button 
           onClick={() => scroll('left')} 
           className={`hidden sm:flex absolute left-2 top-[40%] -translate-y-1/2 z-[8] w-10 h-10 rounded-full glass-panel items-center justify-center transition-all duration-200 hover:scale-110 hover:border-primary/30 ${
-            isHovered ? 'opacity-100' : 'opacity-0'
+            isHovered ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
           }`}
-          style={{ pointerEvents: isHovered ? 'auto' : 'none' }}
         >
           <svg className="w-5 h-5 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
@@ -168,9 +167,8 @@ const ScrollableRow = memo(({ children, scrollDistance = 800 }: ScrollableRowPro
         <button 
           onClick={() => scroll('right')} 
           className={`hidden sm:flex absolute right-2 top-[40%] -translate-y-1/2 z-[8] w-10 h-10 rounded-full glass-panel items-center justify-center transition-all duration-200 hover:scale-110 hover:border-primary/30 ${
-            isHovered ? 'opacity-100' : 'opacity-0'
+            isHovered ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
           }`}
-          style={{ pointerEvents: isHovered ? 'auto' : 'none' }}
         >
           <svg className="w-5 h-5 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />

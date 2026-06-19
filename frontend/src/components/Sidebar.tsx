@@ -2,12 +2,18 @@ import { NavLink, useLocation } from 'react-router-dom';
 import { useConfig } from '../store/config';
 import { useVersionCheck, GITHUB_URL } from '../hooks/useVersionCheck';
 
-const navItems = [
+interface NavItemData {
+  path: string;
+  label: string;
+  icon: string;
+}
+
+const navItems: NavItemData[] = [
   { path: '/', label: '首页', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
   { path: '/search', label: '搜索', icon: 'M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z' },
 ];
 
-const menuItems = [
+const browseItems: NavItemData[] = [
   { path: '/douban?type=movie', label: '电影', icon: 'M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z' },
   { path: '/douban?type=tv', label: '剧集', icon: 'M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z' },
   { path: '/douban?type=anime', label: '动漫', icon: 'M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
@@ -20,187 +26,181 @@ interface SidebarProps {
   onToggle: () => void;
 }
 
-const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
+// ─── Shared nav item component — deduplicates rendering logic ───
+function SidebarNavItem({ item, collapsed }: { item: NavItemData; collapsed: boolean }) {
   const location = useLocation();
-  const { siteName } = useConfig();
-  const { current, hasUpdate } = useVersionCheck();
 
-  const isActive = (path: string) => {
-    if (path === '/') return location.pathname === '/';
-    if (path.includes('type=')) {
-      const typeMatch = path.match(/type=([^&]+)/)?.[1];
+  const isActive = (() => {
+    if (item.path === '/') return location.pathname === '/';
+    const typeMatch = item.path.match(/type=([^&]+)/)?.[1];
+    if (typeMatch) {
       return location.pathname.startsWith('/douban') && location.search.includes(`type=${typeMatch}`);
     }
-    return location.pathname.startsWith(path);
-  };
+    return location.pathname.startsWith(item.path);
+  })();
+
+  return (
+    <NavLink
+      to={item.path}
+      className={`group relative flex items-center rounded-xl text-sm transition-all duration-200 select-none ${
+        collapsed ? 'h-11 w-11 mx-auto justify-center' : 'h-10 px-3 gap-3'
+      } ${isActive ? 'text-primary' : 'text-muted hover:text-text'}`}
+    >
+      {/* Active background — subtle gradient glow */}
+      {isActive && (
+        <div
+          className="absolute inset-0 rounded-xl"
+          style={{
+            background: collapsed
+              ? `rgba(var(--color-primary-rgb), 0.08)`
+              : `linear-gradient(135deg, rgba(var(--color-primary-rgb), 0.12), rgba(var(--color-primary-dim-rgb), 0.05))`,
+          }}
+        />
+      )}
+
+      {/* Hover background — only for inactive items */}
+      {!isActive && (
+        <div className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-all duration-200 bg-white/[0.03]" />
+      )}
+
+      {/* Active indicator dot — collapsed mode only */}
+      {collapsed && isActive && (
+        <div
+          className="absolute -left-0.5 top-1/2 -translate-y-1/2 w-[3px] h-3 rounded-r-full bg-primary"
+          style={{ boxShadow: '0 0 6px var(--color-primary)' }}
+        />
+      )}
+
+      {/* Icon */}
+      <div className="relative z-[1] flex items-center justify-center w-5 h-5">
+        <svg
+          className="w-[18px] h-[18px]"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          strokeWidth={isActive ? 2 : 1.5}
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" d={item.icon} />
+        </svg>
+      </div>
+
+      {/* Label */}
+      {!collapsed && (
+        <span className={`relative z-[1] whitespace-nowrap ${isActive ? 'font-medium' : ''}`}>
+          {item.label}
+        </span>
+      )}
+    </NavLink>
+  );
+}
+
+// ─── Sidebar ───
+const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
+  const { siteName } = useConfig();
+  const { current, hasUpdate } = useVersionCheck();
 
   return (
     <aside
       className="fixed top-0 left-0 h-screen transition-all duration-300 z-10 flex flex-col"
-      style={{
-        width: collapsed ? 64 : 256,
-      }}
+      style={{ width: collapsed ? 64 : 256 }}
     >
-      {/* 侧边栏背景 — 玻璃质感 + 主题色氛围 */}
+      {/* Glass background */}
       <div className="absolute inset-0 bg-glass backdrop-blur-2xl border-r border-glass-border/80" />
 
-      {/* 主题色氛围光晕 */}
-      <div className="absolute top-0 right-0 w-48 h-48 pointer-events-none opacity-[0.04]"
-        style={{
-          background: 'radial-gradient(ellipse at 100% 0%, var(--color-primary) 0%, transparent 70%)',
-        }} />
-      <div className="absolute bottom-0 left-0 w-36 h-36 pointer-events-none opacity-[0.03]"
-        style={{
-          background: 'radial-gradient(ellipse at 0% 100%, var(--color-primary) 0%, transparent 70%)',
-        }} />
+      {/* Subtle ambient glow */}
+      <div
+        className="absolute top-0 right-0 w-48 h-48 pointer-events-none opacity-[0.04]"
+        style={{ background: 'radial-gradient(ellipse at 100% 0%, var(--color-primary) 0%, transparent 70%)' }}
+      />
+      <div
+        className="absolute bottom-0 left-0 w-36 h-36 pointer-events-none opacity-[0.03]"
+        style={{ background: 'radial-gradient(ellipse at 0% 100%, var(--color-primary) 0%, transparent 70%)' }}
+      />
 
-      {/* 内容 */}
+      {/* Content */}
       <div className="relative z-[1] flex h-full flex-col">
-        {/* Logo */}
+        {/* ── Logo ── */}
         <div className="relative h-16 flex items-center justify-center border-b border-glass-border/50">
           {!collapsed ? (
             <div className="flex items-center gap-2.5">
-              <div className="w-7 h-7 rounded-lg flex items-center justify-center"
+              <div
+                className="w-7 h-7 rounded-lg flex items-center justify-center"
                 style={{
                   background: 'var(--color-primary-glow)',
                   boxShadow: '0 0 8px var(--color-primary-glow)',
-                }}>
+                }}
+              >
                 <span className="text-primary font-black text-sm">{siteName.charAt(0)}</span>
               </div>
-              <span className="text-lg font-bold text-text tracking-tight">
-                {siteName}
-              </span>
+              <span className="text-lg font-bold text-text tracking-tight">{siteName}</span>
             </div>
           ) : (
-            <div className="w-7 h-7 rounded-lg flex items-center justify-center"
+            <div
+              className="w-7 h-7 rounded-lg flex items-center justify-center"
               style={{
                 background: 'var(--color-primary-glow)',
                 boxShadow: '0 0 8px var(--color-primary-glow)',
-              }}>
+              }}
+            >
               <span className="text-primary font-black text-sm">{siteName.charAt(0)}</span>
             </div>
           )}
           <button
             onClick={onToggle}
-            className={`absolute top-1/2 -translate-y-1/2 flex items-center justify-center w-7 h-7 rounded-lg text-muted/50 hover:text-text hover:bg-surface/50 transition-all duration-200 ${
+            className={`absolute top-1/2 -translate-y-1/2 flex items-center justify-center w-7 h-7 rounded-lg text-muted/40 hover:text-text hover:bg-white/[0.05] transition-all duration-200 ${
               collapsed ? 'left-1/2 -translate-x-1/2' : 'right-3'
             }`}
+            aria-label={collapsed ? '展开侧边栏' : '收起侧边栏'}
           >
-            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={collapsed ? "M13 5l7 7-7 7M5 5l7 7-7 7" : "M11 19l-7-7 7-7m8 14l-7-7 7-7"} />
+            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d={collapsed ? 'M13 5l7 7-7 7M5 5l7 7-7 7' : 'M11 19l-7-7 7-7m8 14l-7-7 7-7'}
+              />
             </svg>
           </button>
         </div>
 
-        {/* Main nav */}
-        <nav className="px-2.5 mt-4 space-y-0.5">
-          {navItems.map((item) => {
-            const active = isActive(item.path);
-            return (
-              <NavLink
-                key={item.path}
-                to={item.path}
-                className={`group relative flex items-center rounded-lg text-sm transition-all duration-200 min-h-[40px] ${
-                  collapsed ? 'px-0 justify-center' : 'px-2.5 gap-3'
-                } ${active ? 'text-primary' : 'text-muted hover:text-text'}`}
-              >
-                {active && (
-                  <>
-                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-4 rounded-r-full bg-primary"
-                      style={{ boxShadow: '0 0 6px var(--color-primary)' }} />
-                    <div className="absolute inset-0 rounded-lg transition-all duration-200"
-                      style={{ background: 'var(--color-primary-glow)' }} />
-                  </>
-                )}
-                <div className={`relative z-[1] w-5 h-5 flex items-center justify-center transition-all duration-200 ${
-                  active ? 'text-primary' : 'text-muted/70 group-hover:text-text'
-                }`}>
-                  <svg className="h-[17px] w-[17px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={active ? 2 : 1.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d={item.icon} />
-                  </svg>
-                </div>
-                {!collapsed && (
-                  <span className={`relative z-[1] whitespace-nowrap ${active ? 'font-medium' : ''}`}>{item.label}</span>
-                )}
-              </NavLink>
-            );
-          })}
-        </nav>
+        {/* ── Navigation ── */}
+        <div className="flex-1 overflow-y-auto scrollbar-hide pt-3 pb-2">
+          {/* Primary actions */}
+          <nav className="px-2.5 space-y-0.5">
+            {navItems.map((item) => (
+              <SidebarNavItem key={item.path} item={item} collapsed={collapsed} />
+            ))}
+          </nav>
 
-        {/* Divider */}
-        <div className="mx-4 my-3 border-t border-glass-border/30" />
+          <div className="mx-5 my-3 border-t border-glass-border/20" />
 
-        {/* Menu items */}
-        <div className="flex-1 overflow-y-auto px-2.5 scrollbar-hide">
-          {!collapsed && (
-            <div className="px-2.5 mb-2">
-              <span className="text-[9px] font-semibold text-muted/40 uppercase tracking-[0.15em]">发现</span>
-            </div>
-          )}
-          <div className="space-y-0.5">
-            {menuItems.map((item) => {
-              const active = isActive(item.path);
-              return (
-                <NavLink
-                  key={item.path}
-                  to={item.path}
-                  className={`group relative flex items-center rounded-lg text-sm transition-all duration-200 min-h-[40px] ${
-                    collapsed ? 'px-0 justify-center' : 'px-2.5 gap-3'
-                  } ${active ? 'text-primary' : 'text-muted/80 hover:text-text'}`}
-                >
-                  {active && (
-                    <>
-                      <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-4 rounded-r-full bg-primary"
-                        style={{ boxShadow: '0 0 6px var(--color-primary)' }} />
-                      <div className="absolute inset-0 rounded-lg transition-all duration-200"
-                        style={{ background: 'var(--color-primary-glow)' }} />
-                    </>
-                  )}
-                  <div className={`relative z-[1] w-5 h-5 flex items-center justify-center transition-all duration-200 ${
-                    active ? 'text-primary' : 'text-muted/60 group-hover:text-text'
-                  }`}>
-                    <svg className="h-[17px] w-[17px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={active ? 2 : 1.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d={item.icon} />
-                    </svg>
-                  </div>
-                  {!collapsed && (
-                    <span className={`relative z-[1] whitespace-nowrap ${active ? 'font-medium' : ''}`}>{item.label}</span>
-                  )}
-                </NavLink>
-              );
-            })}
+          {/* Browse section */}
+          <div className="px-2.5 space-y-0.5">
+            {browseItems.map((item) => (
+              <SidebarNavItem key={item.path} item={item} collapsed={collapsed} />
+            ))}
           </div>
         </div>
 
-        {/* Bottom */}
+        {/* ── Version footer ── */}
         {!collapsed && (
-          <div className="relative z-[1] px-4 py-3 border-t border-glass-border/30">
+          <div className="relative z-[1] px-4 py-3 border-t border-glass-border/20">
             <a
               href={GITHUB_URL}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-2 group"
+              className="flex items-center gap-1.5 group"
             >
               {hasUpdate ? (
                 <>
-                  <span className="relative flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400/60" />
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-orange-500" />
-                  </span>
-                  <span className="text-[10px] text-orange-400 group-hover:text-orange-300 transition-colors">
+                  <span className="h-1.5 w-1.5 rounded-full bg-orange-500 flex-shrink-0" />
+                  <span className="text-[11px] text-orange-400/70 group-hover:text-orange-300 transition-colors">
                     v{current} · 有新版本
                   </span>
                 </>
               ) : (
-                <>
-                  <span className="relative flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400/60" />
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
-                  </span>
-                  <span className="text-[10px] text-muted/40 group-hover:text-muted/60 tracking-wider transition-colors">
-                    v{current}
-                  </span>
-                </>
+                <span className="text-[11px] text-muted/30 group-hover:text-muted/50 transition-colors">
+                  v{current}
+                </span>
               )}
             </a>
           </div>

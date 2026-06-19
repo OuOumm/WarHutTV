@@ -294,7 +294,7 @@ const Home = () => {
                 <p className="mt-2 text-sm">浏览影片时点击爱心图标收藏</p>
               </div>
             ) : (
-              <div className="grid grid-cols-3 gap-x-2 gap-y-12 sm:grid-cols-[repeat(auto-fill,180px)] sm:gap-x-6 sm:gap-y-16 px-4 sm:px-6 py-1 sm:py-2 pb-12 sm:pb-14">
+              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-x-2 gap-y-12 sm:gap-x-6 sm:gap-y-16">
                 {favoriteItems.map((item: any) => (
                   <div key={item.vod_id} className="w-full">
                     <VideoCard video={item} from="vod" showActions onDelete={async () => {

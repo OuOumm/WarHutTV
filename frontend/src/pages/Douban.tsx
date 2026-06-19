@@ -73,30 +73,24 @@ const Selector = ({
   value: string;
   onChange: (v: string) => void;
 }) => {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const buttonRefs = useRef<(HTMLButtonElement | null)[]>([]);
-  const [indicator, setIndicator] = useState({ left: 0, width: 0 });
-
-  useEffect(() => {
-    const idx = options.findIndex((o) => o.value === value);
-    if (idx >= 0 && buttonRefs.current[idx]) {
-      const btn = buttonRefs.current[idx]!;
-      setIndicator({ left: btn.offsetLeft, width: btn.offsetWidth });
-    }
-  }, [value, options]);
+  const activeIndex = options.findIndex((o) => o.value === value);
+  const count = options.length;
 
   return (
-    <div ref={containerRef} className="relative inline-flex items-center bg-surface rounded-lg p-1">
+    <div className="relative inline-flex items-center bg-surface rounded-lg p-1">
       <div
         className="absolute top-1 bottom-1 bg-card rounded-md shadow-sm transition-all duration-200"
-        style={{ left: indicator.left, width: indicator.width }}
+        style={{
+          width: `calc(${100 / count}% - 2px)`,
+          left: `calc(${(activeIndex / count) * 100}% + 1px)`,
+          pointerEvents: 'none',
+        }}
       />
-      {options.map((opt, i) => (
+      {options.map((opt) => (
         <button
           key={opt.value}
-          ref={(el) => { buttonRefs.current[i] = el; }}
           onClick={() => onChange(opt.value)}
-          className={`relative z-10 px-3 py-1.5 text-sm rounded-md transition-colors whitespace-nowrap ${
+          className={`flex-1 relative z-10 px-3 py-1.5 text-sm rounded-md transition-colors whitespace-nowrap ${
             value === opt.value
               ? 'text-primary font-medium'
               : 'text-muted hover:text-text'

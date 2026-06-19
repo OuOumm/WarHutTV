@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
 const SearchBar = () => {
@@ -7,8 +7,8 @@ const SearchBar = () => {
   const [keyword, setKeyword] = useState(wd);
   const [focused, setFocused] = useState(false);
   const navigate = useNavigate();
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  // 当 URL 参数变化时，更新搜索框内容
   useEffect(() => {
     setKeyword(wd);
   }, [wd]);
@@ -22,24 +22,28 @@ const SearchBar = () => {
 
   return (
     <form onSubmit={handleSubmit} className="flex gap-2 w-full max-w-xl">
-      <div className={`flex-1 relative transition-all duration-300 ${focused ? 'scale-[1.01]' : ''}`}>
+      <div className={`relative flex-1 transition-all duration-300 ${focused ? 'scale-[1.02]' : ''}`}>
+        {/* Search icon */}
+        <div className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-muted/50">
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+        </div>
         <input
+          ref={inputRef}
           type="text"
           value={keyword}
           onChange={(e) => setKeyword(e.target.value)}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
           placeholder="搜索影片..."
-          className="w-full px-4 py-2.5 bg-glass backdrop-blur-sm border border-glass-border rounded-xl text-text placeholder-muted focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/30 transition-all duration-200 shadow-sm"
+          className="w-full pl-10 pr-4 py-2.5 bg-glass backdrop-blur-sm border border-glass-border rounded-xl text-text placeholder-muted/60 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/30 transition-all duration-200 shadow-sm"
+          style={focused ? { boxShadow: '0 0 20px var(--color-primary-glow)' } : undefined}
         />
-        {/* Focus glow */}
-        {focused && (
-          <div className="absolute inset-0 rounded-xl pointer-events-none" style={{ boxShadow: '0 0 20px var(--color-primary-glow)' }} />
-        )}
       </div>
       <button
         type="submit"
-        className="px-6 py-2.5 bg-primary hover:bg-primary-dim text-deep rounded-xl transition-all duration-200 shadow-sm font-medium hover:shadow-md hover:shadow-primary/20 active:scale-[0.97]"
+        className="px-5 py-2.5 bg-primary hover:bg-primary-dim text-deep rounded-xl transition-all duration-200 shadow-sm font-medium hover:shadow-md hover:shadow-primary/20 active:scale-[0.97]"
       >
         搜索
       </button>

@@ -11,6 +11,18 @@ interface StreamProgress {
   currentSite: string;
 }
 
+// Local Toggle component — eliminates duplicated toggle switch markup
+const Toggle = ({ label, checked, onChange }: { label: string; checked: boolean; onChange: () => void }) => (
+  <label className="flex items-center gap-2 cursor-pointer select-none group">
+    <span className="text-sm text-muted group-hover:text-text transition-colors">{label}</span>
+    <div className="relative">
+      <input type="checkbox" className="sr-only peer" checked={checked} onChange={onChange} />
+      <div className="w-9 h-5 bg-surface rounded-full peer-checked:bg-primary transition-colors" />
+      <div className="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-4 shadow-sm" />
+    </div>
+  </label>
+);
+
 const Search = () => {
   const [searchParams] = useSearchParams();
   const keyword = searchParams.get('wd') || '';
@@ -224,32 +236,12 @@ const Search = () => {
                 </span>
               </h2>
               <div className="flex items-center gap-3">
-                <label className="flex items-center gap-2 cursor-pointer select-none">
-                  <span className="text-sm text-muted">精确匹配</span>
-                  <div className="relative">
-                    <input
-                      type="checkbox"
-                      className="sr-only peer"
-                      checked={exactMatch}
-                      onChange={toggleExactMatch}
-                    />
-                    <div className="w-9 h-5 bg-surface rounded-full peer-checked:bg-primary transition-colors" />
-                    <div className="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-4" />
-                  </div>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer select-none">
-                  <span className="text-sm text-muted">聚合</span>
-                  <div className="relative">
-                    <input
-                      type="checkbox"
-                      className="sr-only peer"
-                      checked={viewMode === 'agg'}
-                      onChange={() => setViewMode(viewMode === 'agg' ? 'all' : 'agg')}
-                    />
-                    <div className="w-9 h-5 bg-surface rounded-full peer-checked:bg-primary transition-colors" />
-                    <div className="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-4" />
-                  </div>
-                </label>
+                <Toggle label="精确匹配" checked={exactMatch} onChange={toggleExactMatch} />
+                <Toggle
+                  label="聚合"
+                  checked={viewMode === 'agg'}
+                  onChange={() => setViewMode(viewMode === 'agg' ? 'all' : 'agg')}
+                />
               </div>
             </div>
 
