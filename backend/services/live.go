@@ -3,6 +3,7 @@ package services
 import (
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"regexp"
 	"strings"
@@ -86,7 +87,9 @@ func GetCachedLiveChannels(sourceKey string) (*LiveChannelsData, error) {
 	cacheMu.Unlock()
 
 	liveSource.ChannelNumber = data.ChannelNumber
-	cfg.Save("data/config.json")
+	if err := cfg.Save("data/config.json"); err != nil {
+		log.Printf("保存配置失败: %v", err)
+	}
 
 	return data, nil
 }
@@ -301,9 +304,16 @@ func ProxyLiveStream(url string, ua string, w http.ResponseWriter) error {
 	}
 	defer resp.Body.Close()
 
-	w.Header().Set("Content-Type", resp.Header.Get("Content-Type"))
+	// 透传源站响应头
+	for key, values := range resp.Header {
+		for _, v := range values {
+			w.Header().Add(key, v)
+		}
+	}
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.WriteHeader(resp.StatusCode)
 
 	_, err = io.Copy(w, resp.Body)
 	return err

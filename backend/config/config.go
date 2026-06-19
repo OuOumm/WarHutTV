@@ -33,7 +33,10 @@ type Config struct {
 	mu sync.RWMutex
 }
 
-var globalConfig *Config
+var (
+	globalConfig *Config
+	once         sync.Once
+)
 
 func defaultConfig() *Config {
 	return &Config{
@@ -54,19 +57,12 @@ func Load(path string) {
 	}
 
 	json.Unmarshal(data, globalConfig)
-
-	if pass := os.Getenv("PASSWORD"); pass != "" {
-		globalConfig.Password = pass
-	}
-	if secret := os.Getenv("JWT_SECRET"); secret != "" {
-		globalConfig.JWTSecret = secret
-	}
 }
 
 func Get() *Config {
-	if globalConfig == nil {
+	once.Do(func() {
 		Load("data/config.json")
-	}
+	})
 	return globalConfig
 }
 
@@ -89,8 +85,8 @@ func (c *Config) Update(newConfig *Config) {
 }
 
 func (c *Config) Save(path string) error {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
+	c.mu.Lock()
+	defer c.mu.Unlock()
 
 	data, err := json.MarshalIndent(c, "", "  ")
 	if err != nil {

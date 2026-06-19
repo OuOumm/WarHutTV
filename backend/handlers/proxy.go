@@ -59,6 +59,12 @@ func ProxyM3U8(c *gin.Context) {
 
 	// If this is an m3u8 manifest, rewrite relative URLs to go through proxy
 	if strings.Contains(contentType, "mpegurl") || strings.Contains(contentType, "m3u8") || strings.HasSuffix(m3u8URL, ".m3u8") {
+		// Content-Length 超过 10MB 直接流式转发，不做 URL 改写
+		const maxM3U8Size int64 = 10 * 1024 * 1024
+		if resp.ContentLength > maxM3U8Size {
+			io.Copy(c.Writer, resp.Body)
+			return
+		}
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "读取响应失败"})
@@ -142,5 +148,11 @@ func ProxyLogo(c *gin.Context) {
 	c.Header("Cache-Control", "public, max-age=86400")
 	c.Header("Access-Control-Allow-Origin", "*")
 
-	io.Copy(c.Writer, resp.Body)
+	// 限制最大 5MB，防止超大响应耗尽带宽
+	const maxLogoSize int64 = 5 * 1024 * 1024
+	if resp.ContentLength > maxLogoSize {
+		c.Status(http.StatusBadGateway)
+		return
+	}
+	io.Copy(c.Writer, io.LimitReader(resp.Body, maxLogoSize))
 }

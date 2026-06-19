@@ -193,6 +193,7 @@ const Play = () => {
   const [playUrl, setPlayUrl] = useState('');
   const [isFavorite, setIsFavorite] = useState(false);
   const [loading, setLoading] = useState(true); // 初始为 true，避免闪烁
+  const [sourceSwitching, setSourceSwitching] = useState(false); // 源切换中，不显示全屏 loading
   const [activeTab, setActiveTab] = useState<'episodes' | 'sources'>('episodes');
   const [sources, setSources] = useState<SourceItem[]>([]);
   const [currentSource, setCurrentSource] = useState('');
@@ -216,6 +217,21 @@ const Play = () => {
       return await fetchAndFilterM3U8(url);
     }
     return url;
+  }, []);
+
+  // 优选完成后，尝试从新源的历史记录读取进度
+  const applyHistoryProgress = useCallback(async (vodId: string | number) => {
+    try {
+      const history = await historyStore.getRecent(100);
+      const record = history.find((h: any) => String(h.vod_id) === String(vodId));
+      if (record?.progress && record.progress > 0) {
+        setCurrentTime(record.progress);
+        const minutes = Math.floor(record.progress / 60);
+        const seconds = Math.floor(record.progress % 60);
+        setToast(`已从 ${minutes}:${seconds.toString().padStart(2, '0')} 继续播放`);
+        setTimeout(() => setToast(''), 3000);
+      }
+    } catch {}
   }, []);
 
   useEffect(() => { 
@@ -283,10 +299,11 @@ const Play = () => {
         
         const history = await historyStore.getRecent(100);
         const savedRecord = history.find((h: any) => String(h.vod_id) === String(id));
-        if (savedRecord && savedRecord.progress && savedRecord.progress > 0) {
-          setCurrentTime(savedRecord.progress);
-          const minutes = Math.floor(savedRecord.progress / 60);
-          const seconds = Math.floor(savedRecord.progress % 60);
+        const savedProgress = savedRecord?.progress && savedRecord.progress > 0 ? savedRecord.progress : 0;
+        if (savedProgress > 0) {
+          setCurrentTime(savedProgress);
+          const minutes = Math.floor(savedProgress / 60);
+          const seconds = Math.floor(savedProgress % 60);
           setToast(`已从 ${minutes}:${seconds.toString().padStart(2, '0')} 继续播放`);
           setTimeout(() => setToast(''), 3000);
         }
@@ -396,8 +413,8 @@ const Play = () => {
             setDetail(onlyDetail);
             if (onlyDetail.vod_play_url) {
               const epList = parseEpisodes(onlyDetail.vod_play_url);
-              setEpisodes(epList);
               if (epList.length > 0) {
+                setEpisodes(epList);
                 setCurrentEpisode(epList[0]);
                 const url = await getPlayableUrl(epList[0].url);
                 setPlayUrl(url);
@@ -481,6 +498,7 @@ const Play = () => {
           }
           await historyStore.updateSource(historyVodId, bestSource.key, bestDetail.vod_id);
           setHistoryVodId(bestDetail.vod_id);
+          await applyHistoryProgress(bestDetail.vod_id);
         }
       } else if (sourceList.length > 0) {
         // 所有测速都失败，选择第一个源
@@ -506,6 +524,7 @@ const Play = () => {
             }
             await historyStore.updateSource(historyVodId, firstSource.key, detail.vod_id);
             setHistoryVodId(detail.vod_id);
+            await applyHistoryProgress(detail.vod_id);
           }
         }
       } else {
@@ -609,20 +628,24 @@ const Play = () => {
   const handleSourceSwitch = useCallback(async (sourceKey: string) => {
     if (sourceKey === currentSource) return;
     setCurrentSource(sourceKey);
-    setLoading(true);
+    setSourceSwitching(true);
     try {
-      const response = searchDataCache ? { data: searchDataCache } : await apiClient.get('/search', { params: { wd: detail?.vod_name || '' } });
-      // data 是数组，需要根据 site_key 查找
-      const siteData = Array.isArray(response.data) 
-        ? response.data.find((item: any) => item.site_key === sourceKey)
-        : response.data[sourceKey];
-      if (siteData?.list?.length > 0) {
-        // 过滤掉黄色内容
-        const filteredList = filterYellowItems(siteData.list) as any[];
-        if (filteredList.length === 0) {
-          setLoading(false);
-          return;
+      // 从 searchDataCache 中查找源数据
+      let siteData = null;
+      if (searchDataCache && Array.isArray(searchDataCache)) {
+        siteData = searchDataCache.find((item: any) => item.site_key === sourceKey);
+      }
+      if (!siteData) {
+        // 缓存中没有，用流式搜索重新获取
+        const freshData = await streamSearch(detail?.vod_name || '');
+        if (freshData) {
+          setSearchDataCache(freshData);
+          siteData = freshData.find((item: any) => item.site_key === sourceKey);
         }
+      }
+      if (siteData?.list?.length > 0) {
+        const filteredList = filterYellowItems(siteData.list) as any[];
+        if (filteredList.length === 0) return;
         const item = filteredList[0];
         const newDetail = await getCachedDetail(sourceKey, item.vod_id);
         if (newDetail) {
@@ -630,15 +653,20 @@ const Play = () => {
           if (newDetail.vod_play_url) {
             const epList = parseEpisodes(newDetail.vod_play_url);
             setEpisodes(epList);
-            if (epList.length > 0) { setCurrentEpisode(epList[0]); if (epList[0].url) getPlayableUrl(epList[0].url).then(setPlayUrl); }
+            if (epList.length > 0) {
+              setCurrentEpisode(epList[0]);
+              const url = await getPlayableUrl(epList[0].url);
+              setPlayUrl(url);
+            }
           }
           setActiveTab('episodes');
           await historyStore.updateSource(historyVodId, sourceKey, item.vod_id);
           setHistoryVodId(item.vod_id);
+          await applyHistoryProgress(item.vod_id);
         }
       }
-    } catch (err) { console.error('切换源失败:', err); } finally { setLoading(false); }
-  }, [currentSource, detail?.vod_name, getPlayableUrl, historyVodId, searchDataCache]);
+    } catch (err) { console.error('切换源失败:', err); } finally { setSourceSwitching(false); }
+  }, [currentSource, detail?.vod_name, getPlayableUrl, historyVodId, searchDataCache, applyHistoryProgress]);
 
   const handleEpisodeClick = useCallback((ep: Episode) => {
     setCurrentEpisode(ep);
@@ -699,6 +727,13 @@ const Play = () => {
               ) : !isOptimizing && optimizeComplete ? (
                 <div className="w-full h-full flex items-center justify-center text-muted">选择集数开始播放</div>
               ) : null}
+              {/* 源切换提示，不遮挡播放器 */}
+              {sourceSwitching && (
+                <div className="absolute top-3 right-3 z-10 px-3 py-1.5 bg-black/70 backdrop-blur-sm rounded-lg flex items-center gap-2">
+                  <div className="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-primary" />
+                  <span className="text-xs text-white/90">切换源中...</span>
+                </div>
+              )}
             </div>
           </div>
 

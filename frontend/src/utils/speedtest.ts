@@ -8,6 +8,7 @@ export interface SpeedTestResult {
 
 export async function testVideoSpeed(m3u8Url: string): Promise<SpeedTestResult> {
   return new Promise((resolve, reject) => {
+    let settled = false;
     const video = document.createElement('video');
     video.muted = true;
     video.preload = 'metadata';
@@ -21,16 +22,23 @@ export async function testVideoSpeed(m3u8Url: string): Promise<SpeedTestResult> 
 
     const hls = new Hls();
 
-    const timeout = setTimeout(() => {
+    const cleanup = () => {
+      clearTimeout(timeout);
       hls.destroy();
       video.remove();
+    };
+
+    const timeout = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      cleanup();
       reject(new Error('Timeout'));
     }, 5000);
 
     video.onerror = () => {
-      clearTimeout(timeout);
-      hls.destroy();
-      video.remove();
+      if (settled) return;
+      settled = true;
+      cleanup();
       reject(new Error('Failed to load'));
     };
 
@@ -40,11 +48,11 @@ export async function testVideoSpeed(m3u8Url: string): Promise<SpeedTestResult> 
     let fragmentStartTime = 0;
 
     const checkResolve = () => {
+      if (settled) return;
       if (metadataLoaded && (speedCalculated || loadSpeed !== '未知')) {
-        clearTimeout(timeout);
+        settled = true;
         const width = video.videoWidth;
-        hls.destroy();
-        video.remove();
+        cleanup();
 
         const quality = width >= 3840 ? '4K'
           : width >= 2560 ? '2K'
@@ -61,7 +69,8 @@ export async function testVideoSpeed(m3u8Url: string): Promise<SpeedTestResult> 
     });
 
     hls.on(Hls.Events.FRAG_LOADED, (_event: any, data: any) => {
-      if (fragmentStartTime > 0 && data?.payload && !speedCalculated) {
+      if (settled || speedCalculated) return;
+      if (fragmentStartTime > 0 && data?.payload) {
         const loadTime = performance.now() - fragmentStartTime;
         const size = data.payload.byteLength || 0;
         if (loadTime > 0 && size > 0) {
@@ -80,9 +89,9 @@ export async function testVideoSpeed(m3u8Url: string): Promise<SpeedTestResult> 
 
     hls.on(Hls.Events.ERROR, (_event: any, data: any) => {
       if (data.fatal) {
-        clearTimeout(timeout);
-        hls.destroy();
-        video.remove();
+        if (settled) return;
+        settled = true;
+        cleanup();
         reject(new Error('HLS error'));
       }
     });

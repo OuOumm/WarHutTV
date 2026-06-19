@@ -1,6 +1,8 @@
+declare const __APP_VERSION__: string;
+
 import { useState, useEffect } from 'react';
 
-const CURRENT_VERSION = '1.0.0';
+const CURRENT_VERSION = __APP_VERSION__;
 const GITHUB_URL = 'https://github.com/OuOumm/WarHutTV';
 
 interface VersionInfo {

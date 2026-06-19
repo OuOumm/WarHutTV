@@ -4,7 +4,7 @@ import { useConfig } from '../store/config';
 const ANNOUNCEMENT_DISMISSED_KEY = 'warhut-announcement-dismissed';
 
 export const useAnnouncement = (isAuthenticated: boolean) => {
-  const { config } = useConfig();
+  const { config, refresh } = useConfig();
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
@@ -35,5 +35,6 @@ export const useAnnouncement = (isAuthenticated: boolean) => {
     config,
     isVisible,
     dismiss,
+    refresh,
   };
 };
