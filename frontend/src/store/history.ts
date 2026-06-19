@@ -2,9 +2,14 @@ import { db } from './db';
 import type { WatchHistory } from './db';
 import type { VideoItem } from '../types';
 
+function makePlaybackKey(siteKey: string, vodId: string | number, episode?: string): string {
+  return `${siteKey}:${vodId}:${episode || ''}`;
+}
+
 export const historyStore = {
   async add(video: VideoItem, episode?: string): Promise<void> {
-    const existing = await db.watchHistory.where('vod_id').equals(video.vod_id).first();
+    const playbackKey = makePlaybackKey(video.site_key || '', video.vod_id, episode);
+    const existing = await db.watchHistory.where('playback_key').equals(playbackKey).first();
 
     if (existing) {
       await db.watchHistory.update(existing.id!, {
@@ -19,6 +24,7 @@ export const historyStore = {
         ...video,
         watchedAt: Date.now(),
         episode,
+        playback_key: playbackKey,
       });
     }
   },
@@ -29,6 +35,7 @@ export const historyStore = {
       await db.watchHistory.update(existing.id!, {
         site_key: siteKey,
         vod_id: newVodId,
+        playback_key: makePlaybackKey(siteKey, newVodId, existing.episode),
       });
     }
   },
@@ -43,14 +50,45 @@ export const historyStore = {
     }
   },
 
+  /** Update progress isolated by source + episode context */
+  async updateProgressByContext(
+    siteKey: string,
+    vodId: string | number,
+    episode: string | undefined,
+    progress: number,
+    duration: number,
+  ): Promise<void> {
+    const playbackKey = makePlaybackKey(siteKey, vodId, episode);
+    const existing = await db.watchHistory.where('playback_key').equals(playbackKey).first();
+    if (existing) {
+      await db.watchHistory.update(existing.id!, { progress, duration });
+    } else {
+      // Fallback to vod_id lookup for backward compatibility
+      const fallback = await db.watchHistory.where('vod_id').equals(vodId).first();
+      if (fallback) {
+        await db.watchHistory.update(fallback.id!, {
+          progress,
+          duration,
+          playback_key: playbackKey,
+        });
+      }
+    }
+  },
+
+  /** Get history isolated by source + episode context, with vod_id fallback */
+  async getByContext(siteKey: string, vodId: string | number, episode?: string): Promise<WatchHistory | undefined> {
+    const playbackKey = makePlaybackKey(siteKey, vodId, episode);
+    const record = await db.watchHistory.where('playback_key').equals(playbackKey).first();
+    if (record) return record;
+    // Fallback to vod_id lookup for backward compatibility
+    return db.watchHistory.where('vod_id').equals(vodId).first();
+  },
+
   async remove(vodId: string | number): Promise<void> {
-    // 先获取要删除的记录，以便按名称删除所有相同记录
     const record = await db.watchHistory.where('vod_id').equals(vodId).first();
     if (record) {
-      // 删除所有相同名称的记录
       await db.watchHistory.where('vod_name').equals(record.vod_name).delete();
     } else {
-      // 如果没找到，直接按 id 删除
       await db.watchHistory.where('vod_id').equals(vodId).delete();
     }
   },
@@ -64,9 +102,7 @@ export const historyStore = {
   },
 
   async getRecent(limit: number = 10): Promise<WatchHistory[]> {
-    // 获取所有记录，按时间倒序
     const allRecords = await db.watchHistory.orderBy('watchedAt').reverse().toArray();
-    // 按 vod_name 去重，只保留每个电影的最新记录
     const seen = new Set<string>();
     const uniqueRecords: WatchHistory[] = [];
     for (const record of allRecords) {
@@ -77,6 +113,10 @@ export const historyStore = {
       }
     }
     return uniqueRecords.slice(0, limit);
+  },
+
+  async getByVodId(vodId: string | number): Promise<WatchHistory | undefined> {
+    return db.watchHistory.where('vod_id').equals(vodId).first();
   },
 
   async clear(): Promise<void> {

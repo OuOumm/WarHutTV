@@ -4,57 +4,56 @@ interface CapsuleSwitchProps {
   options: { label: string; value: string }[];
   active: string;
   onChange: (value: string) => void;
+  className?: string;
 }
 
-const CapsuleSwitch = ({ options, active, onChange }: CapsuleSwitchProps) => {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const buttonRefs = useRef<(HTMLButtonElement | null)[]>([]);
-  const [indicator, setIndicator] = useState({ left: 0, width: 0 });
-
-  const activeIndex = options.findIndex((opt) => opt.value === active);
+export function CapsuleSwitch({ options, active, onChange, className }: CapsuleSwitchProps) {
+  const activeRef = useRef<HTMLButtonElement>(null);
+  const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0 });
 
   useEffect(() => {
-    const update = () => {
-      if (activeIndex >= 0 && buttonRefs.current[activeIndex] && containerRef.current) {
-        const btn = buttonRefs.current[activeIndex]!;
-        setIndicator({
-          left: btn.offsetLeft,
-          width: btn.offsetWidth,
+    if (activeRef.current) {
+      const parent = activeRef.current.parentElement;
+      if (parent) {
+        const parentRect = parent.getBoundingClientRect();
+        const activeRect = activeRef.current.getBoundingClientRect();
+        setIndicatorStyle({
+          left: activeRect.left - parentRect.left,
+          width: activeRect.width,
         });
       }
-    };
-    const t = setTimeout(update, 0);
-    return () => clearTimeout(t);
-  }, [activeIndex]);
+    }
+  }, [active]);
 
   return (
-    <div ref={containerRef} className="relative inline-flex bg-surface rounded-full p-1">
-      {indicator.width > 0 && (
+    <div className={`rounded-full glass-panel shadow-sm ${className || ''}`}>
+      <div className="relative flex p-1">
         <div
-          className="absolute top-1 bottom-1 bg-card rounded-full shadow-md transition-all duration-300 ease-out"
-          style={{ 
-            left: `${indicator.left}px`, 
-            width: `${indicator.width}px`,
-            boxShadow: '0 0 12px var(--color-primary-glow), 0 2px 8px rgba(0,0,0,0.2)',
+          className="absolute rounded-full transition-all duration-300 ease-out"
+          style={{
+            width: `${indicatorStyle.width}px`,
+            height: 'calc(100% - 8px)',
+            top: '4px',
+            left: `${indicatorStyle.left}px`,
+            background: 'linear-gradient(135deg, rgba(var(--color-primary-rgb), 0.9), rgba(var(--color-primary-dim-rgb), 0.9))',
+            pointerEvents: 'none',
           }}
         />
-      )}
-      {options.map((opt, index) => (
-        <button
-          key={opt.value}
-          ref={(el) => { buttonRefs.current[index] = el; }}
-          onClick={() => onChange(opt.value)}
-          className={`relative z-10 px-5 py-1.5 text-sm rounded-full font-medium transition-all duration-200 ${
-            active === opt.value
-              ? 'text-text'
-              : 'text-muted hover:text-text'
-          }`}
-        >
-          {opt.label}
-        </button>
-      ))}
+        {options.map((option) => (
+          <button
+            key={option.value}
+            ref={option.value === active ? activeRef : null}
+            onClick={() => onChange(option.value)}
+            className={`relative z-10 px-4 py-2.5 rounded-full text-xs font-medium transition-colors duration-200 select-none ${
+              option.value === active
+                ? 'text-white'
+                : 'text-muted hover:text-text'
+            }`}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
     </div>
   );
-};
-
-export default CapsuleSwitch;
+}

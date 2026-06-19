@@ -4,7 +4,6 @@ import Hls from 'hls.js';
 import { getCurrentTheme } from '../store/theme';
 import { revokeBlobUrl } from '../utils/adblock';
 
-
 interface PlayerProps {
   url: string;
   title?: string;
@@ -13,11 +12,28 @@ interface PlayerProps {
   isLive?: boolean;
 }
 
+interface HlsVideoElement extends HTMLVideoElement {
+  hls?: Hls;
+}
+
 const Player = ({ url, title, currentTime, onTimeUpdate, isLive = false }: PlayerProps) => {
   const artRef = useRef<HTMLDivElement>(null);
   const artInstance = useRef<Artplayer | null>(null);
   const prevBlobUrl = useRef<string | null>(null);
+  const seekDoneRef = useRef(false);
+  const seekTimeRef = useRef(0);
+  const onTimeUpdateRef = useRef(onTimeUpdate);
   const [themeId, setThemeId] = useState(getCurrentTheme().id);
+
+  // Keep callback ref in sync without triggering effect re-runs
+  useEffect(() => { onTimeUpdateRef.current = onTimeUpdate; });
+
+  // Move ref write from render to effect (fixes react-hooks/refs violation)
+  useEffect(() => {
+    if (currentTime !== undefined) {
+      seekTimeRef.current = currentTime;
+    }
+  }, [currentTime]);
 
   useEffect(() => {
     const handleThemeChange = (e: CustomEvent) => {
@@ -34,11 +50,15 @@ const Player = ({ url, title, currentTime, onTimeUpdate, isLive = false }: Playe
 
     if (artInstance.current) {
       try {
-        if (artInstance.current.video && (artInstance.current.video as any).hls) {
-          (artInstance.current.video as any).hls.destroy();
+        const video = artInstance.current.video as HlsVideoElement;
+        if (video && video.hls) {
+          video.hls.destroy();
+          delete video.hls;
         }
         artInstance.current.destroy();
-      } catch {}
+      } catch (err) {
+        console.warn('Player: error destroying previous instance', err);
+      }
       artInstance.current = null;
     }
 
@@ -61,6 +81,9 @@ const Player = ({ url, title, currentTime, onTimeUpdate, isLive = false }: Playe
     const art = new Artplayer({
       container: artRef.current,
       url: url,
+      // Explicitly set type for blob: URLs that contain m3u8 content
+      // (Artplayer auto-detects from URL extension, but blob: has none)
+      type: url.startsWith('blob:') || url.includes('.m3u8') ? 'm3u8' : undefined,
       volume: 0.7,
       isLive: isLive,
       muted: false,
@@ -94,7 +117,11 @@ const Player = ({ url, title, currentTime, onTimeUpdate, isLive = false }: Playe
       customType: {
         m3u8: function (video: HTMLVideoElement, videoUrl: string) {
           if (!Hls) return;
-          if ((video as any).hls) (video as any).hls.destroy();
+          const hlsVideo = video as HlsVideoElement;
+          if (hlsVideo.hls) {
+            hlsVideo.hls.destroy();
+            delete hlsVideo.hls;
+          }
 
           const hls = new Hls({
             debug: false,
@@ -107,9 +134,9 @@ const Player = ({ url, title, currentTime, onTimeUpdate, isLive = false }: Playe
 
           hls.loadSource(videoUrl);
           hls.attachMedia(video);
-          (video as any).hls = hls;
+          hlsVideo.hls = hls;
 
-          hls.on(Hls.Events.ERROR, function (_event: any, data: any) {
+          hls.on(Hls.Events.ERROR, (_event, data) => {
             if (data.fatal) {
               switch (data.type) {
                 case Hls.ErrorTypes.NETWORK_ERROR: hls.startLoad(); break;
@@ -138,17 +165,24 @@ const Player = ({ url, title, currentTime, onTimeUpdate, isLive = false }: Playe
       ],
     });
 
-    // 定时保存播放进度
-    const saveInterval = setInterval(() => {
-      if (art.video && onTimeUpdate) {
-        onTimeUpdate(art.video.currentTime);
-      }
-    }, 5000);
+    // 只在播放开始后记录进度，避免加载失败的源将进度记为 0
+    let hasPlayed = false;
+    art.on('play', () => { hasPlayed = true; });
 
-    // 恢复播放进度
-    if (currentTime && currentTime > 0) {
-      art.on('video:loadedmetadata', () => {
-        art.video.currentTime = currentTime;
+    const saveInterval = setInterval(() => {
+      if (hasPlayed && art.video && onTimeUpdateRef.current) {
+        onTimeUpdateRef.current(art.video.currentTime);
+      }
+    }, 500);
+
+    // 恢复播放进度 - seekTimeRef 确保始终使用最新的 currentTime
+    seekDoneRef.current = false;
+    if (seekTimeRef.current > 0) {
+      art.once('video:loadedmetadata', () => {
+        if (!seekDoneRef.current && seekTimeRef.current > 0) {
+          art.seek = seekTimeRef.current;
+          seekDoneRef.current = true;
+        }
       });
     }
 
@@ -157,11 +191,15 @@ const Player = ({ url, title, currentTime, onTimeUpdate, isLive = false }: Playe
     return () => {
       clearInterval(saveInterval);
       try {
-        if (art.video && (art.video as any).hls) {
-          (art.video as any).hls.destroy();
+        const video = art.video as HlsVideoElement;
+        if (video && video.hls) {
+          video.hls.destroy();
+          delete video.hls;
         }
         art.destroy();
-      } catch {}
+      } catch (err) {
+        console.warn('Player: error during cleanup', err);
+      }
       artInstance.current = null;
       // 卸载时清理 Blob URL
       if (prevBlobUrl.current) {
@@ -169,11 +207,11 @@ const Player = ({ url, title, currentTime, onTimeUpdate, isLive = false }: Playe
         prevBlobUrl.current = null;
       }
     };
-  }, [url, themeId]);
+  }, [url, themeId, isLive]);
 
   useEffect(() => {
     if (artInstance.current && title) {
-      (artInstance.current as any).title = title;
+      (artInstance.current as unknown as Record<string, unknown>).title = title;
     }
   }, [title]);
 

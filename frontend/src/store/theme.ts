@@ -228,6 +228,13 @@ export function saveTheme(themeId: string): void {
 }
 
 // 应用主题到 CSS 变量
+// 将十六进制颜色转为 RGB 分量字符串（如 #e11d48 → "225, 29, 72"）
+function hexToRgb(hex: string): string {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  if (!result) return '0, 0, 0';
+  return `${parseInt(result[1], 16)}, ${parseInt(result[2], 16)}, ${parseInt(result[3], 16)}`;
+}
+
 export function applyTheme(theme: Theme): void {
   const root = document.documentElement;
   const { colors, visual } = theme;
@@ -237,7 +244,9 @@ export function applyTheme(theme: Theme): void {
   root.style.setProperty('--color-card', colors.card);
   root.style.setProperty('--color-surface', colors.surface);
   root.style.setProperty('--color-primary', colors.primary);
+  root.style.setProperty('--color-primary-rgb', hexToRgb(colors.primary));
   root.style.setProperty('--color-primary-dim', colors.primaryDim);
+  root.style.setProperty('--color-primary-dim-rgb', hexToRgb(colors.primaryDim));
   root.style.setProperty('--color-primary-glow', colors.primaryGlow);
   root.style.setProperty('--color-text', colors.text);
   root.style.setProperty('--color-muted', colors.muted);

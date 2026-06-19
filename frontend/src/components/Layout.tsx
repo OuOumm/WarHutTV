@@ -1,11 +1,22 @@
-import { useState, useCallback, memo } from 'react';
-import type { ReactNode } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useCallback, createContext, memo } from 'react';
+import type { ReactNode, Dispatch, SetStateAction } from 'react';
+
+interface HomeTabContextValue {
+  activeTab: string;
+  setActiveTab: Dispatch<SetStateAction<string>>;
+}
+
+export const HomeTabContext = createContext<HomeTabContextValue>({
+  activeTab: 'home',
+  setActiveTab: () => {},
+});
+import { useNavigate, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import MobileNav from './MobileNav';
 import ThemeSwitcher from './ThemeSwitcher';
 import UserMenu from './SettingsPanel';
 import { useConfig } from '../store/config';
+import { CapsuleSwitch } from './CapsuleSwitch';
 
 // 静态SVG图标 - 使用 memo 优化
 const SearchIcon = memo(() => (
@@ -20,8 +31,11 @@ interface LayoutProps {
 
 const Layout = memo(({ children }: LayoutProps) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
   const { siteName } = useConfig();
+  const [homeTab, setHomeTab] = useState('home');
+  const isHome = location.pathname === '/';
 
   // 使用 useCallback 缓存事件处理函数
   const handleSearchClick = useCallback(() => {
@@ -56,9 +70,22 @@ const Layout = memo(({ children }: LayoutProps) => {
             <SearchIcon />
           </button>
 
-          <span className="text-lg font-bold tracking-tight absolute left-1/2 -translate-x-1/2">
-            {siteName}
-          </span>
+          {isHome ? (
+            <div className="absolute left-1/2 -translate-x-1/2 scale-90 origin-center">
+              <CapsuleSwitch
+                options={[
+                  { label: '首页', value: 'home' },
+                  { label: '收藏夹', value: 'favorites' },
+                ]}
+                active={homeTab}
+                onChange={setHomeTab}
+              />
+            </div>
+          ) : (
+            <span className="text-lg font-bold tracking-tight absolute left-1/2 -translate-x-1/2">
+              {siteName}
+            </span>
+          )}
 
           <div className="flex items-center gap-0.5">
             <ThemeSwitcher />
@@ -72,24 +99,48 @@ const Layout = memo(({ children }: LayoutProps) => {
         className="hidden md:block transition-all duration-300 min-h-screen relative"
         style={{ marginLeft: collapsed ? 64 : 256 }}
       >
-        {/* 顶部操作栏 */}
-        <div className="sticky top-0 z-20 flex items-center justify-end gap-1.5 px-4 py-3">
-          <div className="glass-panel rounded-full px-2 py-1 flex items-center gap-1">
-            <ThemeSwitcher />
-            <div className="w-px h-5 bg-glass-border/50 mx-0.5" />
-            <UserMenu />
+        {/* 顶部操作栏 — 三栏布局居中 CapsuleSwitch */}
+        <div className="sticky top-0 z-20 flex items-center px-4 py-3">
+          {/* 左占位 */}
+          <div className="flex-1" />
+
+          {/* 居中 — CapsuleSwitch */}
+          {isHome && (
+            <div className="flex-shrink-0">
+              <CapsuleSwitch
+                options={[
+                  { label: '首页', value: 'home' },
+                  { label: '收藏夹', value: 'favorites' },
+                ]}
+                active={homeTab}
+                onChange={setHomeTab}
+              />
+            </div>
+          )}
+
+          {/* 右侧操作按钮 */}
+          <div className="flex-1 flex justify-end">
+            <div className="glass-panel rounded-full px-2 py-1 flex items-center gap-1">
+              <ThemeSwitcher />
+              <div className="w-px h-5 bg-glass-border/50 mx-0.5" />
+              <UserMenu />
+            </div>
           </div>
         </div>
 
         <main className="px-4 sm:px-6 pb-14 md:pb-0">
-          {children}
+          <HomeTabContext.Provider value={{ activeTab: homeTab, setActiveTab: setHomeTab }}>
+            {children}
+          </HomeTabContext.Provider>
         </main>
       </div>
 
       {/* 移动端 */}
       <div className="md:hidden">
         <div className="pt-14 pb-14 px-3" style={{ paddingBottom: 'calc(3.5rem + env(safe-area-inset-bottom))' }}>
-          {children}
+          <HomeTabContext.Provider value={{ activeTab: homeTab, setActiveTab: setHomeTab }}>
+            {children}
+          </HomeTabContext.Provider>
         </div>
         <MobileNav />
       </div>

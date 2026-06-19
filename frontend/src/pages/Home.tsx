@@ -1,9 +1,8 @@
-import { useState, useEffect, useRef, useMemo, useCallback, memo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback, useContext, memo } from 'react';
 import { Link } from 'react-router-dom';
-
 import VideoCard from '../components/VideoCard';
 import ScrollableRow from '../components/ScrollableRow';
-import CapsuleSwitch from '../components/CapsuleSwitch';
+import { HomeTabContext } from '../components/Layout';
 import { getDoubanCategories } from '../api/douban';
 import { getBangumiCalendar } from '../api/bangumi';
 import { historyStore } from '../store/history';
@@ -80,7 +79,7 @@ const ClockIcon = memo(() => (
 ));
 
 const Home = () => {
-  const [activeTab, setActiveTab] = useState('home');
+  const { activeTab } = useContext(HomeTabContext);
   const [hotMovies, setHotMovies] = useState<DoubanItem[]>([]);
   const [hotTvShows, setHotTvShows] = useState<DoubanItem[]>([]);
   const [hotVariety, setHotVariety] = useState<DoubanItem[]>([]);
@@ -173,17 +172,6 @@ const Home = () => {
 
   return (
     <div className="px-2 sm:px-10 py-4 sm:py-8 overflow-visible page-enter">
-      <div className="mb-8 flex justify-center">
-        <CapsuleSwitch
-          options={[
-            { label: '首页', value: 'home' },
-            { label: '收藏夹', value: 'favorites' },
-          ]}
-          active={activeTab}
-          onChange={setActiveTab}
-        />
-      </div>
-
       {activeTab === 'home' ? (
           loading ? (
             <div className="space-y-8">
