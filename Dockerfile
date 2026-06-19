@@ -6,7 +6,7 @@ RUN npm ci && npm run build
 FROM golang:1.21-alpine AS backend-builder
 WORKDIR /app
 COPY backend/ ./
-RUN cp -r ../frontend/dist frontend/dist 2>/dev/null; \
+RUN mkdir -p frontend/dist && cp -r ../frontend/dist frontend/dist && \
     CGO_ENABLED=0 go build -ldflags="-s -w" -trimpath -o warhutv .
 
 FROM scratch
