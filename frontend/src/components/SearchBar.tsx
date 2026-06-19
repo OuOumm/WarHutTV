@@ -24,7 +24,7 @@ const SearchBar = () => {
     <form onSubmit={handleSubmit} className="flex gap-2 w-full max-w-xl">
       <div className={`relative flex-1 transition-all duration-300 ${focused ? 'scale-[1.02]' : ''}`}>
         {/* Search icon */}
-        <div className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-muted/50">
+        <div className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-muted z-10">
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>

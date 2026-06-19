@@ -74,7 +74,7 @@ const Layout = memo(({ children }: LayoutProps) => {
               <CapsuleSwitch
                 options={[
                   { label: '首页', value: 'home' },
-                  { label: '收藏夹', value: 'favorites' },
+                  { label: '收藏', value: 'favorites' },
                 ]}
                 active={homeTab}
                 onChange={setHomeTab}
@@ -107,7 +107,7 @@ const Layout = memo(({ children }: LayoutProps) => {
               <CapsuleSwitch
                 options={[
                   { label: '首页', value: 'home' },
-                  { label: '收藏夹', value: 'favorites' },
+                  { label: '收藏', value: 'favorites' },
                 ]}
                 active={homeTab}
                 onChange={setHomeTab}

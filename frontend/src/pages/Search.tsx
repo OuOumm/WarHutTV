@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import SearchBar from '../components/SearchBar';
 import VideoCard from '../components/VideoCard';
@@ -11,6 +11,12 @@ interface StreamProgress {
   currentSite: string;
 }
 
+interface SiteSearchResult {
+  list: VideoItem[];
+  site_key: string;
+  name: string;
+}
+
 // Local Toggle component — eliminates duplicated toggle switch markup
 const Toggle = ({ label, checked, onChange }: { label: string; checked: boolean; onChange: () => void }) => (
   <label className="flex items-center gap-2 cursor-pointer select-none group">
@@ -21,6 +27,78 @@ const Toggle = ({ label, checked, onChange }: { label: string; checked: boolean;
       <div className="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-4 shadow-sm" />
     </div>
   </label>
+);
+
+// ── Extracted sub-components ──────────────────────────────────────
+
+const SearchProgressBar = ({ streamProgress, resultCount }: { streamProgress: StreamProgress; resultCount: number }) => (
+  <div className="mb-6 bg-surface/50 backdrop-blur-sm rounded-xl p-4 border border-glass-border">
+    <div className="flex items-center gap-3 mb-2">
+      <div className="flex-shrink-0">
+        <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+      <div className="flex-1">
+        <div className="text-sm text-text font-medium">
+          正在搜索 {streamProgress.completed}/{streamProgress.total} 个源
+        </div>
+      </div>
+      {resultCount > 0 && (
+        <div className="text-sm text-primary font-medium">
+          已找到 {resultCount} 个结果
+        </div>
+      )}
+    </div>
+    <div className="w-full h-1.5 bg-card rounded-full overflow-hidden">
+      <div
+        className="h-full bg-primary rounded-full transition-all duration-300 ease-out"
+        style={{ width: `${streamProgress.total > 0 ? (streamProgress.completed / streamProgress.total) * 100 : 0}%` }}
+      />
+    </div>
+  </div>
+);
+
+const SourceCountBadge = ({ sourceCount }: { sourceCount: number }) => (
+  sourceCount > 1 ? (
+    <div className="mt-1.5 flex justify-center">
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-500/10 text-blue-400 text-xs font-medium rounded-full">
+        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
+        {sourceCount} 个源
+      </span>
+    </div>
+  ) : null
+);
+
+const SearchResultHeader = ({
+  viewMode,
+  aggregatedLength,
+  resultsLength,
+  exactMatch,
+  toggleExactMatch,
+  onViewChange,
+}: {
+  viewMode: 'agg' | 'all';
+  aggregatedLength: number;
+  resultsLength: number;
+  exactMatch: boolean;
+  toggleExactMatch: () => void;
+  onViewChange: () => void;
+}) => (
+  <div className="mb-6 flex items-center justify-between flex-wrap gap-3">
+    <h2 className="text-xl font-bold text-text">
+      搜索结果
+      <span className="ml-2 text-sm font-normal text-muted">
+        {viewMode === 'agg' ? aggregatedLength : resultsLength} 个结果
+      </span>
+    </h2>
+    <div className="flex items-center gap-3">
+      <Toggle label="精确匹配" checked={exactMatch} onChange={toggleExactMatch} />
+      <Toggle
+        label="聚合"
+        checked={viewMode === 'agg'}
+        onChange={onViewChange}
+      />
+    </div>
+  </div>
 );
 
 const Search = () => {
@@ -55,6 +133,10 @@ const Search = () => {
     } catch {}
   };
 
+  const handleViewChange = useCallback(() => {
+    setViewMode(prev => prev === 'agg' ? 'all' : 'agg');
+  }, []);
+
   useEffect(() => {
     if (keyword) searchVideos(keyword);
     return () => {
@@ -83,7 +165,7 @@ const Search = () => {
     eventSourceRef.current = eventSource;
 
     // 只维护一个 siteResults 数组
-    const siteResults: any[] = [];
+    const siteResults: SiteSearchResult[] = [];
 
     eventSource.addEventListener('start', (e) => {
       const data = JSON.parse(e.data);
@@ -135,28 +217,20 @@ const Search = () => {
       } catch {}
     });
 
-    eventSource.onerror = () => {
-      if (eventSource.readyState === EventSource.CLOSED) {
-        setLoading(false);
-        setStreamProgress(null);
-        if (siteResults.length === 0) setError('搜索连接失败');
-      }
-    };
   };
 
-  // 聚合结果（应用精确匹配筛选）
+  // 精确匹配筛选后的结果
+  const filteredResults = useMemo(() => {
+    if (!exactMatch || !keyword) return results;
+    return results.filter((item) => isExactMatch(item.vod_name || '', keyword));
+  }, [results, keyword, exactMatch]);
+
+  // 聚合结果
   const aggregatedResults = useMemo(() => {
     const map = new Map<string, VideoItem[]>();
     const keyOrder: string[] = [];
 
-    results.forEach((item) => {
-      // 精确匹配筛选
-      if (exactMatch && keyword) {
-        if (!isExactMatch(item.vod_name || '', keyword)) {
-          return;
-        }
-      }
-      
+    filteredResults.forEach((item) => {
       const key = `${(item.vod_name || '').replaceAll(' ', '')}-${item.vod_year || 'unknown'}`;
       const arr = map.get(key) || [];
       if (arr.length === 0) keyOrder.push(key);
@@ -166,7 +240,7 @@ const Search = () => {
 
     return keyOrder.map((key) => {
       const group = map.get(key)!;
-      const sourceNames = Array.from(new Set(group.map((g) => (g as any).source_name).filter(Boolean)));
+      const sourceNames = Array.from(new Set(group.map((g) => g.source_name).filter(Boolean)));
       return {
         key,
         title: group[0].vod_name,
@@ -179,7 +253,7 @@ const Search = () => {
         item: group[0],
       };
     });
-  }, [results, keyword, exactMatch]);
+  }, [filteredResults]);
 
   return (
     <div className="px-4 sm:px-10 py-4 sm:py-8 overflow-visible mb-10">
@@ -192,30 +266,7 @@ const Search = () => {
       <div className="max-w-[95%] mx-auto mt-12 overflow-visible">
         {/* 流式搜索进度 */}
         {streamProgress && (
-          <div className="mb-6 bg-surface/50 backdrop-blur-sm rounded-xl p-4 border border-glass-border">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="flex-shrink-0">
-                <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-              </div>
-              <div className="flex-1">
-                <div className="text-sm text-text font-medium">
-                  正在搜索 {streamProgress.completed}/{streamProgress.total} 个源
-                </div>
-
-              </div>
-              {results.length > 0 && (
-                <div className="text-sm text-primary font-medium">
-                  已找到 {results.length} 个结果
-                </div>
-              )}
-            </div>
-            <div className="w-full h-1.5 bg-card rounded-full overflow-hidden">
-              <div 
-                className="h-full bg-primary rounded-full transition-all duration-300 ease-out"
-                style={{ width: `${streamProgress.total > 0 ? (streamProgress.completed / streamProgress.total) * 100 : 0}%` }}
-              />
-            </div>
-          </div>
+          <SearchProgressBar streamProgress={streamProgress} resultCount={results.length} />
         )}
 
         {error && (
@@ -228,48 +279,28 @@ const Search = () => {
 
         {results.length > 0 && (
           <>
-            <div className="mb-6 flex items-center justify-between flex-wrap gap-3">
-              <h2 className="text-xl font-bold text-text">
-                搜索结果
-                <span className="ml-2 text-sm font-normal text-muted">
-                  {viewMode === 'agg' ? aggregatedResults.length : results.length} 个结果
-                </span>
-              </h2>
-              <div className="flex items-center gap-3">
-                <Toggle label="精确匹配" checked={exactMatch} onChange={toggleExactMatch} />
-                <Toggle
-                  label="聚合"
-                  checked={viewMode === 'agg'}
-                  onChange={() => setViewMode(viewMode === 'agg' ? 'all' : 'agg')}
-                />
-              </div>
-            </div>
+            <SearchResultHeader
+              viewMode={viewMode}
+              aggregatedLength={aggregatedResults.length}
+              resultsLength={filteredResults.length}
+              exactMatch={exactMatch}
+              toggleExactMatch={toggleExactMatch}
+              onViewChange={handleViewChange}
+            />
 
             <div className="grid grid-cols-3 gap-x-2 gap-y-12 sm:grid-cols-[repeat(auto-fill,minmax(160px,1fr))] sm:gap-x-8 sm:gap-y-20">
               {viewMode === 'agg'
                 ? aggregatedResults.map((agg) => (
                     <div key={agg.key} className="w-full">
                       <VideoCard video={agg.item} from="vod" />
-                      {agg.sourceCount > 1 && (
-                        <div className="mt-1.5 flex justify-center">
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-500/10 text-blue-400 text-xs font-medium rounded-full">
-                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
-                            {agg.sourceCount} 个源
-                          </span>
-                        </div>
-                      )}
+                      <SourceCountBadge sourceCount={agg.sourceCount} />
                     </div>
                   ))
-                : results
-                    .filter((item) => {
-                      if (!exactMatch || !keyword) return true;
-                      return isExactMatch(item.vod_name || '', keyword);
-                    })
-                    .map((item, index) => (
-                      <div key={`${item.vod_id}-${item.type_name}-${index}`} className="w-full">
-                        <VideoCard video={item} from="vod" />
-                      </div>
-                    ))
+                : filteredResults.map((item, index) => (
+                    <div key={`${item.vod_id}-${item.type_name}-${index}`} className="w-full">
+                      <VideoCard video={item} from="vod" />
+                    </div>
+                  ))
               }
             </div>
           </>

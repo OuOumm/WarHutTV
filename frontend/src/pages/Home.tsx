@@ -88,7 +88,7 @@ const Home = () => {
   const [favoriteItems, setFavoriteItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const { siteName } = useConfig();
-  
+
 
   useEffect(() => {
     loadCachedData();
@@ -145,7 +145,7 @@ const Home = () => {
     favoritesStore.getAll().then(setFavoriteItems).catch(() => {});
     getBangumiCalendar().then(setBangumiData).catch(() => {});
 
-    
+
     setLoading(false);
   };
 
@@ -164,7 +164,7 @@ const Home = () => {
     setContinueWatching([]);
   }, []);
 
-  // 使用 useCallback 缓存清空收藏夹的函数
+  // 使用 useCallback 缓存清空收藏的函数
   const handleClearFavorites = useCallback(async () => {
     await favoritesStore.clear();
     setFavoriteItems([]);
@@ -203,15 +203,15 @@ const Home = () => {
                   </div>
                   <ScrollableRow>
                     {continueWatching.map((item: any) => (
-                      <VideoCard 
-                        key={item.vod_name} 
-                        video={item} 
-                        from="vod" 
-                        showActions 
+                      <VideoCard
+                        key={item.vod_name}
+                        video={item}
+                        from="vod"
+                        showActions
                         onDelete={async () => {
                           await historyStore.removeByName(item.vod_name);
                           setContinueWatching(prev => prev.filter((i: any) => i.vod_name !== item.vod_name));
-                        }} 
+                        }}
                       />
                     ))}
                   </ScrollableRow>
