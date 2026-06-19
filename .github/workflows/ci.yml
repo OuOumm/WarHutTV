@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Build Frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+          cache-dependency-path: backend/go.sum
+
+      - name: Build Backend
+        working-directory: backend
+        run: |
+          cp -r ../frontend/dist frontend/dist
+          go build -ldflags="-s -w" -o ../bin/warhutv .
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: warhutv-linux-amd64
+          path: bin/warhutv
+          retention-days: 7
