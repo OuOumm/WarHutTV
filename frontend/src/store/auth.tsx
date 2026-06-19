@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { authApi } from '../api/auth';
+import { refreshConfig } from './config';
 
 interface AuthContextType {
   isAuthenticated: boolean;
@@ -34,6 +35,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('token', response.token);
     localStorage.setItem('expiresAt', response.expiresAt.toString());
     setIsAuthenticated(true);
+    refreshConfig();
   };
 
   const logout = () => {

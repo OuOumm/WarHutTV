@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { useRef, useEffect } from 'react';
 import { AuthProvider, useAuth } from './store/auth';
-import { ConfigProvider } from './store/config';
+import { ConfigProvider, refreshConfig } from './store/config';
 import Layout from './components/Layout';
 import Login from './pages/Login';
 import Home from './pages/Home';
@@ -42,7 +43,17 @@ const PrivateRoute = ({ isAuthenticated, isLoading, children }: PrivateRouteProp
 
 function AppContent() {
   const { isAuthenticated, isLoading } = useAuth();
-  const { config, isVisible, dismiss } = useAnnouncement(isAuthenticated);
+  const { config, isVisible, dismiss, refresh } = useAnnouncement(isAuthenticated);
+  const configRefreshed = useRef(false);
+
+  // 登录后重新获取完整配置（带 api_site）
+  useEffect(() => {
+    if (isAuthenticated && !isLoading && !configRefreshed.current) {
+      configRefreshed.current = true;
+      refreshConfig();
+      refresh();
+    }
+  }, [isAuthenticated, isLoading, refresh]);
 
   // 动态更新文档标题和 manifest
   useDocumentTitle();

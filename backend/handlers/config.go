@@ -2,18 +2,40 @@ package handlers
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"warhutv/config"
+	"warhutv/utils"
 )
 
 func GetConfig(c *gin.Context) {
 	cfg := config.Get()
-	c.JSON(http.StatusOK, gin.H{
+
+	resp := gin.H{
 		"site_name":    cfg.SiteName,
 		"announcement": cfg.Announcement,
-		"api_site":     cfg.APISite,
-	})
+	}
+
+	// 已登录才返回 api_site
+	if isAuthed(c) {
+		resp["api_site"] = cfg.APISite
+	}
+
+	c.JSON(http.StatusOK, resp)
+}
+
+func isAuthed(c *gin.Context) bool {
+	authHeader := c.GetHeader("Authorization")
+	if authHeader == "" {
+		return false
+	}
+	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+	if tokenString == authHeader {
+		return false
+	}
+	_, err := utils.ValidateToken(tokenString, config.Get().JWTSecret)
+	return err == nil
 }
 
 type UpdateConfigRequest struct {

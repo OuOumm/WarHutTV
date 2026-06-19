@@ -179,10 +179,17 @@ services:
 | 变量 | 说明 | 默认值 |
 |------|------|--------|
 | `PORT` | 服务端口 | `3000` |
-| `PASSWORD` | 访问密码 | `admin123` |
-| `JWT_SECRET` | JWT 签名密钥 | `change-me-in-production` |
 
-> ⚠️ 生产环境请务必修改 `PASSWORD` 和 `JWT_SECRET`
+密码和 JWT 密钥在 `data/config.json` 中配置：
+
+```json
+{
+  "password": "your_password",
+  "jwt_secret": "your_secret"
+}
+```
+
+> ⚠️ 生产环境请务必修改 `password` 和 `jwt_secret`
 
 ---
 

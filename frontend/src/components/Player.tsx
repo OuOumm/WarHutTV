@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import Artplayer from 'artplayer';
 import Hls from 'hls.js';
 import { getCurrentTheme } from '../store/theme';
+import { revokeBlobUrl } from '../utils/adblock';
 
 
 interface PlayerProps {
@@ -15,6 +16,7 @@ interface PlayerProps {
 const Player = ({ url, title, currentTime, onTimeUpdate, isLive = false }: PlayerProps) => {
   const artRef = useRef<HTMLDivElement>(null);
   const artInstance = useRef<Artplayer | null>(null);
+  const prevBlobUrl = useRef<string | null>(null);
   const [themeId, setThemeId] = useState(getCurrentTheme().id);
 
   useEffect(() => {
@@ -38,6 +40,16 @@ const Player = ({ url, title, currentTime, onTimeUpdate, isLive = false }: Playe
         artInstance.current.destroy();
       } catch {}
       artInstance.current = null;
+    }
+
+    // 清理上一次的 Blob URL
+    if (prevBlobUrl.current) {
+      revokeBlobUrl(prevBlobUrl.current);
+      prevBlobUrl.current = null;
+    }
+    // 记录当前 Blob URL，卸载时清理
+    if (url.startsWith('blob:')) {
+      prevBlobUrl.current = url;
     }
 
     Artplayer.PLAYBACK_RATE = [0.5, 0.75, 1, 1.25, 1.5, 2, 3];
@@ -151,6 +163,11 @@ const Player = ({ url, title, currentTime, onTimeUpdate, isLive = false }: Playe
         art.destroy();
       } catch {}
       artInstance.current = null;
+      // 卸载时清理 Blob URL
+      if (prevBlobUrl.current) {
+        revokeBlobUrl(prevBlobUrl.current);
+        prevBlobUrl.current = null;
+      }
     };
   }, [url, themeId]);
 

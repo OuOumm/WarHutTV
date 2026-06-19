@@ -11,6 +11,7 @@ import (
 
 	"warhutv/config"
 	"warhutv/services"
+	"warhutv/utils"
 
 	"github.com/gin-gonic/gin"
 )
@@ -23,6 +24,18 @@ type siteResult struct {
 }
 
 func SearchStream(c *gin.Context) {
+	// SSE 无法设置 header，通过 query 参数校验 token
+	token := c.Query("token")
+	if token == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "未提供认证令牌"})
+		return
+	}
+	cfg := config.Get()
+	if _, err := utils.ValidateToken(token, cfg.JWTSecret); err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "无效的令牌"})
+		return
+	}
+
 	keyword := c.Query("wd")
 	pg := 1
 
@@ -37,7 +50,6 @@ func SearchStream(c *gin.Context) {
 		return
 	}
 
-	cfg := config.Get()
 	siteCount := len(cfg.APISite)
 
 	// 检查缓存

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"time"
 
 	"warhutv/config"
@@ -68,7 +69,7 @@ func ProxySearch(siteKey, keyword string, pg int) (*SearchResult, error) {
 		return nil, fmt.Errorf("site not found: %s", siteKey)
 	}
 
-	url := fmt.Sprintf("%s?ac=detail&wd=%s&pg=%d", site.API, keyword, pg)
+	url := fmt.Sprintf("%s?ac=detail&wd=%s&pg=%d", site.API, url.QueryEscape(keyword), pg)
 	return doRequest[SearchResult](url)
 }
 
@@ -91,7 +92,7 @@ func getSiteKeys(cfg *config.Config) []string {
 	return keys
 }
 
-func ProxyPlay(siteKey, vodID, episode string) (string, error) {
+func ProxyPlay(siteKey, vodID string) (string, error) {
 	cfg := config.Get()
 	site, ok := cfg.APISite[siteKey]
 	if !ok {
