@@ -20,13 +20,21 @@
 
 ## 📸 截图预览
 
+<details open>
+<summary><b>🖥️ 桌面端</b></summary>
+<br>
 <p align="center">
   <img src="frontend/public/screenshot-desktop.png" width="85%" alt="Desktop Screenshot">
 </p>
+</details>
 
+<details>
+<summary><b>📱 移动端</b></summary>
+<br>
 <p align="center">
   <img src="frontend/public/screenshot-mobile.png" width="280" alt="Mobile Screenshot">
 </p>
+</details>
 
 ---
 
@@ -58,7 +66,7 @@
 
 ```bash
 # 克隆项目
-git clone https://github.com/your-username/WarHutTV.git
+git clone https://github.com/OuOumm/WarHutTV.git
 cd WarHutTV
 
 # 启动后端（默认 :3000）
@@ -98,14 +106,14 @@ bin/
 ### 使用预构建镜像
 
 ```bash
-docker pull ghcr.io/your-username/warhutv:latest
+docker pull ghcr.io/OuOumm/warhutv:latest
 docker run -d \
   --name warhutv \
   -p 3000:3000 \
   -e PASSWORD=your_password \
   -e JWT_SECRET=your_secret \
   -v ./data:/root/data \
-  ghcr.io/your-username/warhutv:latest
+  ghcr.io/OuOumm/warhutv:latest
 ```
 
 ### 本地构建
@@ -237,7 +245,7 @@ git push origin v1.0.0
 
 ## 🙏 致谢
 
-- [LunaTV](https://github.com/LunaTV) — 项目灵感来源
+- [LunaTV](https://github.com/MoonTechLab/LunaTV) — 项目灵感来源
 - [Artplayer](https://github.com/zhw2590582/ArtPlayer) — 播放器
 - [hls.js](https://github.com/video-dev/hls.js) — HLS 支持
 - [Dexie.js](https://github.com/dexie/Dexie.js) — IndexedDB 封装
