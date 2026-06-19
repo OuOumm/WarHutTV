@@ -22,30 +22,26 @@ const MobileNav = () => {
 
   return (
     <nav
-      style={{
-        backdropFilter: 'blur(20px) saturate(1.2)',
-        WebkitBackdropFilter: 'blur(20px) saturate(1.2)',
-        bottom: 0,
-        paddingBottom: 'env(safe-area-inset-bottom)',
-        minHeight: 'calc(3.5rem + env(safe-area-inset-bottom))',
-      }}
-      className="md:hidden fixed left-0 right-0 z-[600] border-t border-glass-border bg-card/90"
+      className="md:hidden fixed left-0 right-0 z-[600] border-t border-glass-border/50 bg-card/90 backdrop-blur-xl backdrop-saturate-150"
+      style={{ bottom: 0, paddingBottom: 'env(safe-area-inset-bottom)' }}
     >
       <ul className="flex items-center overflow-x-auto scrollbar-hide">
         {navItems.map((item) => {
           const active = isActive(item.path);
           return (
-            <li key={item.path} className="flex-shrink-0" style={{ width: '20vw', minWidth: '20vw' }}>
+            <li key={item.path} className="flex-1 min-w-0">
               <NavLink
                 to={item.path}
-                className="relative flex flex-col items-center justify-center w-full h-14 gap-0.5 text-xs"
+                className={`relative flex flex-col items-center justify-center w-full h-14 gap-0.5 text-xs transition-all duration-200 ${
+                  active ? 'text-primary' : 'text-muted hover:text-text'
+                }`}
               >
-                {/* Active dot indicator */}
+                {/* Active indicator bar */}
                 {active && (
-                  <div className="absolute top-1 w-1 h-1 rounded-full bg-primary" />
+                  <div className="absolute top-0 left-1/2 -translate-x-1/2 w-6 h-0.5 rounded-b-full bg-primary" />
                 )}
                 <svg
-                  className={`h-5 w-5 transition-colors duration-200 ${active ? 'text-primary' : 'text-muted'}`}
+                  className="h-5 w-5 transition-colors duration-200"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -53,7 +49,7 @@ const MobileNav = () => {
                 >
                   <path strokeLinecap="round" strokeLinejoin="round" d={item.icon} />
                 </svg>
-                <span className={`text-[11px] transition-colors duration-200 ${active ? 'text-primary font-medium' : 'text-muted'}`}>
+                <span className="text-[11px] leading-none transition-colors duration-200">
                   {item.label}
                 </span>
               </NavLink>

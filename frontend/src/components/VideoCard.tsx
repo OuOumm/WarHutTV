@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, memo } from 'react';
+import { useState, useCallback, memo } from 'react';
 import { Link } from 'react-router-dom';
 import type { VideoItem, DoubanItem, BangumiItem } from '../types';
 import { processImageUrl } from '../utils/image';
@@ -14,14 +14,14 @@ interface VideoCardProps {
   showActions?: boolean;
 }
 
-// Play icon overlay with ripple - 使用 memo 优化
+// ─── Sub-components (memoised) ───
+
 const PlayOverlay = memo(() => (
   <div className="absolute inset-0 flex items-center justify-center z-[3] opacity-0 group-hover:opacity-100 transition-opacity duration-300">
     <div className="relative">
-      {/* Ripple ring */}
       <div className="absolute inset-0 w-16 h-16 -m-2 rounded-full border-2 border-primary/30 scale-0 group-hover:scale-100 group-hover:opacity-0 transition-all duration-700 ease-out" />
-      {/* Play button */}
-      <div className="w-12 h-12 rounded-full bg-primary/90 backdrop-blur-sm flex items-center justify-center shadow-lg shadow-primary/25 transform scale-0 group-hover:scale-100 transition-transform duration-300" style={{ transitionTimingFunction: 'var(--ease-elastic)' }}>
+      <div className="w-12 h-12 rounded-full bg-primary/90 backdrop-blur-sm flex items-center justify-center shadow-lg shadow-primary/25 scale-0 group-hover:scale-100 transition-transform duration-300"
+        style={{ transitionTimingFunction: 'var(--ease-elastic)' }}>
         <svg className="w-5 h-5 text-deep ml-0.5" fill="currentColor" viewBox="0 0 24 24">
           <polygon points="6 3 20 12 6 21 6 3"/>
         </svg>
@@ -30,28 +30,26 @@ const PlayOverlay = memo(() => (
   </div>
 ));
 
-// Top-right badge - 使用 memo 优化
 const Badge = memo(({ children, variant = 'default' }: { children: React.ReactNode; variant?: 'default' | 'highlight' }) => (
   <div className={`absolute top-2.5 right-2.5 text-[10px] font-bold px-2 py-0.5 rounded-md z-[1] backdrop-blur-sm tracking-wide ${
-    variant === 'highlight' 
-      ? 'bg-primary/90 text-deep shadow-sm shadow-primary/20' 
+    variant === 'highlight'
+      ? 'bg-primary/90 text-deep shadow-sm shadow-primary/20'
       : 'bg-black/60 text-white/90'
   }`}>
     {children}
   </div>
 ));
 
-// Action button - 使用 memo 优化
 const ActionButton = memo(({ onClick, variant, children }: {
   onClick: (e: React.MouseEvent) => void;
   variant: 'delete' | 'favorite';
   children: React.ReactNode;
 }) => (
-  <button 
-    onClick={onClick} 
-    className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 shadow-lg backdrop-blur-md border border-white/10 ${
-      variant === 'delete' 
-        ? 'bg-black/50 text-white/80 hover:bg-red-500/80 hover:text-white hover:border-red-400/30' 
+  <button
+    onClick={onClick}
+    className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 shadow-lg backdrop-blur-md border border-white/10 hover:scale-110 active:scale-95 ${
+      variant === 'delete'
+        ? 'bg-black/50 text-white/80 hover:bg-red-500/80 hover:text-white hover:border-red-400/30'
         : 'bg-black/50 text-white/80 hover:bg-pink-500/80 hover:text-white hover:border-pink-400/30'
     }`}
   >
@@ -59,7 +57,8 @@ const ActionButton = memo(({ onClick, variant, children }: {
   </button>
 ));
 
-// Base card component - 使用 card-base 类名让主题 CSS 控制阴影，使用 memo 优化
+// ─── Base card ───
+
 const CardBase = memo(({ to, poster, title, badge, children, actions }: {
   to: string;
   poster: string;
@@ -68,37 +67,29 @@ const CardBase = memo(({ to, poster, title, badge, children, actions }: {
   children?: React.ReactNode;
   actions?: React.ReactNode;
 }) => {
-  // 使用 useCallback 缓存事件处理函数
-  const handleMouseEnter = useCallback((e: React.MouseEvent<HTMLElement>) => {
-    e.currentTarget.style.transform = 'translateY(-6px) scale(1.02)';
-  }, []);
-
-  const handleMouseLeave = useCallback((e: React.MouseEvent<HTMLElement>) => {
-    e.currentTarget.style.transform = '';
-  }, []);
+  const [lifted, setLifted] = useState(false);
 
   return (
     <Link
       to={to}
-      className="group relative block rounded-xl overflow-hidden cursor-pointer w-full card-entrance card-base"
-      style={{
-        transition: 'transform 0.35s var(--ease-elastic), box-shadow 0.35s var(--ease-out-expo)',
-      }}
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
+      className={`group relative block rounded-xl overflow-hidden cursor-pointer w-full card-entrance card-base transition-all duration-350 ${
+        lifted ? '-translate-y-1.5 scale-[1.02] shadow-xl shadow-black/30' : ''
+      }`}
+      style={{ transitionTimingFunction: 'var(--ease-elastic), var(--ease-out-expo)' }}
+      onMouseEnter={() => setLifted(true)}
+      onMouseLeave={() => setLifted(false)}
     >
-      {/* Image container */}
       <div className="relative aspect-[2/3] overflow-hidden bg-surface">
-        <img 
-          src={poster} 
-          alt={title} 
+        <img
+          src={poster}
+          alt={title}
           className="w-full h-full object-cover transition-transform duration-[800ms] group-hover:scale-[1.08]"
           style={{ transitionTimingFunction: 'var(--ease-out-expo)' }}
-          loading="lazy" 
+          loading="lazy"
         />
-        
-        {/* Multi-layer gradient overlay */}
-        <div 
+
+        {/* Gradient overlay */}
+        <div
           className="absolute inset-0 pointer-events-none transition-opacity duration-500"
           style={{
             background: `
@@ -107,24 +98,22 @@ const CardBase = memo(({ to, poster, title, badge, children, actions }: {
             `
           }}
         />
-        
+
         {/* Theme accent glow on hover */}
-        <div 
+        <div
           className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
           style={{
             background: 'radial-gradient(ellipse at center bottom, var(--color-primary-glow) 0%, transparent 60%)'
           }}
         />
-        
-        {/* Play icon */}
-        <PlayOverlay />
 
-        {/* Top-right badge */}
+        <PlayOverlay />
         {badge}
 
         {/* Action buttons */}
         {actions && (
-          <div className="absolute bottom-14 left-0 right-0 flex justify-center gap-2 opacity-100 translate-y-0 sm:opacity-0 sm:translate-y-2 sm:group-hover:opacity-100 sm:group-hover:translate-y-0 transition-all duration-300 z-[4]" style={{ transitionTimingFunction: 'var(--ease-elastic)' }}>
+          <div className="absolute bottom-14 left-0 right-0 flex justify-center gap-2 opacity-100 translate-y-0 sm:opacity-0 sm:translate-y-2 sm:group-hover:opacity-100 sm:group-hover:translate-y-0 transition-all duration-300 z-[4]"
+            style={{ transitionTimingFunction: 'var(--ease-elastic)' }}>
             {actions}
           </div>
         )}
@@ -138,10 +127,11 @@ const CardBase = memo(({ to, poster, title, badge, children, actions }: {
   );
 });
 
+// ─── Main component ───
+
 const VideoCard = memo(({ video, douban, bangumi, from = 'vod', onDelete, showActions = false }: VideoCardProps) => {
   const [isFavorited, setIsFavorited] = useState(false);
 
-  // 使用 useCallback 缓存事件处理函数
   const handleFavoriteClick = useCallback(async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -157,122 +147,69 @@ const VideoCard = memo(({ video, douban, bangumi, from = 'vod', onDelete, showAc
     onDelete ? onDelete() : historyStore.remove(video.vod_id);
   }, [video, onDelete]);
 
-  // Douban card - 使用 useMemo 缓存计算结果
-  const doubanSearchUrl = useMemo(() => {
-    if (!douban) return '';
-    return `/search?wd=${encodeURIComponent(douban.title.replace(/\s+/g, ''))}`;
-  }, [douban]);
-
+  // ── Douban variant ──
   if (from === 'douban' && douban) {
+    const searchUrl = `/search?wd=${encodeURIComponent(douban.title.replace(/\s+/g, ''))}`;
     return (
-      <CardBase
-        to={doubanSearchUrl}
-        poster={processImageUrl(douban.poster)}
-        title={douban.title}
-        badge={douban.rate ? <Badge variant="highlight">{douban.rate}</Badge> : undefined}
-      >
+      <CardBase to={searchUrl} poster={processImageUrl(douban.poster)} title={douban.title}
+        badge={douban.rate ? <Badge variant="highlight">{douban.rate}</Badge> : undefined}>
         <h3 className="font-['Anton'] text-[13px] text-white uppercase tracking-wider leading-tight mb-1.5 truncate drop-shadow-sm">
           {douban.title}
         </h3>
-        <div className="flex items-center gap-1.5">
-          {douban.year && (
-            <span className="text-[11px] text-white/50 font-medium tracking-wide">{douban.year}</span>
-          )}
-        </div>
+        {douban.year && (
+          <span className="text-[11px] text-white/50 font-medium tracking-wide">{douban.year}</span>
+        )}
       </CardBase>
     );
   }
 
-  // Bangumi card - 使用 useMemo 缓存计算结果
-  const bangumiSearchUrl = useMemo(() => {
-    if (!bangumi) return '';
-    return `/search?wd=${encodeURIComponent((bangumi.name_cn || bangumi.name).replace(/\s+/g, ''))}`;
-  }, [bangumi]);
-
-  const bangumiPoster = useMemo(() => {
-    if (!bangumi) return '';
-    return processImageUrl(bangumi.images?.large || bangumi.images?.common || bangumi.images?.medium || '');
-  }, [bangumi]);
-
-  const bangumiTitle = useMemo(() => {
-    if (!bangumi) return '';
-    return bangumi.name_cn || bangumi.name;
-  }, [bangumi]);
-
-  const bangumiRating = useMemo(() => {
-    if (!bangumi) return null;
-    return bangumi.rating?.score > 0 ? bangumi.rating.score.toFixed(1) : null;
-  }, [bangumi]);
-
-  const bangumiYear = useMemo(() => {
-    if (!bangumi?.air_date) return null;
-    return bangumi.air_date.split('-')[0];
-  }, [bangumi?.air_date]);
-
+  // ── Bangumi variant ──
   if (from === 'bangumi' && bangumi) {
+    const searchUrl = `/search?wd=${encodeURIComponent((bangumi.name_cn || bangumi.name).replace(/\s+/g, ''))}`;
+    const poster = processImageUrl(bangumi.images?.large || bangumi.images?.common || bangumi.images?.medium || '');
+    const title = bangumi.name_cn || bangumi.name;
+    const rating = bangumi.rating?.score > 0 ? bangumi.rating.score.toFixed(1) : null;
+    const year = bangumi?.air_date ? bangumi.air_date.split('-')[0] : null;
+
     return (
-      <CardBase
-        to={bangumiSearchUrl}
-        poster={bangumiPoster}
-        title={bangumiTitle}
-        badge={bangumiRating ? <Badge variant="highlight">{bangumiRating}</Badge> : undefined}
-      >
+      <CardBase to={searchUrl} poster={poster} title={title}
+        badge={rating ? <Badge variant="highlight">{rating}</Badge> : undefined}>
         <h3 className="font-['Anton'] text-[13px] text-white uppercase tracking-wider leading-tight mb-1.5 truncate drop-shadow-sm">
-          {bangumiTitle}
+          {title}
         </h3>
-        <div className="flex items-center gap-1.5">
-          {bangumiYear && (
-            <span className="text-[11px] text-white/50 font-medium tracking-wide">{bangumiYear}</span>
-          )}
-        </div>
+        {year && <span className="text-[11px] text-white/50 font-medium tracking-wide">{year}</span>}
       </CardBase>
     );
   }
 
-  // VOD card - 使用 useMemo 缓存计算结果
-  const vodPlayUrl = useMemo(() => {
-    if (!video) return '';
-    return `/play/${(video as any).site_key || 'default'}/${video.vod_id}`;
-  }, [video]);
-
-  const vodMetaParts = useMemo(() => {
-    if (!video) return [];
-    return [video.vod_year, video.type_name].filter(Boolean);
-  }, [video?.vod_year, video?.type_name]);
-
+  // ── VOD variant ──
   if (from === 'vod' && video) {
+    const playUrl = `/play/${(video as any).site_key || 'default'}/${video.vod_id}`;
+    const metaParts = [video.vod_year, video.type_name].filter(Boolean);
     const remarks = video.vod_remarks;
-    
+
     return (
-      <CardBase
-        to={vodPlayUrl}
-        poster={video.vod_pic || '/placeholder.jpg'}
-        title={video.vod_name}
+      <CardBase to={playUrl} poster={video.vod_pic || '/placeholder.jpg'} title={video.vod_name}
         badge={remarks ? <Badge>{remarks}</Badge> : undefined}
-        actions={
-          showActions ? (
-            <>
-              <ActionButton onClick={handleDeleteClick} variant="delete">
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-              </ActionButton>
-              <ActionButton onClick={handleFavoriteClick} variant="favorite">
-                <svg className="w-3.5 h-3.5" fill={isFavorited ? 'currentColor' : 'none'} viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                </svg>
-              </ActionButton>
-            </>
-          ) : undefined
-        }
-      >
+        actions={showActions ? (
+          <>
+            <ActionButton onClick={handleDeleteClick} variant="delete">
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </ActionButton>
+            <ActionButton onClick={handleFavoriteClick} variant="favorite">
+              <svg className="w-3.5 h-3.5" fill={isFavorited ? 'currentColor' : 'none'} viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+              </svg>
+            </ActionButton>
+          </>
+        ) : undefined}>
         <h3 className="font-['Anton'] text-[13px] text-white uppercase tracking-wider leading-tight mb-1.5 truncate drop-shadow-sm">
           {video.vod_name}
         </h3>
-        {vodMetaParts.length > 0 && (
-          <div className="flex items-center">
-            <span className="text-[11px] text-white/50 font-medium tracking-wide">{vodMetaParts.join(' · ')}</span>
-          </div>
+        {metaParts.length > 0 && (
+          <span className="text-[11px] text-white/50 font-medium tracking-wide">{metaParts.join(' · ')}</span>
         )}
       </CardBase>
     );

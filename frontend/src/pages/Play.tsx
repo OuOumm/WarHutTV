@@ -47,10 +47,23 @@ interface SpeedTestResultWithDetail {
 
 // 使用 useMemo 缓存解析结果
 function parseEpisodes(playUrl: string): Episode[] {
-  return playUrl.split('#').filter((e) => e.trim()).map((e) => {
-    const parts = e.split('$');
-    return { name: parts[0] || '播放', url: parts[1] || '' };
+  const episodeMap = new Map<string, Episode>();
+  // 处理可能由 $$$ 拼接的多源剧集数据
+  playUrl.split('$$$').forEach(segment => {
+    segment.split('#').filter(e => e.trim()).forEach(e => {
+      const parts = e.split('$');
+      const name = parts[0] || '播放';
+      const newUrl = parts[1] || '';
+      if (!episodeMap.has(name)) {
+        // 同名保留第一次出现的剧集，避免 $$$ 拼接导致的重复
+        episodeMap.set(name, { name, url: newUrl });
+      } else if (newUrl.includes('.m3u8')) {
+        // 后出现的剧集若为 m3u8 链接则覆盖旧的非 m3u8 链接（m3u8 画质更优）
+        episodeMap.set(name, { name, url: newUrl });
+      }
+    });
   });
+  return Array.from(episodeMap.values());
 }
 
 // 搜索播放源动画组件
@@ -915,10 +928,10 @@ const Play = () => {
                             </div>
                           </div>
                         )}
-                        {/* 集数按钮 */}
-                        <div className="p-2 grid grid-cols-5 gap-1.5">
+                        {/* 集数按钮 — grid-cols-4 避免窄面板下 CJK 文字被 truncate */}
+                        <div className="p-2 grid grid-cols-4 gap-1.5">
                           {episodes.slice(episodePage * EPISODES_PER_PAGE, (episodePage + 1) * EPISODES_PER_PAGE).map((ep, index) => (
-                            <button key={index} onClick={() => handleEpisodeClick(ep)} className={`px-2 py-1.5 text-xs rounded-md transition-colors truncate ${currentEpisode?.name === ep.name ? 'bg-primary text-deep' : 'bg-surface text-muted hover:bg-card'}`} title={ep.name}>
+                            <button key={index} onClick={() => handleEpisodeClick(ep)} className={`px-1.5 py-1.5 text-xs rounded-md transition-colors truncate ${currentEpisode?.name === ep.name ? 'bg-primary text-deep' : 'bg-surface text-muted hover:bg-card'}`} title={ep.name}>
                               {ep.name}
                             </button>
                           ))}
