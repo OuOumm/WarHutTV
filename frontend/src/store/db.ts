@@ -12,6 +12,7 @@ export interface WatchHistory extends VideoItem {
   progress?: number;
   duration?: number;
   episode?: string;
+  playback_key?: string;
 }
 
 export interface DetailCache {
@@ -35,6 +36,11 @@ class WarHutTVDatabase extends Dexie {
     this.version(2).stores({
       favorites: '++id, vod_id, vod_name, addedAt',
       watchHistory: '++id, vod_id, vod_name, watchedAt',
+      detailCache: '++id, cacheKey, cachedAt',
+    });
+    this.version(3).stores({
+      favorites: '++id, vod_id, vod_name, addedAt',
+      watchHistory: '++id, vod_id, vod_name, watchedAt, playback_key',
       detailCache: '++id, cacheKey, cachedAt',
     });
   }
