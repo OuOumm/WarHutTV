@@ -34,8 +34,10 @@ jobs:
       - name: Build Backend
         working-directory: backend
         run: |
+          mkdir -p frontend/dist
           cp -r ../frontend/dist frontend/dist
           go build -ldflags="-s -w" -o ../bin/warhutv .
+          rm -rf frontend
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

@@ -60,6 +60,7 @@ jobs:
           GOARCH: ${{ matrix.goarch }}
           CGO_ENABLED: 0
         run: |
+          mkdir -p frontend/dist
           cp -r ../frontend/dist frontend/dist
           go build -ldflags="-s -w" -trimpath -o ../bin/warhutv-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.suffix }} .
           rm -rf frontend
@@ -141,6 +142,7 @@ jobs:
           GOARCH: amd64
           CGO_ENABLED: 0
         run: |
+          mkdir -p frontend/dist
           cp -r ../frontend/dist frontend/dist
           go build -ldflags="-s -w" -trimpath -o ../warhutv .
           rm -rf frontend
