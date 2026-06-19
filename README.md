@@ -85,9 +85,13 @@ make build    # 构建前端 + 后端，输出到 bin/
 make run      # 直接运行
 ```
 
-Windows 用户可用 PowerShell：
+跨平台构建脚本（构建 5 个平台）：
 
-```powershell
+```bash
+# Linux / macOS
+chmod +x build.sh && ./build.sh
+
+# Windows PowerShell
 powershell -ExecutionPolicy Bypass -File build.ps1
 ```
 
@@ -95,8 +99,11 @@ powershell -ExecutionPolicy Bypass -File build.ps1
 
 ```
 bin/
+├── warhutv-linux-amd64
+├── warhutv-linux-arm64
 ├── warhutv-windows-amd64.exe
-└── warhutv-linux-amd64
+├── warhutv-darwin-amd64
+└── warhutv-darwin-arm64
 ```
 
 ---
