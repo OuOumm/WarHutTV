@@ -16,6 +16,7 @@ export interface VideoItem {
   type_id?: string | number;
   type_name?: string;
   site_key?: string;
+  source_name?: string;
 }
 
 export interface SearchResult {

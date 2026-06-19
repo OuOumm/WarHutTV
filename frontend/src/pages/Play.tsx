@@ -5,13 +5,11 @@ import apiClient from '../api/client';
 // 动态导入 Player 组件 - 减少初始包大小
 const Player = lazy(() => import('../components/Player'));
 import type { VideoDetail, VideoItem } from '../types';
-import { favoritesStore } from '../store/favorites';
 import { historyStore } from '../store/history';
-import { detailCacheStore } from '../store/detailCache';
-import { fetchAndFilterM3U8 } from '../utils/adblock';
-import { testVideoSpeed, type SpeedTestResult } from '../utils/speedtest';
 import { processImageUrl } from '../utils/image';
-import { filterYellowItems, isExactMatch } from '../utils/filter';
+import type { SpeedTestResult } from '../utils/speedtest';
+import { SearchingOverlay } from '../components/SearchingOverlay';
+import { OptimizingOverlay } from '../components/OptimizingOverlay';
 
 interface Episode {
   name: string;
@@ -66,155 +64,59 @@ function parseEpisodes(playUrl: string): Episode[] {
   return Array.from(episodeMap.values());
 }
 
-// 搜索播放源动画组件
-const SearchingOverlay = ({ progress }: { progress: { completed: number; total: number; currentSite: string } | null }) => {
-  return (
-    <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/90 backdrop-blur-sm">
-      {/* 动态扫描线 */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-primary to-transparent animate-scan-line" />
-        <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-primary to-transparent animate-scan-line-reverse" />
-        <div className="absolute top-0 bottom-0 left-0 w-[2px] bg-gradient-to-b from-transparent via-primary to-transparent animate-scan-vertical" />
-        <div className="absolute top-0 bottom-0 right-0 w-[2px] bg-gradient-to-b from-transparent via-primary to-transparent animate-scan-vertical-reverse" />
-      </div>
+// SourceStatus helper — 取代重复 IIFE
+function SourceStatusBadge({ source }: { source: { status: string; speed?: { loadSpeed: string; pingTime: string | number } | null } }) {
+  if (source.status === 'testing') return <span className="text-primary animate-pulse">测速中...</span>;
+  if (source.speed) return <span><span className="text-blue-400">{source.speed.loadSpeed}</span> <span className="text-orange-500">{source.speed.pingTime}ms</span></span>;
+  return <span className="text-muted">无测速数据</span>;
+}
 
-      {/* 中心内容 */}
-      <div className="relative flex flex-col items-center gap-6">
-        {/* 搜索动画 */}
-        <div className="relative w-24 h-24">
-          <div className="absolute inset-0 rounded-full border-2 border-primary/20 animate-pulse" />
-          <div className="absolute inset-3 rounded-full border border-primary/30" />
-          <div className="absolute inset-6 rounded-full border border-primary/40" />
-          {/* 搜索图标 */}
-          <div className="absolute inset-0 flex items-center justify-center">
-            <svg className="w-10 h-10 text-primary animate-bounce" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-          </div>
-        </div>
+// parseSpeed moved to module level
+function parseSpeed(speedStr: string): number {
+  const match = speedStr.match(/([\d.]+)\s*(KB|MB|GB)\/s/i);
+  if (!match) return 0;
+  const value = parseFloat(match[1]);
+  const unit = match[2].toUpperCase();
+  if (unit === 'GB') return value * 1024;
+  if (unit === 'MB') return value;
+  return value / 1024;
+}
 
-        {/* 文字信息 */}
-        <div className="text-center space-y-2">
-          <h3 className="text-lg font-semibold text-text">正在搜索播放源</h3>
-          <p className="text-sm text-muted">
-            {progress ? (
-              <span>已搜索 {progress.completed}/{progress.total} 个源</span>
-            ) : (
-              <span>正在连接...</span>
-            )}
-          </p>
-          {progress?.currentSite && (
-            <p className="text-xs text-primary">当前: {progress.currentSite}</p>
-          )}
-        </div>
+// Module-level: 无响应式依赖，纯数据处理函数
+async function getPlayableUrlModule(url: string, sourceKey?: string) {
+  if (!url) return url;
+  if (url.includes('.m3u8')) {
+    const adEnabled = localStorage.getItem('enable_blockad') !== 'false';
+    if (adEnabled) {
+      const { fetchAndFilterM3U8 } = await import('../utils/adblock');
+      return await fetchAndFilterM3U8(url);
+    }
+    const encodedUrl = encodeURIComponent(url);
+    return sourceKey
+      ? `/api/proxy/m3u8?url=${encodedUrl}&moontv-source=${encodeURIComponent(sourceKey)}`
+      : `/api/proxy/m3u8?url=${encodedUrl}`;
+  }
+  return url;
+}
 
-        {/* 进度条 */}
-        {progress && (
-          <div className="w-48 space-y-1.5">
-            <div className="w-full h-1.5 bg-card rounded-full overflow-hidden">
-              <div 
-                className="h-full bg-gradient-to-r from-primary-dim to-primary rounded-full transition-all duration-300 ease-out"
-                style={{ width: `${progress.total > 0 ? (progress.completed / progress.total) * 100 : 0}%` }}
-              />
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
-
-// 优选动画组件
-const OptimizingOverlay = ({ sources }: { sources: SourceItem[] }) => {
-  const tested = sources.filter(s => s.status === 'done' || s.status === 'error').length;
-  const total = sources.length;
-  const currentTesting = sources.find(s => s.status === 'testing');
-
-  return (
-    <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/90 backdrop-blur-sm">
-      {/* 动态扫描线 */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-primary to-transparent animate-scan-line" />
-        <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-primary to-transparent animate-scan-line-reverse" />
-        <div className="absolute top-0 bottom-0 left-0 w-[2px] bg-gradient-to-b from-transparent via-primary to-transparent animate-scan-vertical" />
-        <div className="absolute top-0 bottom-0 right-0 w-[2px] bg-gradient-to-b from-transparent via-primary to-transparent animate-scan-vertical-reverse" />
-      </div>
-
-      {/* 中心内容 */}
-      <div className="relative flex flex-col items-center gap-6">
-        {/* 旋转雷达 */}
-        <div className="relative w-24 h-24">
-          <div className="absolute inset-0 rounded-full border-2 border-primary/20" />
-          <div className="absolute inset-2 rounded-full border border-primary/30" />
-          <div className="absolute inset-4 rounded-full border border-primary/40" />
-          <div className="absolute inset-0 origin-center animate-radar-sweep">
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-0.5 h-12 bg-gradient-to-b from-primary to-transparent" />
-          </div>
-          {/* 信号点 */}
-          {sources.filter(s => s.status === 'done' && s.speed).map((_, i) => {
-            const angle = (i / sources.filter(s => s.status === 'done' && s.speed).length) * 360;
-            const rad = (angle * Math.PI) / 180;
-            const x = 48 + Math.cos(rad) * 30;
-            const y = 48 + Math.sin(rad) * 30;
-            return (
-              <div
-                key={i}
-                className="absolute w-2 h-2 bg-green-400 rounded-full animate-ping"
-                style={{ left: x, top: y, animationDelay: `${i * 0.2}s` }}
-              />
-            );
-          })}
-        </div>
-
-        {/* 文字信息 */}
-        <div className="text-center space-y-2">
-          <h3 className="text-lg font-semibold text-text">正在优选最佳播放地址</h3>
-          <p className="text-sm text-muted">
-            {currentTesting ? (
-              <span>正在测试: <span className="text-primary">{currentTesting.name}</span></span>
-            ) : (
-              <span>已完成 {tested}/{total} 个源</span>
-            )}
-          </p>
-        </div>
-
-        {/* 进度条 */}
-        <div className="w-48 space-y-1.5">
-          <div className="w-full h-1.5 bg-card rounded-full overflow-hidden">
-            <div 
-              className="h-full bg-gradient-to-r from-primary-dim to-primary rounded-full transition-all duration-300 ease-out"
-              style={{ width: `${total > 0 ? (tested / total) * 100 : 0}%` }}
-            />
-          </div>
-          <div className="flex justify-between text-[10px] text-muted">
-            <span>{tested} 已测试</span>
-            <span>{total - tested} 剩余</span>
-          </div>
-        </div>
-
-        {/* 源列表预览 */}
-        <div className="flex flex-wrap justify-center gap-1.5 max-w-[280px]">
-          {sources.map((source) => (
-            <div
-              key={source.key}
-              className={`px-2 py-0.5 rounded text-[10px] transition-all duration-200 ${
-                source.status === 'testing' 
-                  ? 'bg-primary/20 text-primary animate-pulse' 
-                  : source.status === 'done' && source.speed
-                    ? 'bg-green-900/30 text-green-400'
-                    : source.status === 'error'
-                      ? 'bg-red-900/30 text-red-400'
-                      : 'bg-surface text-muted'
-              }`}
-            >
-              {source.name}
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-};
+async function applyHistoryProgress(
+  setCurrentTime: (t: number) => void,
+  setToast: (t: string) => void,
+  currentSiteKey: string,
+  vodId: string | number,
+  episodeName?: string
+) {
+  try {
+    const record = await historyStore.getByContext(currentSiteKey, vodId, episodeName);
+    if (record?.progress && record.progress > 0) {
+      setCurrentTime(record.progress);
+      const minutes = Math.floor(record.progress / 60);
+      const seconds = Math.floor(record.progress % 60);
+      setToast(`已从 ${minutes}:${seconds.toString().padStart(2, '0')} 继续播放`);
+      setTimeout(() => setToast(''), 3000);
+    }
+  } catch (err) { console.warn('Play: failed to apply history progress', err); }
+}
 
 const Play = () => {
   const { site, id } = useParams<{ site: string; id: string }>();
@@ -244,38 +146,12 @@ const Play = () => {
   const switchRequestId = useRef(0); // 用于源切换异步竞态保护
   const sourceListRef = useRef<HTMLDivElement>(null); // 换源列表自动滚动
 
-  // m3u8 前端处理（支持去广告 & 后端代理降级）- 使用 useCallback 优化
-  const getPlayableUrl = useCallback(async (url: string, sourceKey?: string) => {
-    if (!url) return url;
-    if (url.includes('.m3u8')) {
-      const adEnabled = localStorage.getItem('enable_blockad') !== 'false';
-      if (adEnabled) {
-        return await fetchAndFilterM3U8(url);
-      }
-      // 去广告关闭时走后端代理，避免 CORS / 防盗链问题 (Issue 4)
-      const encodedUrl = encodeURIComponent(url);
-      return sourceKey
-        ? `/api/proxy/m3u8?url=${encodedUrl}&moontv-source=${encodeURIComponent(sourceKey)}`
-        : `/api/proxy/m3u8?url=${encodedUrl}`;
-    }
-    return url;
-  }, []);
+  // Module-level function, stable identity
+  const getPlayableUrl = getPlayableUrlModule;
 
   // 优选完成后，尝试从历史记录读取播放进度（按 site + vodId + episode 隔离）
-  const applyHistoryProgress = useCallback(async (currentSiteKey: string, vodId: string | number, episodeName?: string) => {
-    try {
-      const record = await historyStore.getByContext(currentSiteKey, vodId, episodeName);
-      if (record?.progress && record.progress > 0) {
-        setCurrentTime(record.progress);
-        const minutes = Math.floor(record.progress / 60);
-        const seconds = Math.floor(record.progress % 60);
-        setToast(`已从 ${minutes}:${seconds.toString().padStart(2, '0')} 继续播放`);
-        setTimeout(() => setToast(''), 3000);
-      }
-    } catch (err) {
-      console.warn('Play: failed to apply history progress', err);
-    }
-  }, []);
+  // applyHistoryProgress moved to module level
+
 
   // 换源列表自动滚动到当前选中源
   useEffect(() => {
@@ -330,6 +206,7 @@ const Play = () => {
     try {
       // 检查缓存
       const cacheKey = `${site}:${id}`;
+      const { detailCacheStore } = await import('../store/detailCache');
       let data = await detailCacheStore.get(cacheKey);
       if (!data) {
         const response = await apiClient.get('/detail', { params: { site, ids: id } });
@@ -352,6 +229,7 @@ const Play = () => {
           }
         }
         
+        const { favoritesStore } = await import('../store/favorites');
         const fav = await favoritesStore.isFavorite(id!);
         setIsFavorite(fav);
         
@@ -419,19 +297,20 @@ const Play = () => {
         }
         setOptimizeComplete(true);
         setSearchProgress(null);
-        await applyHistoryProgress(site || '', baseVodId, initialEpisodes[0]?.name);
+        await applyHistoryProgress(setCurrentTime, setToast, site || '', baseVodId, initialEpisodes[0]?.name);
         setTimeout(() => setIsOptimizing(false), 500);
         return;
       }
       
       // 构建源列表
       const sourceList: SourceItem[] = [];
+      const { filterYellowItems, isExactMatch } = await import('../utils/filter');
       data.forEach((item) => {
         if (item?.list && item.list.length > 0) {
           // 过滤黄色内容
           let filteredList = filterYellowItems(item.list);
           // 精确匹配筛选
-          filteredList = filteredList.filter(item => isExactMatch(item.vod_name || '', title));
+          filteredList = filteredList.filter((item: { vod_name?: string }) => isExactMatch(item.vod_name || '', title));
           if (filteredList.length === 0) return;
           
           const firstItem = filteredList[0];
@@ -453,7 +332,7 @@ const Play = () => {
         }
         setOptimizeComplete(true);
         setSearchProgress(null);
-        await applyHistoryProgress(site || '', baseVodId, initialEpisodes[0]?.name);
+        await applyHistoryProgress(setCurrentTime, setToast, site || '', baseVodId, initialEpisodes[0]?.name);
         setTimeout(() => setIsOptimizing(false), 500);
         return;
       }
@@ -483,7 +362,7 @@ const Play = () => {
             }
             await historyStore.updateSource(baseVodId, onlySource.key, onlyDetail.vod_id);
             setHistoryVodId(onlyDetail.vod_id);
-            await applyHistoryProgress(onlySource.key, onlyDetail.vod_id, '');
+            await applyHistoryProgress(setCurrentTime, setToast, onlySource.key, onlyDetail.vod_id, '');
           }
         }
         setOptimizeComplete(true);
@@ -502,6 +381,7 @@ const Play = () => {
             const vodDetail = await getCachedDetail(source.key, siteData.list[0].vod_id);
             const epUrl = vodDetail?.vod_play_url?.split('#')[0]?.split('$')[1];
             if (epUrl && epUrl.includes('.m3u8')) {
+              const { testVideoSpeed } = await import('../utils/speedtest');
               const result = await testVideoSpeed(epUrl);
               setSources(prev => prev.map((s, i) => i === index ? { ...s, speed: result, status: 'done' as const } : s));
               return { source, result, vodDetail } as SpeedTestResultWithDetail;
@@ -526,15 +406,6 @@ const Play = () => {
       }
       
       if (validResults.length > 0) {
-        const parseSpeed = (speedStr: string): number => {
-          const match = speedStr.match(/([\d.]+)\s*(KB|MB|GB)\/s/i);
-          if (!match) return 0;
-          const value = parseFloat(match[1]);
-          const unit = match[2].toUpperCase();
-          if (unit === 'GB') return value * 1024;
-          if (unit === 'MB') return value;
-          return value / 1024;
-        };
         validResults.sort((a, b) => {
           const speedA = parseSpeed(a.result.loadSpeed);
           const speedB = parseSpeed(b.result.loadSpeed);
@@ -562,7 +433,7 @@ const Play = () => {
           }
           await historyStore.updateSource(baseVodId, bestSource.key, bestDetail.vod_id);
           setHistoryVodId(bestDetail.vod_id);
-          await applyHistoryProgress(bestSource.key, bestDetail.vod_id, '');
+          await applyHistoryProgress(setCurrentTime, setToast, bestSource.key, bestDetail.vod_id, '');
         }
       } else if (sourceList.length > 0) {
         // 所有测速都失败，选择第一个源
@@ -588,7 +459,7 @@ const Play = () => {
             }
             await historyStore.updateSource(baseVodId, firstSource.key, detail.vod_id);
             setHistoryVodId(detail.vod_id);
-            await applyHistoryProgress(firstSource.key, detail.vod_id, '');
+            await applyHistoryProgress(setCurrentTime, setToast, firstSource.key, detail.vod_id, '');
           }
         }
       } else {
@@ -597,7 +468,7 @@ const Play = () => {
           const url = await getPlayableUrl(initialEpisodes[0].url, site);
           setPlayUrl(url);
         }
-        await applyHistoryProgress(site || '', baseVodId, initialEpisodes[0]?.name);
+        await applyHistoryProgress(setCurrentTime, setToast, site || '', baseVodId, initialEpisodes[0]?.name);
       }
       
     } catch (err) {
@@ -606,7 +477,7 @@ const Play = () => {
         const url = await getPlayableUrl(initialEpisodes[0].url, site);
         setPlayUrl(url);
       }
-      await applyHistoryProgress(site || '', baseVodId, initialEpisodes[0]?.name);
+      await applyHistoryProgress(setCurrentTime, setToast, site || '', baseVodId, initialEpisodes[0]?.name);
     } finally {
       setSourceLoading(false);
       setOptimizeComplete(true);
@@ -680,18 +551,13 @@ const Play = () => {
         eventSourceRef.current = null;
         resolve(allResults);
       });
-      
-      eventSource.onerror = () => {
-        clearTimeout(timeoutId);
-        eventSource.close();
-        eventSourceRef.current = null;
-        resolve(allResults);
-      };
+
     });
   };
 
   const getCachedDetail = async (sourceKey: string, vodId: string | number): Promise<VideoDetail | undefined> => {
     const cacheKey = `${sourceKey}:${vodId}`;
+    const { detailCacheStore } = await import('../store/detailCache');
     const cached = await detailCacheStore.get(cacheKey);
     if (cached) return cached?.list?.[0] as VideoDetail | undefined;
     const res = await apiClient.get('/detail', { params: { site: sourceKey, ids: vodId } });
@@ -721,6 +587,7 @@ const Play = () => {
         }
       }
       if (siteData?.list && siteData.list.length > 0) {
+        const { filterYellowItems } = await import('../utils/filter');
         const filteredList = filterYellowItems(siteData.list);
         if (requestId !== switchRequestId.current) return;
         if (filteredList.length === 0) return;
@@ -743,7 +610,7 @@ const Play = () => {
           setActiveTab('episodes');
           await historyStore.updateSource(historyVodId, sourceKey, item.vod_id);
           setHistoryVodId(item.vod_id);
-          await applyHistoryProgress(sourceKey, item.vod_id, '');
+          await applyHistoryProgress(setCurrentTime, setToast, sourceKey, item.vod_id, '');
         }
       }
     } catch (err) { console.error('切换源失败:', err); } finally { setSourceSwitching(false); }
@@ -773,6 +640,7 @@ const Play = () => {
 
   const toggleFavorite = useCallback(async () => { 
     if (!detail) return; 
+    const { favoritesStore } = await import('../store/favorites');
     const result = await favoritesStore.toggle(detail); 
     setIsFavorite(result); 
   }, [detail]);
@@ -810,7 +678,7 @@ const Play = () => {
           <div className="md:col-span-3 h-full">
             <div className="relative w-full h-[300px] lg:h-full bg-black rounded-xl overflow-hidden ring-1 ring-white/10 shadow-2xl">
               {/* 搜索播放源动画 */}
-              {searchProgress && <SearchingOverlay progress={searchProgress} />}
+              {searchProgress && <SearchingOverlay searchProgress={searchProgress} />}
               {/* 优选动画覆盖层 */}
               {isOptimizing && !searchProgress && <OptimizingOverlay sources={sources} />}
               
@@ -878,11 +746,7 @@ const Play = () => {
                               </div>
                             </div>
                             <div className="text-[10px]">
-                              {(() => {
-                                if (source.status === 'testing') return <span className="text-primary animate-pulse">测速中...</span>;
-                                if (source.speed) return <span><span className="text-blue-400">{source.speed.loadSpeed}</span> <span className="text-orange-500">{source.speed.pingTime}ms</span></span>;
-                                return <span className="text-muted">无测速数据</span>;
-                              })()}
+                              <SourceStatusBadge source={source} />
                             </div>
                           </div>
                         </div>
@@ -961,11 +825,7 @@ const Play = () => {
                                 </div>
                               </div>
                               <div className="text-[10px]">
-                                {(() => {
-                                  if (source.status === 'testing') return <span className="text-primary animate-pulse">测速中...</span>;
-                                  if (source.speed) return <span><span className="text-blue-400">{source.speed.loadSpeed}</span> <span className="text-orange-500">{source.speed.pingTime}ms</span></span>;
-                                  return <span className="text-muted">无测速数据</span>;
-                                })()}
+                                <SourceStatusBadge source={source} />
                               </div>
                             </div>
                           </div>

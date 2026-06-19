@@ -3,7 +3,7 @@ const yellowWords = [
   '国产传媒', 'cosplay', '黑丝诱惑', '无码', '日本无码', '有码',
   '日本有码', 'SWAG', '网红主播', '色情片', '同性片', '福利视频',
   '福利片', '写真热舞', '倫理片', '理论片', '韩国伦理', '港台三级',
-  '伦理', '日本伦理', '解说', '里番'
+  '伦理', '日本伦理', '解说', '里番', '预告'
 ];
 
 export function isYellowContent(text: string): boolean {
@@ -34,12 +34,12 @@ export function normalizeString(str: string): string {
 export function isExactMatch(name: string, keyword: string): boolean {
   const normalizedName = normalizeString(name);
   const normalizedKeyword = normalizeString(keyword);
-  
+
   if (!normalizedName || !normalizedKeyword) return false;
-  
+
   // 完全相等
   if (normalizedName === normalizedKeyword) return true;
-  
+
   // 名字以关键词开头，且后面只有数字（如年份、季数）
   if (normalizedName.startsWith(normalizedKeyword)) {
     const suffix = normalizedName.slice(normalizedKeyword.length);
@@ -48,7 +48,7 @@ export function isExactMatch(name: string, keyword: string): boolean {
   } else {
     return false;
   }
-  
+
   return true;
 }
 
