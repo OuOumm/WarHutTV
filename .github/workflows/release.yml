@@ -61,8 +61,17 @@ jobs:
           CGO_ENABLED: 0
         run: |
           cp -r ../frontend/dist frontend/dist
-          go build -ldflags="-s -w" -o ../bin/warhutv-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.suffix }} .
+          go build -ldflags="-s -w" -trimpath -o ../bin/warhutv-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.suffix }} .
           rm -rf frontend
+
+      - name: Compress with UPX
+        if: matrix.goos != 'darwin'
+        uses: crazy-max/ghaction-upx@v3
+        with:
+          version: latest
+          files: |
+            bin/warhutv-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.suffix }}
+          args: --best --lzma
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -133,7 +142,7 @@ jobs:
           CGO_ENABLED: 0
         run: |
           cp -r ../frontend/dist frontend/dist
-          go build -ldflags="-s -w" -o ../warhutv .
+          go build -ldflags="-s -w" -trimpath -o ../warhutv .
           rm -rf frontend
 
       - name: Setup Docker Buildx
