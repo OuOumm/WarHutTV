@@ -15,6 +15,7 @@ import { getCurrentTheme, applyTheme } from './store/theme';
 import { detailCacheStore } from './store/detailCache';
 import { apiCacheStore } from './store/apiCache';
 import Announcement from './components/Announcement';
+import ScrollToTop from './components/ScrollToTop';
 import { useAnnouncement } from './hooks/useAnnouncement';
 import { useDocumentTitle, useDynamicManifest } from './hooks/useDocumentTitle';
 
@@ -76,6 +77,7 @@ function AppContent() {
 function App() {
   return (
     <BrowserRouter>
+      <ScrollToTop />
       <ConfigProvider>
         <AuthProvider>
           <AppContent />
