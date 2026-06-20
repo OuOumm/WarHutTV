@@ -23,6 +23,7 @@ interface SourceItem {
   episodeCount?: number;
   speed?: SpeedTestResult | null;
   status: 'pending' | 'testing' | 'done' | 'error';
+  vodId: string | number;
 }
 
 interface SearchSiteItem extends VideoItem {
@@ -321,6 +322,7 @@ const Play = () => {
             episodeCount: filteredList.length, 
             speed: null, 
             status: 'pending' as const,
+            vodId: firstItem.vod_id,
           });
         }
       });
@@ -348,7 +350,7 @@ const Play = () => {
         setCurrentSource(onlySource.key);
         const siteData = data.find((item) => item.site_key === onlySource.key);
         if (siteData?.list && siteData.list.length > 0) {
-          const onlyDetail = await getCachedDetail(onlySource.key, siteData.list[0].vod_id);
+          const onlyDetail = await getCachedDetail(onlySource.key, onlySource.vodId);
           if (onlyDetail) {
             setDetail(onlyDetail);
             if (onlyDetail.vod_play_url) {
@@ -378,7 +380,7 @@ const Play = () => {
         try {
           const siteData = data!.find((item) => item.site_key === source.key);
           if (siteData?.list && siteData.list.length > 0) {
-            const vodDetail = await getCachedDetail(source.key, siteData.list[0].vod_id);
+            const vodDetail = await getCachedDetail(source.key, source.vodId);
             const epUrl = vodDetail?.vod_play_url?.split('#')[0]?.split('$')[1];
             if (epUrl && epUrl.includes('.m3u8')) {
               const { testVideoSpeed } = await import('../utils/speedtest');
@@ -444,8 +446,7 @@ const Play = () => {
         setCurrentSource(firstSource.key);
         const siteData = data.find((item) => item.site_key === firstSource.key);
         if (siteData?.list && siteData.list.length > 0) {
-          const firstItem = siteData.list[0];
-          const detail = await getCachedDetail(firstSource.key, firstItem.vod_id);
+          const detail = await getCachedDetail(firstSource.key, firstSource.vodId);
           if (detail) {
             setDetail(detail);
             if (detail.vod_play_url) {
