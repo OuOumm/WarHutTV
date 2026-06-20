@@ -198,7 +198,8 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
                   </span>
                 </>
               ) : (
-                <span className="text-[11px] text-muted/30 group-hover:text-muted/50 transition-colors">
+                <span className="flex items-center gap-1.5 text-[11px] text-muted group-hover:text-text transition-colors">
+                  <span className="h-1.5 w-1.5 rounded-full bg-green-500 flex-shrink-0" />
                   v{current}
                 </span>
               )}
