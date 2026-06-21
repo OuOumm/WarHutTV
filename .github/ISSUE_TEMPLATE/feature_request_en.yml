@@ -1,0 +1,77 @@
+name: "\U0001F680 Feature Request (English)"
+description: "Suggest a new feature or improvement"
+title: "[Feature] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for your feature suggestion! Please describe your idea so we can plan WarHutTV's roadmap together.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / Motivation
+      description: Describe the problem or pain point that motivates this feature
+      placeholder: "e.g. Manually switching video sources every time is inconvenient..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: Describe the feature or improvement you'd like to see
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Any alternative approaches or workarounds you've thought about?
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Module
+      description: Which feature module does this relate to?
+      options:
+        - Search (Aggregated Search)
+        - Playback (Video Player)
+        - Browse (Douban / Bangumi)
+        - Live TV
+        - Favorites / History
+        - Theme / UI
+        - Login / Auth
+        - Speed Test
+        - Settings
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Importance
+      description: How important is this feature to you?
+      options:
+        - Nice to have
+        - Would improve experience
+        - Critical for daily use
+    validations:
+      required: true
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: References / Screenshots
+      description: Attach screenshots or links to similar implementations in other projects
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: I have searched existing issues and confirmed this is not a duplicate
+          required: true
