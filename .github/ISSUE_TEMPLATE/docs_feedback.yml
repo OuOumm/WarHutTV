@@ -1,0 +1,71 @@
+name: "\U0001F4DD 文档反馈 / Docs Feedback"
+description: "报告文档错误或提出改进建议"
+title: "[Docs] "
+labels: ["documentation"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢你帮助改进文档！请描述文档中的问题。
+
+  - type: dropdown
+    id: doc_type
+    attributes:
+      label: 文档类型
+      description: 问题涉及哪类文档？
+      options:
+        - README.md（项目说明）
+        - 界面文案（UI 文字/提示信息）
+        - 配置说明（config.json / .env）
+        - API 文档
+        - 部署文档（Docker/构建）
+        - 其他文档
+    validations:
+      required: true
+
+  - type: dropdown
+    id: issue_type
+    attributes:
+      label: 问题类型
+      description: 文档存在什么问题？
+      options:
+        - 错别字/语法错误
+        - 信息过时/不准确
+        - 内容缺失
+        - 描述不清晰
+        - 翻译问题
+        - 其他
+    validations:
+      required: true
+
+  - type: textarea
+    id: location
+    attributes:
+      label: 问题位置
+      description: 指出具体的文件路径或页面位置
+      placeholder: "例如：README.md 第 3 行、登录页提示文字、config.json 示例"
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: 问题描述
+      description: 描述文档中的问题或建议的改进方式
+    validations:
+      required: true
+
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: 修改建议
+      description: 如果有明确的修改方案，请在此提供
+      render: markdown
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: 自检确认
+      options:
+        - label: 我已搜索过现有 Issues，确认没有重复提交
+          required: true

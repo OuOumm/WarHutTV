@@ -1,0 +1,113 @@
+name: "\U0001F41B Bug Report (English)"
+description: "Submit a bug report to help improve WarHutTV"
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for submitting a bug report! Please fill in the details below so we can investigate.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: A clear and concise description of the bug
+      placeholder: "e.g. White screen when searching for certain keywords"
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce
+      description: Detailed steps to trigger the bug
+      placeholder: |
+        1. Go to '...'
+        2. Click on '...'
+        3. Scroll down to '...'
+        4. See error
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What you expected to happen
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behavior
+      description: What actually happened
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Module
+      description: Which feature module is affected?
+      options:
+        - Search (Aggregated Search)
+        - Playback (Video Player)
+        - Browse (Douban / Bangumi)
+        - Live TV
+        - Favorites / History
+        - Theme / UI
+        - Login / Auth
+        - Speed Test
+        - Settings
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Provide your runtime environment details
+      placeholder: |
+        - WarHutTV version: (see bottom of the page)
+        - Deployment: Docker / Binary / Built from source
+        - OS: (e.g. Windows 11 / Ubuntu 22.04 / macOS 14)
+        - Browser: (e.g. Chrome 120 / Firefox 121 / Safari 17)
+        - Device: (e.g. Desktop / Mobile / Tablet)
+    validations:
+      required: true
+
+  - type: textarea
+    id: config
+    attributes:
+      label: Configuration
+      description: |
+        If the issue is related to video sources, provide the relevant site config from `data/config.json` (redact sensitive info like passwords).
+      render: json
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / Error Messages
+      description: |
+        Browser console logs or backend logs, if available.
+        Open with: F12 → Console tab in your browser.
+      render: text
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots
+      description: Attach screenshots if possible (paste or drag & drop images)
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: I have searched existing issues and confirmed this is not a duplicate
+          required: true
+        - label: I have updated to the latest version and the issue persists
+          required: false
