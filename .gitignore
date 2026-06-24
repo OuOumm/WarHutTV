@@ -24,8 +24,9 @@ backend/backend
 .DS_Store
 Thumbs.db
 
-# Data (except config.json)
+# Data (except config.example.json)
 data/*
+!data/config.example.json
 search_result.json
 test.json
 test_response.json
