@@ -4,8 +4,6 @@ import { db } from './db';
 const CACHE_TTL = {
   bangumi: 24 * 60 * 60 * 1000,      // 24小时
   config: 24 * 60 * 60 * 1000,       // 24小时
-  liveSources: 24 * 60 * 60 * 1000,  // 24小时
-  liveChannels: 24 * 60 * 60 * 1000, // 24小时
   logo: 7 * 24 * 60 * 60 * 1000,     // 7天
   search: 2 * 60 * 60 * 1000,        // 2小时
 } as const;

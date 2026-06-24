@@ -39,25 +39,6 @@ export interface VideoDetail {
   type_name?: string;
 }
 
-export interface LiveChannel {
-  id: string;
-  tvgId?: string;
-  name: string;
-  url: string;
-  logo?: string;
-  group?: string;
-}
-
-export interface LiveSource {
-  key: string;
-  name: string;
-  url: string;
-  ua?: string;
-  epg?: string;
-  channelNumber?: number;
-  disabled?: boolean;
-}
-
 export interface User {
   token: string;
   expiresAt: number;
