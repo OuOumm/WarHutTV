@@ -2,6 +2,8 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import SearchBar from '../components/SearchBar';
 import VideoCard from '../components/VideoCard';
+import PageContainer from '../components/PageContainer';
+import VideoGrid from '../components/VideoGrid';
 import type { VideoItem } from '../types';
 import { filterYellowItems, isExactMatch } from '../utils/filter';
 
@@ -256,7 +258,7 @@ const Search = () => {
   }, [filteredResults]);
 
   return (
-    <div className="px-4 sm:px-10 py-4 sm:py-8 overflow-visible mb-10">
+    <PageContainer className="mb-10">
       <div className="mb-8">
         <div className="max-w-2xl mx-auto">
           <SearchBar />
@@ -278,7 +280,7 @@ const Search = () => {
         )}
 
         {results.length > 0 && (
-          <>
+          <div className="content-fade-in">
             <SearchResultHeader
               viewMode={viewMode}
               aggregatedLength={aggregatedResults.length}
@@ -288,7 +290,7 @@ const Search = () => {
               onViewChange={handleViewChange}
             />
 
-            <div className="grid grid-cols-3 gap-x-2 gap-y-12 sm:grid-cols-[repeat(auto-fill,minmax(160px,1fr))] sm:gap-x-8 sm:gap-y-20">
+            <VideoGrid variant="search">
               {viewMode === 'agg'
                 ? aggregatedResults.map((agg) => (
                     <div key={agg.key} className="w-full">
@@ -302,11 +304,11 @@ const Search = () => {
                     </div>
                   ))
               }
-            </div>
-          </>
+            </VideoGrid>
+          </div>
         )}
       </div>
-    </div>
+    </PageContainer>
   );
 };
 

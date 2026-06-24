@@ -2,6 +2,8 @@ import { useState, useEffect, useRef, useMemo, useCallback, useContext, memo } f
 import { Link } from 'react-router-dom';
 import VideoCard from '../components/VideoCard';
 import ScrollableRow from '../components/ScrollableRow';
+import PageContainer from '../components/PageContainer';
+import VideoGrid from '../components/VideoGrid';
 import { HomeTabContext } from '../components/Layout';
 import { getDoubanCategories } from '../api/douban';
 import { getBangumiCalendar } from '../api/bangumi';
@@ -171,14 +173,14 @@ const Home = () => {
   }, []);
 
   return (
-    <div className="px-2 sm:px-10 py-4 sm:py-8 overflow-visible page-enter">
+    <PageContainer className="page-enter">
       {activeTab === 'home' ? (
           loading ? (
             <div className="space-y-8">
               {Array.from({ length: 3 }).map((_, i) => (
                 <div key={i}>
                   <div className="h-6 w-32 bg-surface rounded-lg animate-pulse mb-4" />
-                  <div className="grid grid-cols-5 sm:grid-cols-8 gap-3 sm:gap-5">
+                  <VideoGrid variant="home">
                     {Array.from({ length: 10 }).map((_, j) => (
                       <div key={j} className="w-full">
                         <div className="aspect-[2/3] bg-surface rounded-xl animate-pulse" />
@@ -186,12 +188,12 @@ const Home = () => {
                         <div className="mt-1.5 h-3 bg-surface/60 rounded animate-pulse w-1/2" />
                       </div>
                     ))}
-                  </div>
+                  </VideoGrid>
                 </div>
               ))}
             </div>
           ) : (
-            <div className="space-y-10">
+            <div className="space-y-10 content-fade-in">
               {continueWatching.length > 0 && (
                 <Section>
                   <div className="mb-4 flex items-center justify-between">
@@ -294,7 +296,7 @@ const Home = () => {
                 <p className="mt-2 text-sm">浏览影片时点击爱心图标收藏</p>
               </div>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-x-2 gap-y-12 sm:gap-x-6 sm:gap-y-16">
+              <VideoGrid variant="favorites">
                 {favoriteItems.map((item: any) => (
                   <div key={item.vod_id} className="w-full">
                     <VideoCard video={item} from="vod" showActions onDelete={async () => {
@@ -303,11 +305,11 @@ const Home = () => {
                     }} />
                   </div>
                 ))}
-              </div>
+              </VideoGrid>
             )}
           </Section>
         )}
-    </div>
+    </PageContainer>
   );
 };
 

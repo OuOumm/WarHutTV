@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import apiClient from '../api/client';
+import PageContainer from '../components/PageContainer';
 
 interface SpeedResult {
   site: string;
@@ -183,7 +184,7 @@ const SpeedTest = () => {
   };
 
   return (
-    <div className="px-2 sm:px-4 py-4 sm:py-6 max-w-3xl mx-auto overflow-visible page-enter">
+    <PageContainer className="max-w-3xl mx-auto page-enter">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-text">播放源测速</h1>
@@ -231,7 +232,7 @@ const SpeedTest = () => {
       )}
 
       {results.length === 0 && !testing && <EmptyState />}
-    </div>
+    </PageContainer>
   );
 };
 

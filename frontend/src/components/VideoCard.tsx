@@ -17,10 +17,10 @@ interface VideoCardProps {
 // ─── Sub-components (memoised) ───
 
 const PlayOverlay = memo(() => (
-  <div className="absolute inset-0 flex items-center justify-center z-[3] opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+  <div className="absolute inset-0 flex items-center justify-center z-[3] opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-300">
     <div className="relative">
-      <div className="absolute inset-0 w-16 h-16 -m-2 rounded-full border-2 border-primary/30 scale-0 group-hover:scale-100 group-hover:opacity-0 transition-all duration-700 ease-out" />
-      <div className="w-12 h-12 rounded-full bg-primary/90 backdrop-blur-sm flex items-center justify-center shadow-lg shadow-primary/25 scale-0 group-hover:scale-100 transition-transform duration-300"
+      <div className="absolute inset-0 w-16 h-16 -m-2 rounded-full border-2 border-primary/30 scale-100 sm:scale-0 sm:group-hover:scale-100 sm:group-hover:opacity-0 transition-all duration-700 ease-out" />
+      <div className="w-12 h-12 rounded-full bg-primary/90 backdrop-blur-sm flex items-center justify-center shadow-lg shadow-primary/25 scale-100 sm:scale-0 sm:group-hover:scale-100 transition-transform duration-300"
         style={{ transitionTimingFunction: 'var(--ease-elastic)' }}>
         <svg className="w-5 h-5 text-deep ml-0.5" fill="currentColor" viewBox="0 0 24 24">
           <polygon points="6 3 20 12 6 21 6 3"/>

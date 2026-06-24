@@ -485,6 +485,42 @@ html[data-accent-effect="petal"] .card-base:hover {
   animation: pageEnter 0.4s var(--ease-spring);
 }
 
+/* Smooth fade-in when content replaces skeleton */
+.content-fade-in {
+  animation: contentFadeIn 0.35s var(--ease-out-expo);
+}
+@keyframes contentFadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Search / Optimize overlay scan-line animations (Play.tsx) */
+@keyframes scan-line {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+@keyframes scan-line-reverse {
+  0% { transform: translateX(100%); }
+  100% { transform: translateX(-100%); }
+}
+@keyframes scan-vertical {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(100%); }
+}
+@keyframes scan-vertical-reverse {
+  0% { transform: translateY(100%); }
+  100% { transform: translateY(-100%); }
+}
+@keyframes radar-sweep {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+.animate-scan-line { animation: scan-line 2s linear infinite; }
+.animate-scan-line-reverse { animation: scan-line-reverse 2s linear infinite; }
+.animate-scan-vertical { animation: scan-vertical 3s linear infinite; }
+.animate-scan-vertical-reverse { animation: scan-vertical-reverse 3s linear infinite; }
+.animate-radar-sweep { animation: radar-sweep 2s linear infinite; }
+
 /* ==================== TYPOGRAPHY ==================== */
 html[data-theme="cinema-gold"] { letter-spacing: 0.02em; }
 html[data-theme="cinema-gold"] h1,
