@@ -7,7 +7,6 @@ import Login from './pages/Login';
 import Home from './pages/Home';
 import Search from './pages/Search';
 import Play from './pages/Play';
-import Live from './pages/Live';
 import Favorites from './pages/Favorites';
 import History from './pages/History';
 import SpeedTest from './pages/SpeedTest';
@@ -75,8 +74,7 @@ function AppContent() {
         <Route path="/" element={<PrivateRoute isAuthenticated={isAuthenticated} isLoading={isLoading}><Layout><Home /></Layout></PrivateRoute>} />
         <Route path="/search" element={<PrivateRoute isAuthenticated={isAuthenticated} isLoading={isLoading}><Layout><Search /></Layout></PrivateRoute>} />
         <Route path="/play/:site/:id" element={<PrivateRoute isAuthenticated={isAuthenticated} isLoading={isLoading}><Layout><Play /></Layout></PrivateRoute>} />
-        <Route path="/live" element={<PrivateRoute isAuthenticated={isAuthenticated} isLoading={isLoading}><Layout><Live /></Layout></PrivateRoute>} />
-        <Route path="/favorites" element={<PrivateRoute isAuthenticated={isAuthenticated} isLoading={isLoading}><Layout><Favorites /></Layout></PrivateRoute>} />
+                <Route path="/favorites" element={<PrivateRoute isAuthenticated={isAuthenticated} isLoading={isLoading}><Layout><Favorites /></Layout></PrivateRoute>} />
         <Route path="/history" element={<PrivateRoute isAuthenticated={isAuthenticated} isLoading={isLoading}><Layout><History /></Layout></PrivateRoute>} />
         <Route path="/speed" element={<PrivateRoute isAuthenticated={isAuthenticated} isLoading={isLoading}><Layout><SpeedTest /></Layout></PrivateRoute>} />
         <Route path="/douban" element={<PrivateRoute isAuthenticated={isAuthenticated} isLoading={isLoading}><Layout><Douban /></Layout></PrivateRoute>} />
