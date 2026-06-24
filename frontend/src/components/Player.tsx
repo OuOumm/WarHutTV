@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useRef, useState } from 'react';
 import Artplayer from 'artplayer';
 import Hls from 'hls.js';
@@ -9,14 +10,13 @@ interface PlayerProps {
   title?: string;
   currentTime?: number;
   onTimeUpdate?: (time: number) => void;
-  isLive?: boolean;
 }
 
 interface HlsVideoElement extends HTMLVideoElement {
   hls?: Hls;
 }
 
-const Player = ({ url, title, currentTime, onTimeUpdate, isLive = false }: PlayerProps) => {
+const Player = ({ url, title, currentTime, onTimeUpdate }: PlayerProps) => {
   const artRef = useRef<HTMLDivElement>(null);
   const artInstance = useRef<Artplayer | null>(null);
   const prevBlobUrl = useRef<string | null>(null);
@@ -83,9 +83,9 @@ const Player = ({ url, title, currentTime, onTimeUpdate, isLive = false }: Playe
       url: url,
       // Explicitly set type for blob: URLs that contain m3u8 content
       // (Artplayer auto-detects from URL extension, but blob: has none)
-      type: url.startsWith('blob:') || url.includes('.m3u8') ? 'm3u8' : undefined,
+      type: url.startsWith('blob:') || url.includes('.m3u8') ? 'm3u8' : '',
       volume: 0.7,
-      isLive: isLive,
+      isLive: false,
       muted: false,
       autoplay: true,
       pip: true,
@@ -126,7 +126,7 @@ const Player = ({ url, title, currentTime, onTimeUpdate, isLive = false }: Playe
           const hls = new Hls({
             debug: false,
             enableWorker: true,
-            lowLatencyMode: true,
+            lowLatencyMode: false,
             maxBufferLength: 30,
             backBufferLength: 30,
             maxBufferSize: 60 * 1000 * 1000,
@@ -207,7 +207,7 @@ const Player = ({ url, title, currentTime, onTimeUpdate, isLive = false }: Playe
         prevBlobUrl.current = null;
       }
     };
-  }, [url, themeId, isLive]);
+  }, [url, themeId]);
 
   useEffect(() => {
     if (artInstance.current && title) {
