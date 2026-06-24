@@ -6,6 +6,9 @@ import apiClient from '../api/client';
 const Player = lazy(() => import('../components/Player'));
 import type { VideoDetail, VideoItem } from '../types';
 import { historyStore } from '../store/history';
+import { favoritesStore } from '../store/favorites';
+import { detailCacheStore } from '../store/detailCache';
+import { filterYellowItems, isExactMatch } from '../utils/filter';
 import { processImageUrl } from '../utils/image';
 import type { SpeedTestResult } from '../utils/speedtest';
 import { SearchingOverlay } from '../components/SearchingOverlay';
@@ -207,7 +210,6 @@ const Play = () => {
     try {
       // 检查缓存
       const cacheKey = `${site}:${id}`;
-      const { detailCacheStore } = await import('../store/detailCache');
       let data = await detailCacheStore.get(cacheKey);
       if (!data) {
         const response = await apiClient.get('/detail', { params: { site, ids: id } });
@@ -230,7 +232,6 @@ const Play = () => {
           }
         }
         
-        const { favoritesStore } = await import('../store/favorites');
         const fav = await favoritesStore.isFavorite(id!);
         setIsFavorite(fav);
         
@@ -305,7 +306,6 @@ const Play = () => {
       
       // 构建源列表
       const sourceList: SourceItem[] = [];
-      const { filterYellowItems, isExactMatch } = await import('../utils/filter');
       data.forEach((item) => {
         if (item?.list && item.list.length > 0) {
           // 过滤黄色内容
@@ -558,7 +558,6 @@ const Play = () => {
 
   const getCachedDetail = async (sourceKey: string, vodId: string | number): Promise<VideoDetail | undefined> => {
     const cacheKey = `${sourceKey}:${vodId}`;
-    const { detailCacheStore } = await import('../store/detailCache');
     const cached = await detailCacheStore.get(cacheKey);
     if (cached) return cached?.list?.[0] as VideoDetail | undefined;
     const res = await apiClient.get('/detail', { params: { site: sourceKey, ids: vodId } });
@@ -588,7 +587,6 @@ const Play = () => {
         }
       }
       if (siteData?.list && siteData.list.length > 0) {
-        const { filterYellowItems } = await import('../utils/filter');
         const filteredList = filterYellowItems(siteData.list);
         if (requestId !== switchRequestId.current) return;
         if (filteredList.length === 0) return;
@@ -641,7 +639,6 @@ const Play = () => {
 
   const toggleFavorite = useCallback(async () => { 
     if (!detail) return; 
-    const { favoritesStore } = await import('../store/favorites');
     const result = await favoritesStore.toggle(detail); 
     setIsFavorite(result); 
   }, [detail]);
