@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import VideoCard from '../components/VideoCard';
 import LazyGrid from '../components/LazyGrid';
+import PageContainer from '../components/PageContainer';
+import VideoGrid from '../components/VideoGrid';
 import WeekdaySelector, { getTodayWeekday } from '../components/WeekdaySelector';
 import { getDoubanCategories, getDoubanRecommends } from '../api/douban';
 import { getBangumiCalendar } from '../api/bangumi';
@@ -298,7 +300,7 @@ export default function DoubanPage() {
   const showSecondarySelector = type !== 'anime' || primarySelection !== '每日放送';
 
   return (
-    <div className="px-4 sm:px-10 py-4 sm:py-8 overflow-visible">
+    <PageContainer>
       {/* Title */}
       <div className="mb-6 sm:mb-8 space-y-4 sm:space-y-6">
         <div>
@@ -334,16 +336,16 @@ export default function DoubanPage() {
       </div>
 
       {/* Content */}
-      <div className="max-w-[95%] mx-auto mt-8 overflow-visible">
+      <div className="max-w-[95%] mx-auto mt-8 overflow-visible content-fade-in">
         {loading ? (
-          <div className="grid grid-cols-3 gap-x-2 gap-y-12 sm:grid-cols-[repeat(auto-fill,minmax(160px,1fr))] sm:gap-x-8 sm:gap-y-20">
+          <VideoGrid variant="search">
             {Array.from({ length: 25 }).map((_, i) => (
               <div key={i}>
                 <div className="aspect-[2/3] bg-card rounded-lg animate-pulse" />
                 <div className="mt-2 h-4 bg-card rounded animate-pulse" />
               </div>
             ))}
-          </div>
+          </VideoGrid>
         ) : (
           <LazyGrid
             items={data}
@@ -371,6 +373,6 @@ export default function DoubanPage() {
           </div>
         )}
       </div>
-    </div>
+    </PageContainer>
   );
 }

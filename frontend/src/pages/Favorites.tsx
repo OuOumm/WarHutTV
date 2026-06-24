@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import VideoCard from '../components/VideoCard';
+import PageContainer from '../components/PageContainer';
+import VideoGrid from '../components/VideoGrid';
 import type { VideoItem } from '../types';
 import { favoritesStore } from '../store/favorites';
 
@@ -27,22 +29,22 @@ const Favorites = () => {
 
   if (loading) {
     return (
-      <div className="px-2 sm:px-4 py-4 sm:py-6 max-w-[95%] mx-auto overflow-visible">
+      <PageContainer>
         <div className="h-7 w-24 bg-surface rounded-lg animate-pulse mb-6" />
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-x-2 gap-y-12 sm:gap-x-6 sm:gap-y-16">
+        <VideoGrid variant="favorites">
           {Array.from({ length: 10 }).map((_, i) => (
             <div key={i}>
               <div className="aspect-[2/3] bg-surface rounded-xl animate-pulse" />
               <div className="mt-2 h-4 bg-surface rounded animate-pulse w-3/4" />
             </div>
           ))}
-        </div>
-      </div>
+        </VideoGrid>
+      </PageContainer>
     );
   }
 
   return (
-    <div className="px-2 sm:px-4 py-4 sm:py-6 max-w-[95%] mx-auto overflow-visible page-enter">
+    <PageContainer className="page-enter">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-text">我的收藏</h1>
         {favorites.length > 0 && (
@@ -69,7 +71,7 @@ const Favorites = () => {
           <p className="mt-2 text-sm">浏览影片时点击爱心图标收藏</p>
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-x-2 gap-y-12 sm:grid-cols-4 lg:grid-cols-5 sm:gap-x-6 sm:gap-y-16">
+        <VideoGrid variant="favorites" className="content-fade-in">
           {favorites.map((item) => (
             <div key={item.vod_id} className="relative group">
               <VideoCard video={item} showActions />
@@ -85,9 +87,9 @@ const Favorites = () => {
               </div>
             </div>
           ))}
-        </div>
+        </VideoGrid>
       )}
-    </div>
+    </PageContainer>
   );
 };
 

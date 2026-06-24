@@ -11,6 +11,37 @@
     <link rel="apple-touch-icon" href="/favicon.svg" />
     <meta name="description" content="聚合影视信息" />
     <title>WarHutTV</title>
+    <script>
+      // Apply saved theme synchronously to avoid flash-of-wrong-theme.
+      // The colors below are the 6 theme palettes from theme.ts.
+      // This runs before any CSS/JS loads, so the first paint is correct.
+      (function() {
+        var themes = {
+          'crimson-cinema': { deep:'#10080c', card:'#1a0f14', surface:'#231520', primary:'#e11d48', primaryDim:'#be123c', primaryGlow:'rgba(225,29,72,0.15)', text:'#f5f0f2', muted:'#8a7580', glass:'rgba(26,15,20,0.65)', glassBorder:'rgba(225,29,72,0.15)', texture:'fabric', glowAnim:'pulse' },
+          'cinema-gold':   { deep:'#0b111e', card:'#111827', surface:'#0f172a', primary:'#e6b91e', primaryDim:'#b8941a', primaryGlow:'rgba(230,185,30,0.15)', text:'#f0f0f0', muted:'#8b95a5', glass:'rgba(17,24,39,0.65)', glassBorder:'rgba(230,185,30,0.15)', texture:'grain', glowAnim:'drift' },
+          'nebula-purple':  { deep:'#0d0a1a', card:'#13102a', surface:'#1a1535', primary:'#00d4ff', primaryDim:'#00a8cc', primaryGlow:'rgba(0,212,255,0.15)', text:'#e8e6f0', muted:'#7a7590', glass:'rgba(19,16,42,0.65)', glassBorder:'rgba(0,212,255,0.15)', texture:'noise', glowAnim:'aurora' },
+          'emerald-night':  { deep:'#0a1410', card:'#0f1f18', surface:'#132a1f', primary:'#f59e0b', primaryDim:'#d97706', primaryGlow:'rgba(245,158,11,0.15)', text:'#ecfdf5', muted:'#6b8a7a', glass:'rgba(15,31,24,0.65)', glassBorder:'rgba(245,158,11,0.15)', texture:'bark', glowAnim:'breathe' },
+          'arctic-ice':    { deep:'#0c1222', card:'#111b2e', surface:'#162035', primary:'#60a5fa', primaryDim:'#3b82f6', primaryGlow:'rgba(96,165,250,0.15)', text:'#f0f4f8', muted:'#7a8ba5', glass:'rgba(17,27,46,0.65)', glassBorder:'rgba(96,165,250,0.15)', texture:'crystal', glowAnim:'shimmer' },
+          'rose-velvet':   { deep:'#1a0a14', card:'#251020', surface:'#2d1528', primary:'#f9a8d4', primaryDim:'#ec4899', primaryGlow:'rgba(249,168,212,0.15)', text:'#fdf2f8', muted:'#a5789a', glass:'rgba(37,16,32,0.65)', glassBorder:'rgba(249,168,212,0.15)', texture:'silk', glowAnim:'breathe' }
+        };
+        var saved = localStorage.getItem('warhut-theme');
+        var t = themes[saved] || themes['crimson-cinema'];
+        var r = document.documentElement;
+        r.setAttribute('data-theme', saved || 'crimson-cinema');
+        r.setAttribute('data-texture', t.texture);
+        r.setAttribute('data-glow-anim', t.glowAnim);
+        r.style.setProperty('--color-deep', t.deep);
+        r.style.setProperty('--color-card', t.card);
+        r.style.setProperty('--color-surface', t.surface);
+        r.style.setProperty('--color-primary', t.primary);
+        r.style.setProperty('--color-primary-dim', t.primaryDim);
+        r.style.setProperty('--color-primary-glow', t.primaryGlow);
+        r.style.setProperty('--color-text', t.text);
+        r.style.setProperty('--color-muted', t.muted);
+        r.style.setProperty('--color-glass', t.glass);
+        r.style.setProperty('--color-glass-border', t.glassBorder);
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

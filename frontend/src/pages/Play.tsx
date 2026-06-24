@@ -666,7 +666,7 @@ const Play = () => {
         </div>
       )}
 
-      <div className="flex flex-col gap-4 py-4 px-5 lg:px-[3rem] 2xl:px-20">
+      <div className="flex flex-col gap-4 py-4 px-3 sm:px-5 lg:px-8">
         <div className="py-1">
           <h1 className="text-xl font-semibold text-text">
             {currentDetail.vod_name}
@@ -893,34 +893,6 @@ const Play = () => {
           </div>
         </div>
       </div>
-
-      <style>{`
-        @keyframes scan-line {
-          0% { transform: translateX(-100%); }
-          100% { transform: translateX(100%); }
-        }
-        @keyframes scan-line-reverse {
-          0% { transform: translateX(100%); }
-          100% { transform: translateX(-100%); }
-        }
-        @keyframes scan-vertical {
-          0% { transform: translateY(-100%); }
-          100% { transform: translateY(100%); }
-        }
-        @keyframes scan-vertical-reverse {
-          0% { transform: translateY(100%); }
-          100% { transform: translateY(-100%); }
-        }
-        @keyframes radar-sweep {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-        .animate-scan-line { animation: scan-line 2s linear infinite; }
-        .animate-scan-line-reverse { animation: scan-line-reverse 2s linear infinite; }
-        .animate-scan-vertical { animation: scan-vertical 3s linear infinite; }
-        .animate-scan-vertical-reverse { animation: scan-vertical-reverse 3s linear infinite; }
-        .animate-radar-sweep { animation: radar-sweep 2s linear infinite; }
-      `}</style>
     </div>
   );
 };
