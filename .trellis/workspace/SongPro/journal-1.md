@@ -5,3 +5,43 @@
 
 ---
 
+
+
+## Session 1: Bootstrap Trellis Project Guidelines
+
+**Date**: 2026-06-24
+**Task**: Bootstrap Trellis Project Guidelines
+**Branch**: `master`
+
+### Summary
+
+Initial Trellis setup: populate backend (Go/Gin) and frontend (React/TypeScript) spec files with real codebase conventions, scaffold workflow system, remove deprecated live TV module, add .gitignore for Windows NUL files
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `cdf4563` | (see git log) |
+| `ff2fd38` | (see git log) |
+| `ef66e4e` | (see git log) |
+| `31c5034` | (see git log) |
+| `a576871` | (see git log) |
+| `72d8f92` | (see git log) |
+| `f3810ad` | (see git log) |
+| `e82b97d` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
