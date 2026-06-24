@@ -45,3 +45,40 @@ Initial Trellis setup: populate backend (Go/Gin) and frontend (React/TypeScript)
 ### Next Steps
 
 - None - task complete
+
+
+## Session 2: Frontend Polish + CI/CD Fixes + Vite Upgrade
+
+**Date**: 2026-06-24
+**Task**: Frontend Polish + CI/CD Fixes + Vite Upgrade
+**Branch**: `master`
+
+### Summary
+
+Unified layout (PageContainer/VideoGrid), theme flicker fix, mobile interactions, shadow clipping fix, Douban selector alignment, Play.tsx import cleanup, changelog generator, Go version + Dockerfile fix, Vite 8.1.0 upgrade
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `a4ea3ea` | (see git log) |
+| `00de32e` | (see git log) |
+| `b77aa78` | (see git log) |
+| `627a576` | (see git log) |
+| `b205bea` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
