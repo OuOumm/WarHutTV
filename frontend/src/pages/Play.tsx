@@ -280,7 +280,6 @@ const Play = () => {
         const cached = sessionStorage.getItem(`search_results:${title}`);
         if (cached) {
           data = JSON.parse(cached) as SearchSiteData[];
-          console.log('复用搜索页面结果');
         }
       } catch (err) {
         console.warn('Play: failed to parse sessionStorage cache', err);
