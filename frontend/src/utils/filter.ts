@@ -52,14 +52,3 @@ export function isExactMatch(name: string, keyword: string): boolean {
   return true;
 }
 
-// 精确匹配筛选
-export function filterExactMatch<T extends { vod_name?: string; title?: string }>(
-  items: T[],
-  keyword: string
-): T[] {
-  if (!keyword) return items;
-  return items.filter((item) => {
-    const name = item.vod_name || item.title || '';
-    return isExactMatch(name, keyword);
-  });
-}
