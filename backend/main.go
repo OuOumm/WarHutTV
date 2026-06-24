@@ -32,6 +32,8 @@ func main() {
 		rateLimit := middleware.LoginRateLimit()
 		api.POST("/auth/login", rateLimit, handlers.Login)
 		api.GET("/proxy/m3u8", handlers.ProxyM3U8)
+		api.GET("/proxy/segment", handlers.ProxySegment)
+		api.GET("/proxy/key", handlers.ProxyKey)
 		api.GET("/proxy/logo", handlers.ProxyLogo)
 		api.GET("/search/stream", handlers.SearchStream)
 		api.GET("/config", handlers.GetConfig)
@@ -45,10 +47,6 @@ func main() {
 		
 		auth.GET("/detail", handlers.Detail)
 		auth.GET("/play", handlers.Play)
-		auth.GET("/live/sources", handlers.GetLiveSources)
-		auth.GET("/live/channels", handlers.GetLiveChannels)
-		auth.GET("/live/precheck", handlers.PrecheckLiveStream)
-		auth.GET("/live/stream", handlers.StreamLive)
 
 		auth.POST("/config", handlers.UpdateConfig)
 		auth.GET("/bangumi/calendar", handlers.BangumiCalendar)
