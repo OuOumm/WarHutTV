@@ -82,3 +82,40 @@ Unified layout (PageContainer/VideoGrid), theme flicker fix, mobile interactions
 ### Next Steps
 
 - None - task complete
+
+
+## Session 3: Dead Code Cleanup + Release Prep
+
+**Date**: 2026-06-25
+**Task**: Dead Code Cleanup + Release Prep
+**Branch**: `master`
+
+### Summary
+
+全项目死代码扫描与清理：删除 handlers/proxy.go (397行)、getSiteKeys、filterExactMatch、theme glow/texture 死变量 (52行)、console.log 调试日志；修复 Dockerfile.release 移除 config.json 依赖；版本升级至 v1.1.0
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `b98171b` | (see git log) |
+| `f51bc0f` | (see git log) |
+| `54400d3` | (see git log) |
+| `5b5665b` | (see git log) |
+| `b03323c` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
