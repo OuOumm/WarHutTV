@@ -31,10 +31,6 @@ func main() {
 	{
 		rateLimit := middleware.LoginRateLimit()
 		api.POST("/auth/login", rateLimit, handlers.Login)
-		api.GET("/proxy/m3u8", handlers.ProxyM3U8)
-		api.GET("/proxy/segment", handlers.ProxySegment)
-		api.GET("/proxy/key", handlers.ProxyKey)
-		api.GET("/proxy/logo", handlers.ProxyLogo)
 		api.GET("/search/stream", handlers.SearchStream)
 		api.GET("/config", handlers.GetConfig)
 		r.GET("/api/version", handlers.GetVersion) // 配置接口无需认证
