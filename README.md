@@ -292,7 +292,6 @@ WarHutTV/
 │   │   ├── search.go         #   跨源搜索（SSE）
 │   │   ├── detail.go         #   视频详情
 │   │   ├── play.go           #   播放地址解析
-│   │   ├── live.go           #   直播频道
 │   │   ├── proxy.go          #   代理转发
 │   │   ├── douban.go         #   豆瓣分类/推荐
 │   │   ├── bangumi.go        #   Bangumi 番组日历
