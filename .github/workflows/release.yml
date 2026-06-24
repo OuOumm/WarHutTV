@@ -19,18 +19,23 @@ jobs:
           - goos: linux
             goarch: amd64
             suffix: ''
+            platform: linux
           - goos: linux
             goarch: arm64
             suffix: ''
+            platform: linux
           - goos: windows
             goarch: amd64
             suffix: '.exe'
+            platform: windows
           - goos: darwin
             goarch: amd64
             suffix: ''
+            platform: mac
           - goos: darwin
             goarch: arm64
             suffix: ''
+            platform: mac
 
     steps:
       - uses: actions/checkout@v4
@@ -63,7 +68,7 @@ jobs:
         run: |
           mkdir -p frontend/dist
           cp -r ../frontend/dist frontend/dist
-          go build -ldflags="-s -w" -trimpath -o ../bin/warhutv-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.suffix }} .
+          go build -ldflags="-s -w" -trimpath -o ../bin/warhutv-${{ matrix.platform }}-${{ matrix.goarch }}${{ matrix.suffix }} .
           rm -rf frontend
 
       - name: Compress with UPX
@@ -72,13 +77,13 @@ jobs:
         with:
           version: latest
           files: |
-            bin/warhutv-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.suffix }}
+            bin/warhutv-${{ matrix.platform }}-${{ matrix.goarch }}${{ matrix.suffix }}
           args: --best --lzma
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: warhutv-${{ matrix.goos }}-${{ matrix.goarch }}
+          name: warhutv-${{ matrix.platform }}-${{ matrix.goarch }}
           path: bin/warhutv-*
 
   # ─── Build Docker image ───
