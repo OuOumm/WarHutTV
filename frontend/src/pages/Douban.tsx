@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useLayoutEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import VideoCard from '../components/VideoCard';
 import LazyGrid from '../components/LazyGrid';
@@ -76,23 +76,39 @@ const Selector = ({
   onChange: (v: string) => void;
 }) => {
   const activeIndex = options.findIndex((o) => o.value === value);
-  const count = options.length;
+  const btnRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const [indicator, setIndicator] = useState<{ left: number; width: number }>({ left: 0, width: 0 });
+
+  useLayoutEffect(() => {
+    const btn = btnRefs.current[activeIndex];
+    if (!btn) return;
+    // Get offset relative to the container
+    const container = btn.parentElement as HTMLElement;
+    if (!container) return;
+    const cRect = container.getBoundingClientRect();
+    const bRect = btn.getBoundingClientRect();
+    setIndicator({
+      left: bRect.left - cRect.left,
+      width: bRect.width,
+    });
+  }, [activeIndex]);
 
   return (
     <div className="relative inline-flex items-center bg-surface rounded-lg p-1">
       <div
         className="absolute top-1 bottom-1 bg-card rounded-md shadow-sm transition-all duration-200"
         style={{
-          width: `calc(${100 / count}% - 2px)`,
-          left: `calc(${(activeIndex / count) * 100}% + 1px)`,
+          width: indicator.width,
+          left: indicator.left,
           pointerEvents: 'none',
         }}
       />
-      {options.map((opt) => (
+      {options.map((opt, i) => (
         <button
           key={opt.value}
+          ref={(el) => { btnRefs.current[i] = el; }}
           onClick={() => onChange(opt.value)}
-          className={`flex-1 relative z-10 px-3 py-1.5 text-sm rounded-md transition-colors whitespace-nowrap ${
+          className={`relative z-10 px-3 py-1.5 text-sm rounded-md transition-colors whitespace-nowrap ${
             value === opt.value
               ? 'text-primary font-medium'
               : 'text-muted hover:text-text'
