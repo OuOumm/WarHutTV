@@ -5,7 +5,6 @@ FROM scratch
 COPY --from=certs /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY warhutv /warhutv
 COPY frontend/dist /frontend/dist
-COPY data/config.json /data/config.json
 
 EXPOSE 3000
 CMD ["/warhutv"]
