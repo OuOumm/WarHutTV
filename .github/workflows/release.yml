@@ -83,7 +83,9 @@ jobs:
 
   # ─── Build Docker image ───
   docker:
+    needs: [build]
     runs-on: ubuntu-latest
+    continue-on-error: true  # Docker push failure should not block release
     steps:
       - uses: actions/checkout@v4
 
@@ -151,7 +153,7 @@ jobs:
 
   # ─── Create GitHub Release with changelog ───
   release:
-    needs: [build, docker]
+    needs: [build]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
