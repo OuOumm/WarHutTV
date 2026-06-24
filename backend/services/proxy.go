@@ -83,14 +83,6 @@ func ProxyDetail(siteKey, vodID string) (*DetailResult, error) {
 	return doRequest[DetailResult](url)
 }
 
-func getSiteKeys(cfg *config.Config) []string {
-	keys := make([]string, 0, len(cfg.APISite))
-	for k := range cfg.APISite {
-		keys = append(keys, k)
-	}
-	return keys
-}
-
 func ProxyPlay(siteKey, vodID string) (string, error) {
 	cfg := config.Get()
 	site, ok := cfg.APISite[siteKey]
