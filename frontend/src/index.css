@@ -566,7 +566,7 @@ button:active {
 }
 
 /* ==================== SCROLLBAR ==================== */
-html[data-theme="emerald-night"] * {
+html[data-theme="emerald-night"] *:not(.scrollbar-hide) {
   scrollbar-width: thin;
   scrollbar-color: rgba(245, 158, 11, 0.15) transparent;
 }
