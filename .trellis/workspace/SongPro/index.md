@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 3
+- **Total Sessions**: 4
 - **Last Active**: 2026-06-25
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~121 | Active |
+| `journal-1.md` | ~154 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 4 | 2026-06-25 | 翡翠夜主题滚动条修复 | `ee5d395` | `master` |
 | 3 | 2026-06-25 | Dead Code Cleanup + Release Prep | `b98171b`, `f51bc0f`, `54400d3`, `5b5665b`, `b03323c` | `master` |
 | 2 | 2026-06-24 | Frontend Polish + CI/CD Fixes + Vite Upgrade | `a4ea3ea`, `00de32e`, `b77aa78`, `627a576`, `b205bea` | `master` |
 | 1 | 2026-06-24 | Bootstrap Trellis Project Guidelines | `cdf4563`, `ff2fd38`, `ef66e4e`, `31c5034`, `a576871`, `72d8f92`, `f3810ad`, `e82b97d` | `master` |

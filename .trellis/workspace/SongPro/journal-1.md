@@ -119,3 +119,36 @@ Unified layout (PageContainer/VideoGrid), theme flicker fix, mobile interactions
 ### Next Steps
 
 - None - task complete
+
+
+## Session 4: 翡翠夜主题滚动条修复
+
+**Date**: 2026-06-25
+**Task**: 翡翠夜主题滚动条修复
+**Branch**: `master`
+
+### Summary
+
+修复翡翠夜主题下热门列表横向滚动条显示问题，通过在 CSS 选择器中排除 scrollbar-hide 类的元素
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `ee5d395` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
