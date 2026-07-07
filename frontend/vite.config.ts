@@ -8,7 +8,9 @@ import { resolve } from 'path'
 let appVersion = '0.0.0'
 try {
   appVersion = readFileSync(resolve(__dirname, '../version'), 'utf-8').trim()
-} catch {}
+} catch {
+  // Keep the development fallback version when the root version file is unavailable.
+}
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],

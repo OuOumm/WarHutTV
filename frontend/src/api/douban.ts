@@ -7,6 +7,44 @@ interface CacheEntry {
   expiry: number;
 }
 
+interface DoubanCategoryItem {
+  id: string;
+  title: string;
+  pic?: {
+    normal?: string;
+    large?: string;
+  };
+  rating?: {
+    value?: number;
+  };
+  card_subtitle?: string;
+}
+
+interface DoubanListItem {
+  id: string;
+  title: string;
+  cover: string;
+  rate: string;
+  card_subtitle?: string;
+}
+
+interface DoubanRecommendItem extends DoubanCategoryItem {
+  type?: string;
+  year?: string;
+}
+
+interface DoubanCategoryResponse {
+  items?: DoubanCategoryItem[];
+}
+
+interface DoubanListResponse {
+  subjects?: DoubanListItem[];
+}
+
+interface DoubanRecommendResponse {
+  items?: DoubanRecommendItem[];
+}
+
 function getCache(key: string): DoubanResult | null {
   try {
     const raw = localStorage.getItem(`douban_cache_${key}`);
@@ -59,10 +97,10 @@ async function fetchWithTimeout(url: string, timeout = 10000): Promise<Response>
   }
 }
 
-async function fetchDoubanAPI(
+async function fetchDoubanAPI<TResponse>(
   cacheKey: string,
   url: string,
-  mapItems: (data: any) => DoubanItem[],
+  mapItems: (data: TResponse) => DoubanItem[],
   errorLabel: string,
 ): Promise<DoubanResult> {
   const cached = getCache(cacheKey);
@@ -71,7 +109,7 @@ async function fetchDoubanAPI(
   try {
     const response = await fetchWithTimeout(url);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const data = await response.json();
+    const data = await response.json() as TResponse;
     const result: DoubanResult = { code: 200, message: 'ok', list: mapItems(data) };
     setCache(cacheKey, result);
     return result;
@@ -93,8 +131,8 @@ export async function getDoubanCategories(params: {
   const { api } = getProxyBases();
   const url = `${api}/rexxar/api/v2/subject/recent_hot/${kind}?start=${pageStart}&limit=${pageLimit}&category=${category}&type=${type}`;
 
-  return fetchDoubanAPI(cacheKey, url, (data) =>
-    (data.items || []).map((item: any) => ({
+  return fetchDoubanAPI<DoubanCategoryResponse>(cacheKey, url, (data) =>
+    (data.items || []).map((item) => ({
       id: item.id,
       title: item.title,
       poster: item.pic?.normal || item.pic?.large || '',
@@ -116,8 +154,8 @@ export async function getDoubanList(params: {
   const { list } = getProxyBases();
   const url = `${list}/j/search_subjects?type=${type}&tag=${tag}&sort=recommend&page_limit=${pageLimit}&page_start=${pageStart}`;
 
-  return fetchDoubanAPI(cacheKey, url, (data) =>
-    (data.subjects || []).map((item: any) => ({
+  return fetchDoubanAPI<DoubanListResponse>(cacheKey, url, (data) =>
+    (data.subjects || []).map((item) => ({
       id: item.id,
       title: item.title,
       poster: item.cover,
@@ -181,10 +219,10 @@ export async function getDoubanRecommends(params: {
 
   const url = `${api}/rexxar/api/v2/${kind}/recommend?${reqParams.toString()}`;
 
-  return fetchDoubanAPI(cacheKey, url, (data) =>
+  return fetchDoubanAPI<DoubanRecommendResponse>(cacheKey, url, (data) =>
     (data.items || [])
-      .filter((item: any) => item.type === 'movie' || item.type === 'tv')
-      .map((item: any) => ({
+      .filter((item) => item.type === 'movie' || item.type === 'tv')
+      .map((item) => ({
         id: item.id,
         title: item.title,
         poster: item.pic?.normal || item.pic?.large || '',

@@ -6,6 +6,14 @@ export interface SpeedTestResult {
   pingTime: number;
 }
 
+function hasArrayBufferPayload(data: unknown): data is { payload: ArrayBuffer } {
+  return typeof data === 'object' && data !== null && 'payload' in data && data.payload instanceof ArrayBuffer;
+}
+
+function isFatalHlsError(data: unknown): data is { fatal: true } {
+  return typeof data === 'object' && data !== null && 'fatal' in data && data.fatal === true;
+}
+
 export async function testVideoSpeed(m3u8Url: string): Promise<SpeedTestResult> {
   return new Promise((resolve, reject) => {
     let settled = false;
@@ -68,9 +76,9 @@ export async function testVideoSpeed(m3u8Url: string): Promise<SpeedTestResult> 
       fragmentStartTime = performance.now();
     });
 
-    hls.on(Hls.Events.FRAG_LOADED, (_event: any, data: any) => {
+    hls.on(Hls.Events.FRAG_LOADED, (_event: unknown, data: unknown) => {
       if (settled || speedCalculated) return;
-      if (fragmentStartTime > 0 && data?.payload) {
+      if (fragmentStartTime > 0 && hasArrayBufferPayload(data)) {
         const loadTime = performance.now() - fragmentStartTime;
         const size = data.payload.byteLength || 0;
         if (loadTime > 0 && size > 0) {
@@ -87,8 +95,8 @@ export async function testVideoSpeed(m3u8Url: string): Promise<SpeedTestResult> 
     hls.loadSource(m3u8Url);
     hls.attachMedia(video);
 
-    hls.on(Hls.Events.ERROR, (_event: any, data: any) => {
-      if (data.fatal) {
+    hls.on(Hls.Events.ERROR, (_event: unknown, data: unknown) => {
+      if (isFatalHlsError(data)) {
         if (settled) return;
         settled = true;
         cleanup();

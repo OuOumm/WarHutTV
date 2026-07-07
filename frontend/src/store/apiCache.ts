@@ -14,7 +14,7 @@ type CacheType = keyof typeof CACHE_TTL;
 const PREFIX = 'api_cache:';
 
 export const apiCacheStore = {
-  async get<T = any>(type: CacheType, key: string): Promise<T | null> {
+  async get<T = unknown>(type: CacheType, key: string): Promise<T | null> {
     const cacheKey = `${PREFIX}${type}:${key}`;
     const cached = await db.detailCache.where('cacheKey').equals(cacheKey).first();
     const ttl = CACHE_TTL[type];
@@ -29,7 +29,7 @@ export const apiCacheStore = {
     return null;
   },
 
-  async set(type: CacheType, key: string, data: any): Promise<void> {
+  async set(type: CacheType, key: string, data: unknown): Promise<void> {
     const cacheKey = `${PREFIX}${type}:${key}`;
     const existing = await db.detailCache.where('cacheKey').equals(cacheKey).first();
     if (existing) {

@@ -18,7 +18,7 @@ func Play(c *gin.Context) {
 
 	playURL, err := services.ProxyPlay(site, vodID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadGateway, gin.H{"error": "请求失败: " + err.Error()})
 		return
 	}
 

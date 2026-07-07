@@ -144,7 +144,11 @@ const VideoCard = memo(({ video, douban, bangumi, from = 'vod', onDelete, showAc
     e.preventDefault();
     e.stopPropagation();
     if (!video) return;
-    onDelete ? onDelete() : historyStore.remove(video.vod_id);
+    if (onDelete) {
+      onDelete();
+      return;
+    }
+    historyStore.remove(video.vod_id);
   }, [video, onDelete]);
 
   // ── Douban variant ──
@@ -184,7 +188,7 @@ const VideoCard = memo(({ video, douban, bangumi, from = 'vod', onDelete, showAc
 
   // ── VOD variant ──
   if (from === 'vod' && video) {
-    const playUrl = `/play/${(video as any).site_key || 'default'}/${video.vod_id}`;
+    const playUrl = `/play/${video.site_key || 'default'}/${video.vod_id}`;
     const metaParts = [video.vod_year, video.type_name].filter(Boolean);
     const remarks = video.vod_remarks;
 

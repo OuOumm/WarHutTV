@@ -25,8 +25,7 @@ func AuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		cfg := config.Get()
-		_, err := utils.ValidateToken(tokenString, cfg.JWTSecret)
+		_, err := utils.ValidateToken(tokenString, config.JWTSecret())
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "无效的令牌"})
 			c.Abort()
@@ -35,11 +34,4 @@ func AuthMiddleware() gin.HandlerFunc {
 
 		c.Next()
 	}
-}
-
-// ValidateToken 验证 JWT token（用于 SSE 等无法设置 header 的场景）
-func ValidateToken(token string) bool {
-	cfg := config.Get()
-	_, err := utils.ValidateToken(token, cfg.JWTSecret)
-	return err == nil
 }

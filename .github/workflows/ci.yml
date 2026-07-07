@@ -36,7 +36,7 @@ jobs:
         run: |
           mkdir -p frontend/dist
           cp -r ../frontend/dist frontend/dist
-          go build -ldflags="-s -w" -o ../bin/warhutv .
+          go build -tags embed -ldflags="-s -w" -o ../bin/warhutv .
           rm -rf frontend
 
       - name: Upload artifact

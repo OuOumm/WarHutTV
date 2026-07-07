@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 	"warhutv/config"
 )
@@ -44,8 +45,8 @@ type VideoDetail struct {
 }
 
 type DetailResult struct {
-	Code int          `json:"code"`
-	Msg  string       `json:"msg"`
+	Code int           `json:"code"`
+	Msg  string        `json:"msg"`
 	List []VideoDetail `json:"list"`
 }
 
@@ -57,15 +58,16 @@ type PlayResult struct {
 	} `json:"list"`
 }
 
+const maxUpstreamResponseBytes = 10 << 20
+
 var client = &http.Client{
 	Timeout: 15 * time.Second,
 }
 
 func ProxySearch(siteKey, keyword string, pg int) (*SearchResult, error) {
-	cfg := config.Get()
-	site, ok := cfg.APISite[siteKey]
-	if !ok {
-		return nil, fmt.Errorf("site not found: %s", siteKey)
+	site, err := getSite(siteKey)
+	if err != nil {
+		return nil, err
 	}
 
 	url := fmt.Sprintf("%s?ac=detail&wd=%s&pg=%d", site.API, url.QueryEscape(keyword), pg)
@@ -73,10 +75,9 @@ func ProxySearch(siteKey, keyword string, pg int) (*SearchResult, error) {
 }
 
 func ProxyDetail(siteKey, vodID string) (*DetailResult, error) {
-	cfg := config.Get()
-	site, ok := cfg.APISite[siteKey]
-	if !ok {
-		return nil, fmt.Errorf("site not found: %s", siteKey)
+	site, err := getSite(siteKey)
+	if err != nil {
+		return nil, err
 	}
 
 	url := fmt.Sprintf("%s?ac=detail&ids=%s", site.API, vodID)
@@ -84,10 +85,9 @@ func ProxyDetail(siteKey, vodID string) (*DetailResult, error) {
 }
 
 func ProxyPlay(siteKey, vodID string) (string, error) {
-	cfg := config.Get()
-	site, ok := cfg.APISite[siteKey]
-	if !ok {
-		return "", fmt.Errorf("site not found: %s", siteKey)
+	site, err := getSite(siteKey)
+	if err != nil {
+		return "", err
 	}
 
 	url := fmt.Sprintf("%s?ac=play&ids=%s", site.API, vodID)
@@ -103,6 +103,15 @@ func ProxyPlay(siteKey, vodID string) (string, error) {
 	return "", fmt.Errorf("no play URL found")
 }
 
+func getSite(siteKey string) (config.SiteConfig, error) {
+	cfg := config.Snapshot()
+	site, ok := cfg.APISite[siteKey]
+	if !ok {
+		return config.SiteConfig{}, fmt.Errorf("site not found: %s", siteKey)
+	}
+	return site, nil
+}
+
 func doRequest[T any](url string) (*T, error) {
 	resp, err := client.Get(url)
 	if err != nil {
@@ -110,7 +119,16 @@ func doRequest[T any](url string) (*T, error) {
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		excerpt, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
+		message := strings.TrimSpace(string(excerpt))
+		if message == "" {
+			message = resp.Status
+		}
+		return nil, fmt.Errorf("upstream status %d: %s", resp.StatusCode, message)
+	}
+
+	body, err := readLimited(resp.Body, maxUpstreamResponseBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -121,4 +139,15 @@ func doRequest[T any](url string) (*T, error) {
 	}
 
 	return &result, nil
+}
+
+func readLimited(r io.Reader, limit int64) ([]byte, error) {
+	body, err := io.ReadAll(io.LimitReader(r, limit+1))
+	if err != nil {
+		return nil, err
+	}
+	if int64(len(body)) > limit {
+		return nil, fmt.Errorf("upstream response exceeds %d bytes", limit)
+	}
+	return body, nil
 }

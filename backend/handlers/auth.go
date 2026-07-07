@@ -20,14 +20,12 @@ func Login(c *gin.Context) {
 		return
 	}
 
-	cfg := config.Get()
-
-	if req.Password != cfg.Password {
+	if req.Password != config.Password() {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "密码错误"})
 		return
 	}
 
-	token, err := utils.GenerateToken(cfg.JWTSecret, 7*24*time.Hour)
+	token, err := utils.GenerateToken(config.JWTSecret(), 7*24*time.Hour)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "生成令牌失败"})
 		return

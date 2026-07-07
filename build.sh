@@ -20,8 +20,7 @@ echo -e "${GREEN}  Done${NC}"
 # 2. Build frontend
 echo -e "\n${YELLOW}[2/5] Building frontend...${NC}"
 cd frontend
-npm run build
-if [ $? -ne 0 ]; then
+if ! npm run build; then
     echo -e "${RED}  Frontend build failed!${NC}"
     exit 1
 fi
@@ -34,32 +33,22 @@ cd backend
 cp -r ../frontend/dist frontend/dist
 
 echo -e "  Building Linux amd64..."
-GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-s -w" -o ../bin/warhutv-linux-amd64 .
-LIN_OK=$?
+GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags embed -ldflags="-s -w" -o ../bin/warhutv-linux-amd64 .
 
 echo -e "  Building Linux arm64..."
-GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -ldflags="-s -w" -o ../bin/warhutv-linux-arm64 .
-LIN_ARM_OK=$?
+GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -tags embed -ldflags="-s -w" -o ../bin/warhutv-linux-arm64 .
 
 echo -e "  Building Windows amd64..."
-GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-s -w" -o ../bin/warhutv-windows-amd64.exe .
-WIN_OK=$?
+GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -tags embed -ldflags="-s -w" -o ../bin/warhutv-windows-amd64.exe .
 
 echo -e "  Building Darwin amd64..."
-GOOS=darwin GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-s -w" -o ../bin/warhutv-darwin-amd64 .
-DARWIN_OK=$?
+GOOS=darwin GOARCH=amd64 CGO_ENABLED=0 go build -tags embed -ldflags="-s -w" -o ../bin/warhutv-darwin-amd64 .
 
 echo -e "  Building Darwin arm64..."
-GOOS=darwin GOARCH=arm64 CGO_ENABLED=0 go build -ldflags="-s -w" -o ../bin/warhutv-darwin-arm64 .
-DARWIN_ARM_OK=$?
+GOOS=darwin GOARCH=arm64 CGO_ENABLED=0 go build -tags embed -ldflags="-s -w" -o ../bin/warhutv-darwin-arm64 .
 
 rm -rf frontend
 cd ..
-
-if [ $LIN_OK -ne 0 ] || [ $LIN_ARM_OK -ne 0 ] || [ $WIN_OK -ne 0 ] || [ $DARWIN_OK -ne 0 ] || [ $DARWIN_ARM_OK -ne 0 ]; then
-    echo -e "${RED}  Backend build failed!${NC}"
-    exit 1
-fi
 echo -e "${GREEN}  Done${NC}"
 
 # 4. Compress with UPX

@@ -10,6 +10,10 @@ interface SpeedResult {
   time: number;
 }
 
+interface ApiSiteConfig {
+  name: string;
+}
+
 /* ---------- shared UI fragments ---------- */
 
 const SpinnerIcon = ({ className = 'h-4 w-4' }: { className?: string }) => (
@@ -133,10 +137,10 @@ const SpeedTest = () => {
     setResults([]);
 
     try {
-      const configRes = await apiClient.get('/config');
+      const configRes = await apiClient.get<{ api_site?: Record<string, ApiSiteConfig> }>('/config');
       const sites = configRes.data.api_site || {};
 
-      const siteList = Object.entries(sites).map(([key, site]: [string, any]) => ({
+      const siteList = Object.entries(sites).map(([key, site]) => ({
         site: key,
         name: site.name,
       }));

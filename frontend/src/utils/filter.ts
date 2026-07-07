@@ -27,7 +27,7 @@ export function filterYellowItems<T extends { vod_name?: string; title?: string;
 
 // 标准化字符串：去除特殊字符和空格
 export function normalizeString(str: string): string {
-  return str.replace(/[\s\-_\[\]【】（）()《》<>·.、，,。：:；;！!？?"']/g, '').toLowerCase();
+  return str.replace(/[\s_[\]【】（）()《》<>·.、，,。：:；;！!？?"'-]/g, '').toLowerCase();
 }
 
 // 检查是否精确匹配

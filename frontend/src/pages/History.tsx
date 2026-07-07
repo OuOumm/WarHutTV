@@ -26,7 +26,9 @@ const History = () => {
       await loadHistory();
       setToast('已清空播放历史');
       setTimeout(() => setToast(''), 2000);
-    } catch {}
+    } catch {
+      // Ignore clear failures; the existing history view remains unchanged.
+    }
   };
 
   if (loading) {

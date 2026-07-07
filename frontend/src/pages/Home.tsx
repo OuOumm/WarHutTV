@@ -11,6 +11,7 @@ import { historyStore } from '../store/history';
 import { favoritesStore } from '../store/favorites';
 import { useConfig } from '../store/config';
 import type { DoubanItem, BangumiCalendarData } from '../types';
+import type { Favorite, WatchHistory } from '../store/db';
 
 // Section with scroll reveal
 const Section = ({ children, className = '' }: { children: React.ReactNode; className?: string }) => {
@@ -86,11 +87,10 @@ const Home = () => {
   const [hotTvShows, setHotTvShows] = useState<DoubanItem[]>([]);
   const [hotVariety, setHotVariety] = useState<DoubanItem[]>([]);
   const [bangumiData, setBangumiData] = useState<BangumiCalendarData[]>([]);
-  const [continueWatching, setContinueWatching] = useState<any[]>([]);
-  const [favoriteItems, setFavoriteItems] = useState<any[]>([]);
+  const [continueWatching, setContinueWatching] = useState<WatchHistory[]>([]);
+  const [favoriteItems, setFavoriteItems] = useState<Favorite[]>([]);
   const [loading, setLoading] = useState(true);
   const { siteName } = useConfig();
-
 
   useEffect(() => {
     loadCachedData();
@@ -99,32 +99,32 @@ const Home = () => {
 
   useEffect(() => {
     if (activeTab === 'favorites') {
-      favoritesStore.getAll().then(setFavoriteItems).catch(() => {});
+      favoritesStore.getAll().then(setFavoriteItems).catch(() => {
+        // Keep the existing favorites list if IndexedDB is unavailable.
+      });
     }
   }, [activeTab]);
 
-  const loadCachedData = (): boolean => {
+  const loadCachedData = () => {
     try {
-      let hit = false;
       const moviesRaw = localStorage.getItem('douban_cache_cat:movie:热门:全部:20:0');
       const tvRaw = localStorage.getItem('douban_cache_cat:tv:tv:tv:20:0');
       const bangumiRaw = localStorage.getItem('bangumi_calendar');
 
       if (moviesRaw) {
         const entry = JSON.parse(moviesRaw);
-        if (Date.now() < entry.expiry) { setHotMovies(entry.data.list || []); hit = true; }
+        if (Date.now() < entry.expiry) setHotMovies(entry.data.list || []);
       }
       if (tvRaw) {
         const entry = JSON.parse(tvRaw);
-        if (Date.now() < entry.expiry) { setHotTvShows(entry.data.list || []); hit = true; }
+        if (Date.now() < entry.expiry) setHotTvShows(entry.data.list || []);
       }
       if (bangumiRaw) {
         const entry = JSON.parse(bangumiRaw);
-        if (Date.now() < entry.expiry) { setBangumiData(entry.data || []); hit = true; }
+        if (Date.now() < entry.expiry) setBangumiData(entry.data || []);
       }
-      return hit;
     } catch {
-      return false;
+      // Ignore invalid cache entries; fresh data is loaded below.
     }
   };
 
@@ -204,7 +204,7 @@ const Home = () => {
                     <button onClick={handleClearHistory} className="text-sm text-muted hover:text-primary transition-colors">清空</button>
                   </div>
                   <ScrollableRow>
-                    {continueWatching.map((item: any) => (
+                    {continueWatching.map((item) => (
                       <VideoCard
                         key={item.vod_name}
                         video={item}
@@ -212,7 +212,7 @@ const Home = () => {
                         showActions
                         onDelete={async () => {
                           await historyStore.removeByName(item.vod_name);
-                          setContinueWatching(prev => prev.filter((i: any) => i.vod_name !== item.vod_name));
+                          setContinueWatching(prev => prev.filter((i) => i.vod_name !== item.vod_name));
                         }}
                       />
                     ))}
@@ -297,11 +297,11 @@ const Home = () => {
               </div>
             ) : (
               <VideoGrid variant="favorites">
-                {favoriteItems.map((item: any) => (
+                {favoriteItems.map((item) => (
                   <div key={item.vod_id} className="w-full">
                     <VideoCard video={item} from="vod" showActions onDelete={async () => {
                       await favoritesStore.remove(item.vod_id);
-                      setFavoriteItems(prev => prev.filter((i: any) => i.vod_id !== item.vod_id));
+                      setFavoriteItems(prev => prev.filter((i) => i.vod_id !== item.vod_id));
                     }} />
                   </div>
                 ))}

@@ -10,7 +10,7 @@ import (
 )
 
 func GetConfig(c *gin.Context) {
-	cfg := config.Get()
+	cfg := config.Snapshot()
 
 	resp := gin.H{
 		"site_name":    cfg.SiteName,
@@ -34,7 +34,7 @@ func isAuthed(c *gin.Context) bool {
 	if tokenString == authHeader {
 		return false
 	}
-	_, err := utils.ValidateToken(tokenString, config.Get().JWTSecret)
+	_, err := utils.ValidateToken(tokenString, config.JWTSecret())
 	return err == nil
 }
 
@@ -51,19 +51,9 @@ func UpdateConfig(c *gin.Context) {
 		return
 	}
 
-	cfg := config.Get()
+	config.Update(req.SiteName, req.Announcement, req.APISite)
 
-	if req.SiteName != nil {
-		cfg.SiteName = *req.SiteName
-	}
-	if req.Announcement != nil {
-		cfg.Announcement = *req.Announcement
-	}
-	if req.APISite != nil {
-		cfg.APISite = *req.APISite
-	}
-
-	if err := cfg.Save("data/config.json"); err != nil {
+	if err := config.Save("data/config.json"); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "保存配置失败"})
 		return
 	}

@@ -3,10 +3,10 @@ import { db } from './db';
 const CACHE_TTL = 2 * 60 * 60 * 1000; // 2小时
 
 export const detailCacheStore = {
-  async get(cacheKey: string): Promise<any | null> {
+  async get<T = unknown>(cacheKey: string): Promise<T | null> {
     const cached = await db.detailCache.where('cacheKey').equals(cacheKey).first();
     if (cached && Date.now() - cached.cachedAt < CACHE_TTL) {
-      return cached.data;
+      return cached.data as T;
     }
     // 过期则删除
     if (cached) {
@@ -15,7 +15,7 @@ export const detailCacheStore = {
     return null;
   },
 
-  async set(cacheKey: string, data: any): Promise<void> {
+  async set(cacheKey: string, data: unknown): Promise<void> {
     const existing = await db.detailCache.where('cacheKey').equals(cacheKey).first();
     if (existing) {
       await db.detailCache.update(existing.id!, { data, cachedAt: Date.now() });

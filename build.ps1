@@ -38,7 +38,7 @@ Copy-Item -Path "..\frontend\dist" -Destination "frontend\dist" -Recurse -Force
 Write-Host "  Building Windows amd64..." -ForegroundColor Gray
 $env:GOOS = "windows"
 $env:GOARCH = "amd64"
-go build -o "..\bin\warhutv-windows-amd64.exe" -ldflags="-s -w" .
+go build -tags embed -o "..\bin\warhutv-windows-amd64.exe" -ldflags="-s -w" .
 $winOk = $LASTEXITCODE -eq 0
 Remove-Item Env:GOOS -ErrorAction SilentlyContinue
 Remove-Item Env:GOARCH -ErrorAction SilentlyContinue
@@ -46,7 +46,7 @@ Remove-Item Env:GOARCH -ErrorAction SilentlyContinue
 Write-Host "  Building Linux amd64..." -ForegroundColor Gray
 $env:GOOS = "linux"
 $env:GOARCH = "amd64"
-go build -o "..\bin\warhutv-linux-amd64" -ldflags="-s -w" .
+go build -tags embed -o "..\bin\warhutv-linux-amd64" -ldflags="-s -w" .
 $linOk = $LASTEXITCODE -eq 0
 Remove-Item Env:GOOS -ErrorAction SilentlyContinue
 Remove-Item Env:GOARCH -ErrorAction SilentlyContinue

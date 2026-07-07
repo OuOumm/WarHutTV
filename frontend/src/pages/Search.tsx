@@ -5,6 +5,7 @@ import VideoCard from '../components/VideoCard';
 import PageContainer from '../components/PageContainer';
 import VideoGrid from '../components/VideoGrid';
 import type { VideoItem } from '../types';
+import { streamSearchResults } from '../api/searchStream';
 import { filterYellowItems, isExactMatch } from '../utils/filter';
 
 interface StreamProgress {
@@ -110,7 +111,7 @@ const Search = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [streamProgress, setStreamProgress] = useState<StreamProgress | null>(null);
-  const eventSourceRef = useRef<EventSource | null>(null);
+  const searchAbortRef = useRef<AbortController | null>(null);
   const [exactMatch, setExactMatch] = useState(() => {
     try {
       return localStorage.getItem('searchExactMatch') !== 'false';
@@ -132,7 +133,9 @@ const Search = () => {
     setExactMatch(newValue);
     try {
       localStorage.setItem('searchExactMatch', String(newValue));
-    } catch {}
+    } catch {
+      // Ignore storage failures; the in-memory toggle state is already updated.
+    }
   };
 
   const handleViewChange = useCallback(() => {
@@ -142,10 +145,8 @@ const Search = () => {
   useEffect(() => {
     if (keyword) searchVideos(keyword);
     return () => {
-      if (eventSourceRef.current) {
-        eventSourceRef.current.close();
-        eventSourceRef.current = null;
-      }
+      searchAbortRef.current?.abort();
+      searchAbortRef.current = null;
     };
   }, [keyword]);
 
@@ -156,69 +157,61 @@ const Search = () => {
     setResults([]);
     setStreamProgress({ completed: 0, total: 0, currentSite: '' });
 
-    if (eventSourceRef.current) {
-      eventSourceRef.current.close();
-    }
-
-    const token = localStorage.getItem('token') || '';
-    const url = `/api/search/stream?wd=${encodeURIComponent(wd)}&token=${token}`;
-    
-    const eventSource = new EventSource(url);
-    eventSourceRef.current = eventSource;
+    searchAbortRef.current?.abort();
+    const controller = new AbortController();
+    searchAbortRef.current = controller;
 
     // 只维护一个 siteResults 数组
     const siteResults: SiteSearchResult[] = [];
 
-    eventSource.addEventListener('start', (e) => {
-      const data = JSON.parse(e.data);
-      setStreamProgress({ completed: 0, total: data.site_count, currentSite: '' });
-    });
-
-    eventSource.addEventListener('result', (e) => {
-      const data = JSON.parse(e.data);
-      const siteResult = data.data;
-      if (siteResult) {
-        // 添加 site_key 到 siteResult，供播放页复用
-        siteResult.site_key = data.site;
-        siteResult.name = data.name;
-        siteResults.push(siteResult);
-        // 从 siteResults 提取扁平列表用于显示
-        const flatList = siteResults.flatMap(r => r.list || []);
-        setResults(filterYellowItems(flatList));
-      }
-      setStreamProgress({
-        completed: data.completed,
-        total: data.total,
-        currentSite: data.name,
-      });
-    });
-
-    eventSource.addEventListener('error', () => {
-      if (eventSource.readyState === EventSource.CLOSED) {
+    streamSearchResults<SiteSearchResult>(wd, {
+      onStart: (data) => {
+        setStreamProgress({ completed: 0, total: data.site_count, currentSite: '' });
+      },
+      onResult: (data) => {
+        const siteResult = data.data;
+        if (siteResult) {
+          // 添加 site_key 到 siteResult，供播放页复用
+          siteResult.site_key = data.site;
+          siteResult.name = data.name;
+          siteResults.push(siteResult);
+          // 从 siteResults 提取扁平列表用于显示
+          const flatList = siteResults.flatMap(r => r.list || []);
+          setResults(filterYellowItems(flatList));
+        }
+        setStreamProgress({
+          completed: data.completed,
+          total: data.total,
+          currentSite: data.name,
+        });
+      },
+      onTimeout: () => {
+        setStreamProgress(prev => prev ? { ...prev, currentSite: '超时' } : null);
+      },
+      onDone: () => {
         setLoading(false);
         setStreamProgress(null);
-        if (siteResults.length === 0) setError('搜索连接失败');
-      }
-    });
+        searchAbortRef.current = null;
+        const flatList = siteResults.flatMap(r => r.list || []);
+        setResults(filterYellowItems(flatList));
 
-    eventSource.addEventListener('timeout', () => {
-      setStreamProgress(prev => prev ? { ...prev, currentSite: '超时' } : null);
-    });
-
-    eventSource.addEventListener('done', () => {
+        // 存储 siteResults，供播放页面复用
+        try {
+          sessionStorage.setItem(`search_results:${wd}`, JSON.stringify(siteResults));
+        } catch {
+          // Ignore storage failures; search results remain visible in memory.
+        }
+      },
+    }, { signal: controller.signal }).catch((err: unknown) => {
+      if (controller.signal.aborted) return;
       setLoading(false);
       setStreamProgress(null);
-      eventSource.close();
-      eventSourceRef.current = null;
-      const flatList = siteResults.flatMap(r => r.list || []);
-      setResults(filterYellowItems(flatList));
-      
-      // 存储 siteResults，供播放页面复用
-      try {
-        sessionStorage.setItem(`search_results:${wd}`, JSON.stringify(siteResults));
-      } catch {}
+      searchAbortRef.current = null;
+      if (siteResults.length === 0) {
+        const message = err instanceof Error ? err.message : '搜索连接失败';
+        setError(message);
+      }
     });
-
   };
 
   // 精确匹配筛选后的结果

@@ -21,8 +21,11 @@ const Login = () => {
     try {
       await login(password);
       navigate('/');
-    } catch (err: any) {
-      setError(err.response?.data?.error || '登录失败');
+    } catch (err: unknown) {
+      const message = err && typeof err === 'object' && 'response' in err
+        ? (err as { response?: { data?: { error?: string } } }).response?.data?.error
+        : undefined;
+      setError(message || '登录失败');
     } finally {
       setLoading(false);
     }

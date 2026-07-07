@@ -18,7 +18,7 @@ export interface WatchHistory extends VideoItem {
 export interface DetailCache {
   id?: number;
   cacheKey: string;
-  data: any;
+  data: unknown;
   cachedAt: number;
 }
 

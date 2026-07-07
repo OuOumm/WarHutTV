@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -17,21 +18,31 @@ import (
 )
 
 type siteResult struct {
-	SiteKey string              `json:"site_key"`
-	Name    string              `json:"name"`
+	SiteKey string               `json:"site_key"`
+	Name    string               `json:"name"`
 	List    []services.VideoItem `json:"list"`
-	Error   string              `json:"error,omitempty"`
+	Error   string               `json:"error,omitempty"`
+}
+
+func setSSEHeaders(c *gin.Context) {
+	c.Header("Content-Type", "text/event-stream")
+	c.Header("Cache-Control", "no-cache")
+	c.Header("Connection", "keep-alive")
+	c.Header("X-Accel-Buffering", "no")
 }
 
 func SearchStream(c *gin.Context) {
-	// SSE 无法设置 header，通过 query 参数校验 token
-	token := c.Query("token")
-	if token == "" {
+	authHeader := c.GetHeader("Authorization")
+	if authHeader == "" {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "未提供认证令牌"})
 		return
 	}
-	cfg := config.Get()
-	if _, err := utils.ValidateToken(token, cfg.JWTSecret); err != nil {
+	token := strings.TrimPrefix(authHeader, "Bearer ")
+	if token == authHeader {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "无效的认证格式"})
+		return
+	}
+	if _, err := utils.ValidateToken(token, config.JWTSecret()); err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "无效的令牌"})
 		return
 	}
@@ -50,16 +61,14 @@ func SearchStream(c *gin.Context) {
 		return
 	}
 
-	siteCount := len(cfg.APISite)
+	cfg := config.Snapshot()
+	sites := cfg.APISite
+	siteCount := len(sites)
 
 	// 检查缓存
 	cacheKey := fmt.Sprintf("search:%s:%d", keyword, pg)
 	if cached, ok := services.AppCache.Get(cacheKey); ok {
-		// 有缓存，直接流式返回
-		c.Header("Content-Type", "text/event-stream")
-		c.Header("Cache-Control", "no-cache")
-		c.Header("Connection", "keep-alive")
-		c.Header("X-Accel-Buffering", "no")
+		setSSEHeaders(c)
 
 		if _, ok := c.Writer.(http.Flusher); !ok {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Streaming not supported"})
@@ -92,11 +101,7 @@ func SearchStream(c *gin.Context) {
 		}
 	}
 
-	// SSE 响应头
-	c.Header("Content-Type", "text/event-stream")
-	c.Header("Cache-Control", "no-cache")
-	c.Header("Connection", "keep-alive")
-	c.Header("X-Accel-Buffering", "no")
+	setSSEHeaders(c)
 
 	// 检查是否支持 Flush
 	if _, ok := c.Writer.(http.Flusher); !ok {
@@ -144,45 +149,53 @@ func SearchStream(c *gin.Context) {
 	completed := 0
 	var results []siteResult
 
-	for siteKey := range cfg.APISite {
+	for siteKey, site := range sites {
 		wg.Add(1)
-		go func(key string) {
+		go func(key string, site config.SiteConfig) {
 			defer wg.Done()
 
 			result, err := services.ProxySearch(key, keyword, pg)
 			if err != nil {
+				mu.Lock()
+				completed++
+				current := completed
+				mu.Unlock()
+
 				sendSSE("error", map[string]interface{}{
-					"site":  key,
-					"name":  cfg.APISite[key].Name,
-					"error": err.Error(),
+					"site":      key,
+					"name":      site.Name,
+					"error":     err.Error(),
+					"completed": current,
+					"total":     siteCount,
 				})
 				return
 			}
 
-			siteName := cfg.APISite[key].Name
 			for i := range result.List {
-				result.List[i].SourceName = siteName
+				result.List[i].SourceName = site.Name
 				result.List[i].SiteKey = key
+			}
+
+			siteData := siteResult{
+				SiteKey: key,
+				Name:    site.Name,
+				List:    result.List,
 			}
 
 			mu.Lock()
 			completed++
 			current := completed
-			results = append(results, siteResult{
-				SiteKey: key,
-				Name:    siteName,
-				List:    result.List,
-			})
+			results = append(results, siteData)
 			mu.Unlock()
 
 			sendSSE("result", map[string]interface{}{
 				"site":      key,
-				"name":      siteName,
-				"data":      result,
+				"name":      site.Name,
+				"data":      siteData,
 				"completed": current,
 				"total":     siteCount,
 			})
-		}(siteKey)
+		}(siteKey, site)
 	}
 
 	done := make(chan struct{})

@@ -9,9 +9,9 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Go-1.21+-00ADD8?logo=go&logoColor=white" alt="Go">
+  <img src="https://img.shields.io/badge/Go-1.26-00ADD8?logo=go&logoColor=white" alt="Go">
   <img src="https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white" alt="React">
-  <img src="https://img.shields.io/badge/Vite-6-646CFF?logo=vite&logoColor=white" alt="Vite">
+  <img src="https://img.shields.io/badge/Vite-8-646CFF?logo=vite&logoColor=white" alt="Vite">
   <img src="https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white" alt="Docker">
   <img src="https://img.shields.io/badge/PWA-Supported-5A0FC8?logo=pwa&logoColor=white" alt="PWA">
   <img src="https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey" alt="CC BY-NC-SA 4.0">
@@ -138,8 +138,8 @@ WarHutTV 是一个自托管的媒体聚合播放器，从多个第三方视频�
 
 ### 环境要求
 
-- **Go** 1.21+
-- **Node.js** 18+ & **npm** 9+（仅开发需要）
+- **Go** 1.26（与 `backend/go.mod`、CI、Dockerfile 保持一致）
+- **Node.js** 20+ & **npm** 11+（仅开发需要）
 
 ### 开发模式
 
@@ -153,7 +153,7 @@ cd WarHutTV
 # 详见下方配置章节
 
 # 2. 启动后端（默认 :3000）
-cd backend && go run main.go
+cd backend && go run .
 
 # 3. 新终端，启动前端（Vite dev server :5173）
 cd frontend && npm install && npm run dev

@@ -68,7 +68,7 @@ jobs:
         run: |
           mkdir -p frontend/dist
           cp -r ../frontend/dist frontend/dist
-          go build -ldflags="-s -w" -trimpath -o ../bin/warhutv-${{ matrix.platform }}-${{ matrix.goarch }}${{ matrix.suffix }} .
+          go build -tags embed -ldflags="-s -w" -trimpath -o ../bin/warhutv-${{ matrix.platform }}-${{ matrix.goarch }}${{ matrix.suffix }} .
           rm -rf frontend
 
       - name: Compress with UPX
@@ -122,7 +122,7 @@ jobs:
         run: |
           mkdir -p frontend/dist
           cp -r ../frontend/dist frontend/dist
-          go build -ldflags="-s -w" -trimpath -o ../warhutv .
+          go build -tags embed -ldflags="-s -w" -trimpath -o ../warhutv .
           rm -rf frontend
 
       - name: Setup Docker Buildx
@@ -188,8 +188,9 @@ jobs:
           if [ -n "$PREV" ]; then
             python scripts/generate_changelog.py "$PREV" "${{ github.ref_name }}" > changelog.md
           else
-            # First release — show all commits
-            python scripts/generate_changelog.py "" "${{ github.ref_name }}" > changelog.md
+            # First release — show all commits from root
+            ROOT=$(git rev-list --max-parents=0 HEAD)
+            python scripts/generate_changelog.py "$ROOT" "${{ github.ref_name }}" > changelog.md
           fi
           echo "--- Changelog ---"
           cat changelog.md

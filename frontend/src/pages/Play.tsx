@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
 import { useParams } from 'react-router-dom';
 import apiClient from '../api/client';
+import { streamSearchResults } from '../api/searchStream';
 
 // 动态导入 Player 组件 - 减少初始包大小
 const Player = lazy(() => import('../components/Player'));
@@ -38,6 +39,10 @@ interface SearchSiteData {
   name?: string;
   list?: SearchSiteItem[];
   source_name?: string;
+}
+
+interface DetailResponse {
+  list?: VideoDetail[];
 }
 
 // 测速结果 with source detail
@@ -88,6 +93,7 @@ function parseSpeed(speedStr: string): number {
 
 // Module-level: 无响应式依赖，纯数据处理函数
 async function getPlayableUrlModule(url: string, sourceKey?: string) {
+  void sourceKey;
   if (!url) return url;
   if (url.includes('.m3u8')) {
     const adEnabled = localStorage.getItem('enable_blockad') !== 'false';
@@ -95,10 +101,7 @@ async function getPlayableUrlModule(url: string, sourceKey?: string) {
       const { fetchAndFilterM3U8 } = await import('../utils/adblock');
       return await fetchAndFilterM3U8(url);
     }
-    const encodedUrl = encodeURIComponent(url);
-    return sourceKey
-      ? `/api/proxy/m3u8?url=${encodedUrl}&moontv-source=${encodeURIComponent(sourceKey)}`
-      : `/api/proxy/m3u8?url=${encodedUrl}`;
+    return url;
   }
   return url;
 }
@@ -145,7 +148,7 @@ const Play = () => {
   const [searchProgress, setSearchProgress] = useState<{ completed: number; total: number; currentSite: string } | null>(null);
   const EPISODES_PER_PAGE = 50;
   const optimizeStarted = useRef(false);
-  const eventSourceRef = useRef<EventSource | null>(null);
+  const searchAbortRef = useRef<AbortController | null>(null);
   const playRequestId = useRef(0); // 用于异步竞态保护 (Issue 7)
   const switchRequestId = useRef(0); // 用于源切换异步竞态保护
   const sourceListRef = useRef<HTMLDivElement>(null); // 换源列表自动滚动
@@ -177,12 +180,10 @@ const Play = () => {
       loadDetail();
     }
     
-    // 组件卸载时关闭 EventSource
+    // 组件卸载时取消搜索流
     return () => {
-      if (eventSourceRef.current) {
-        eventSourceRef.current.close();
-        eventSourceRef.current = null;
-      }
+      searchAbortRef.current?.abort();
+      searchAbortRef.current = null;
     };
   }, [site, id]);
 
@@ -210,14 +211,15 @@ const Play = () => {
     try {
       // 检查缓存
       const cacheKey = `${site}:${id}`;
-      let data = await detailCacheStore.get(cacheKey);
+      let data = await detailCacheStore.get<DetailResponse>(cacheKey);
       if (!data) {
-        const response = await apiClient.get('/detail', { params: { site, ids: id } });
+        const response = await apiClient.get<DetailResponse>('/detail', { params: { site, ids: id } });
         data = response.data;
         if (data) await detailCacheStore.set(cacheKey, data);
       }
-      if (data?.list?.length > 0) {
-        const videoDetail = data.list[0] as VideoDetail;
+      const detailList = data?.list || [];
+      if (detailList.length > 0) {
+        const videoDetail = detailList[0];
         setDetail(videoDetail);
         setCurrentSource(site || '');
         
@@ -489,77 +491,66 @@ const Play = () => {
   // 流式搜索函数 (Issue 5: 增加超时和错误兜底)
   const streamSearch = (wd: string): Promise<SearchSiteData[]> => {
     return new Promise((resolve) => {
-      const token = localStorage.getItem('token') || '';
-      const url = `/api/search/stream?wd=${encodeURIComponent(wd)}&token=${token}`;
-      
-      const eventSource = new EventSource(url);
-      eventSourceRef.current = eventSource;
+      searchAbortRef.current?.abort();
+      const controller = new AbortController();
+      searchAbortRef.current = controller;
       const allResults: SearchSiteData[] = [];
-      let siteCount = 0;
+      let settled = false;
+
+      const finish = () => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timeoutId);
+        searchAbortRef.current = null;
+        resolve(allResults);
+      };
       
       // 30 秒总超时，避免一直卡在搜索状态 (Issue 5)
       const timeoutId = setTimeout(() => {
         console.warn('Play: search timeout, resolving with partial results');
-        eventSource.close();
-        eventSourceRef.current = null;
-        resolve(allResults);
+        controller.abort();
+        finish();
       }, 30000);
       
-      eventSource.addEventListener('start', (e) => {
-        const data = JSON.parse(e.data) as { site_count: number };
-        siteCount = data.site_count;
-        setSearchProgress({ completed: 0, total: siteCount, currentSite: '' });
-      });
-      
-      eventSource.addEventListener('result', (e) => {
-        const data = JSON.parse(e.data) as { data: SearchSiteData; completed: number; total: number; name: string };
-        const siteResult = data.data;
-        if (siteResult) {
-          allResults.push(siteResult);
+      streamSearchResults<SearchSiteData>(wd, {
+        onStart: (data) => {
+          setSearchProgress({ completed: 0, total: data.site_count, currentSite: '' });
+        },
+        onResult: (data) => {
+          const siteResult = data.data;
+          if (siteResult) {
+            allResults.push(siteResult);
+          }
+          setSearchProgress({
+            completed: data.completed,
+            total: data.total,
+            currentSite: data.name,
+          });
+        },
+        onDone: () => {
+          // 缓存结果
+          try {
+            sessionStorage.setItem(`search_results:${wd}`, JSON.stringify(allResults));
+          } catch (err) {
+            console.warn('Play: failed to cache search results', err);
+          }
+          finish();
+        },
+        onTimeout: finish,
+      }, { signal: controller.signal }).catch((err: unknown) => {
+        if (!controller.signal.aborted) {
+          console.warn('Play: stream search failed', err);
         }
-        setSearchProgress({
-          completed: data.completed,
-          total: data.total,
-          currentSite: data.name,
-        });
+        finish();
       });
-      
-      eventSource.addEventListener('done', () => {
-        clearTimeout(timeoutId);
-        eventSource.close();
-        eventSourceRef.current = null;
-        // 缓存结果
-        try {
-          sessionStorage.setItem(`search_results:${wd}`, JSON.stringify(allResults));
-        } catch (err) {
-          console.warn('Play: failed to cache search results', err);
-        }
-        resolve(allResults);
-      });
-      
-      eventSource.addEventListener('error', () => {
-        // 任何错误都主动关闭并 resolve 已有结果，避免浏览器自动重连卡死 (Issue 5)
-        clearTimeout(timeoutId);
-        eventSource.close();
-        eventSourceRef.current = null;
-        resolve(allResults);
-      });
-      
-      eventSource.addEventListener('timeout', () => {
-        clearTimeout(timeoutId);
-        eventSource.close();
-        eventSourceRef.current = null;
-        resolve(allResults);
-      });
-
     });
   };
 
   const getCachedDetail = async (sourceKey: string, vodId: string | number): Promise<VideoDetail | undefined> => {
     const cacheKey = `${sourceKey}:${vodId}`;
-    const cached = await detailCacheStore.get(cacheKey);
+    const cached = await detailCacheStore.get<DetailResponse>(cacheKey);
     if (cached) return cached?.list?.[0] as VideoDetail | undefined;
-    const res = await apiClient.get('/detail', { params: { site: sourceKey, ids: vodId } });
+    const res = await apiClient.get<DetailResponse>('/detail', { params: { site: sourceKey, ids: vodId } });
     const data = res.data?.list?.[0] as VideoDetail | undefined;
     if (res.data) await detailCacheStore.set(cacheKey, res.data);
     return data;
