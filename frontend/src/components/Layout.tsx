@@ -93,13 +93,16 @@ const Layout = memo(({ children }: LayoutProps) => {
         </div>
       </div>
 
-      {/* Desktop content area — indented by sidebar width */}
+      {/* Content — rendered ONCE for all viewports */}
+      {/* 桌面区作为唯一内容容器，用响应式 padding/margin 适配移动端 */}
       <div
-        className="hidden md:block transition-all duration-300 min-h-screen relative"
-        style={{ marginLeft: collapsed ? 64 : 256 }}
+        className={`duration-300 min-h-screen relative pt-14 md:pt-0 pb-[calc(3.5rem+env(safe-area-inset-bottom))] md:pb-0 ${
+          collapsed ? 'md:ml-[64px]' : 'md:ml-[256px]'
+        }`}
+        style={{ transition: 'margin-left 300ms' }}
       >
-        {/* Desktop top bar — three-column layout */}
-        <div className="sticky top-0 z-20 flex items-center px-4 py-3">
+        {/* Desktop top bar — hidden on mobile */}
+        <div className="hidden md:flex sticky top-0 z-20 items-center px-4 py-3">
           <div className="flex-1" />
 
           {isHome && (
@@ -124,22 +127,15 @@ const Layout = memo(({ children }: LayoutProps) => {
           </div>
         </div>
 
-        <main className="px-4 sm:px-6 pb-14 md:pb-0">
+        <main className="px-4 sm:px-6">
           <HomeTabContext.Provider value={{ activeTab: homeTab, setActiveTab: setHomeTab }}>
             {children}
           </HomeTabContext.Provider>
         </main>
       </div>
 
-      {/* Mobile content area */}
-      <div className="md:hidden">
-        <div className="pt-14 px-3 pb-[calc(3.5rem+env(safe-area-inset-bottom))]">
-          <HomeTabContext.Provider value={{ activeTab: homeTab, setActiveTab: setHomeTab }}>
-            {children}
-          </HomeTabContext.Provider>
-        </div>
-        <MobileNav />
-      </div>
+      {/* Mobile bottom navigation */}
+      <MobileNav />
     </div>
   );
 });

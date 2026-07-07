@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useRef, useState } from 'react';
 import Artplayer from 'artplayer';
 import Hls from 'hls.js';
@@ -14,6 +13,33 @@ interface PlayerProps {
 
 interface HlsVideoElement extends HTMLVideoElement {
   hls?: Hls;
+}
+
+function destroyVideo(video?: HTMLVideoElement | null) {
+  if (!video) return;
+  const hlsVideo = video as HlsVideoElement;
+  if (hlsVideo.hls) {
+    hlsVideo.hls.destroy();
+    delete hlsVideo.hls;
+  }
+  video.pause();
+  video.removeAttribute('src');
+  video.load();
+}
+
+function destroyPlayer(art: Artplayer | null, container?: HTMLDivElement | null) {
+  if (!art) return;
+  try {
+    // 先销毁 Artplayer（移除所有事件监听器），防止 video 操作触发异步恢复
+    const video = art.video;
+    art.destroy();
+    // 再清理 HLS 等视频资源
+    destroyVideo(video);
+  } catch (err) {
+    console.warn('Player: error during cleanup', err);
+  } finally {
+    container?.replaceChildren();
+  }
 }
 
 const Player = ({ url, title, currentTime, onTimeUpdate }: PlayerProps) => {
@@ -48,19 +74,8 @@ const Player = ({ url, title, currentTime, onTimeUpdate }: PlayerProps) => {
   useEffect(() => {
     if (!artRef.current || !url) return;
 
-    if (artInstance.current) {
-      try {
-        const video = artInstance.current.video as HlsVideoElement;
-        if (video && video.hls) {
-          video.hls.destroy();
-          delete video.hls;
-        }
-        artInstance.current.destroy();
-      } catch (err) {
-        console.warn('Player: error destroying previous instance', err);
-      }
-      artInstance.current = null;
-    }
+    destroyPlayer(artInstance.current, artRef.current);
+    artInstance.current = null;
 
     // 清理上一次的 Blob URL
     if (prevBlobUrl.current) {
@@ -118,10 +133,7 @@ const Player = ({ url, title, currentTime, onTimeUpdate }: PlayerProps) => {
         m3u8: function (video: HTMLVideoElement, videoUrl: string) {
           if (!Hls) return;
           const hlsVideo = video as HlsVideoElement;
-          if (hlsVideo.hls) {
-            hlsVideo.hls.destroy();
-            delete hlsVideo.hls;
-          }
+          destroyVideo(hlsVideo);
 
           const hls = new Hls({
             debug: false,
@@ -190,17 +202,10 @@ const Player = ({ url, title, currentTime, onTimeUpdate }: PlayerProps) => {
 
     return () => {
       clearInterval(saveInterval);
-      try {
-        const video = art.video as HlsVideoElement;
-        if (video && video.hls) {
-          video.hls.destroy();
-          delete video.hls;
-        }
-        art.destroy();
-      } catch (err) {
-        console.warn('Player: error during cleanup', err);
+      destroyPlayer(art, artRef.current);
+      if (artInstance.current === art) {
+        artInstance.current = null;
       }
-      artInstance.current = null;
       // 卸载时清理 Blob URL
       if (prevBlobUrl.current) {
         revokeBlobUrl(prevBlobUrl.current);

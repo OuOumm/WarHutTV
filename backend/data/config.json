@@ -1,0 +1,7 @@
+{
+  "site_name": "WarHutTV",
+  "announcement": "本网站仅提供影视信息搜索服务",
+  "password": "admin123",
+  "jwt_secret": "d298f50f5f3dde0e5463b28db588a6ccf03aab793739327718336c59a5550dff",
+  "api_site": {}
+}
