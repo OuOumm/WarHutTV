@@ -1,0 +1,13 @@
+{
+  "site_name": "WarHutTV",
+  "announcement": "网站仅作展示，请在24小时内删除关闭",
+  "password": "admin123",
+  "jwt_secret": "change-me-in-production",
+  "api_site": {
+    "xx": {
+      "api": "https://xxx/api.php/provide/vod",
+      "name": "xx",
+      "detail": "https://xx"
+    }
+  }
+}
