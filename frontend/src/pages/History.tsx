@@ -2,13 +2,16 @@ import { useState, useEffect } from 'react';
 import VideoCard from '../components/VideoCard';
 import PageContainer from '../components/PageContainer';
 import VideoGrid from '../components/VideoGrid';
+import VirtualVideoGrid, { useResponsiveColumns } from '../components/VirtualVideoGrid';
+import { useToast } from '../components/ToastProvider';
 import type { VideoItem } from '../types';
 import { historyStore } from '../store/history';
 
 const History = () => {
   const [history, setHistory] = useState<VideoItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [toast, setToast] = useState('');
+  const { toast } = useToast();
+  const columns = useResponsiveColumns({ base: 2, sm: 4, lg: 5, xl: 5 });
 
   useEffect(() => {
     loadHistory();
@@ -24,8 +27,7 @@ const History = () => {
     try {
       await historyStore.clear();
       await loadHistory();
-      setToast('已清空播放历史');
-      setTimeout(() => setToast(''), 2000);
+      toast('已清空播放历史', 'success');
     } catch {
       // Ignore clear failures; the existing history view remains unchanged.
     }
@@ -49,13 +51,6 @@ const History = () => {
 
   return (
     <PageContainer className="page-enter">
-      {/* Toast */}
-      {toast && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[999] bg-primary/15 border border-primary/30 backdrop-blur-xl px-4 py-2 rounded-lg shadow-lg animate-in fade-in slide-in-from-top-2 duration-200">
-          <span className="text-sm text-primary font-medium">{toast}</span>
-        </div>
-      )}
-
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-text">播放历史</h1>
         {history.length > 0 && (
@@ -79,11 +74,17 @@ const History = () => {
           <p className="mt-2 text-sm">观看影片后自动记录在这里</p>
         </div>
       ) : (
-        <VideoGrid variant="favorites" className="content-fade-in">
-          {history.map((item) => (
-            <VideoCard key={item.vod_id} video={item} showActions />
-          ))}
-        </VideoGrid>
+        <VirtualVideoGrid
+          items={history}
+          columnCount={columns}
+          innerGridClassName="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-x-2 sm:gap-x-6"
+          rowClassName="pb-12 sm:pb-16"
+          estimateRowHeight={360}
+          className="content-fade-in"
+          renderItem={(item) => (
+            <VideoCard key={item.vod_id} video={item} showActions animate={false} />
+          )}
+        />
       )}
     </PageContainer>
   );

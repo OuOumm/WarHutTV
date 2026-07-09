@@ -104,10 +104,10 @@ html[data-theme="nebula-purple"] body::before {
   animation: glowNebula 10s ease-in-out infinite alternate;
 }
 @keyframes glowNebula {
-  0%   { filter: hue-rotate(-10deg); opacity: 0.7; transform: scale(1) translate(0%, 0%); }
-  30%  { filter: hue-rotate(12deg);  opacity: 1;   transform: scale(1.05) translate(1.5%, -1%); }
-  60%  { filter: hue-rotate(-5deg);  opacity: 0.8; transform: scale(0.97) translate(-1%, 1.5%); }
-  100% { filter: hue-rotate(8deg);   opacity: 0.9; transform: scale(1.02) translate(0.5%, -0.5%); }
+  0%   { opacity: 0.7; transform: scale(1) translate(0%, 0%); }
+  30%  { opacity: 1;   transform: scale(1.05) translate(1.5%, -1%); }
+  60%  { opacity: 0.8; transform: scale(0.97) translate(-1%, 1.5%); }
+  100% { opacity: 0.9; transform: scale(1.02) translate(0.5%, -0.5%); }
 }
 
 /* 翡翠夜 — 呼吸暖光 */
@@ -132,10 +132,10 @@ html[data-theme="arctic-ice"] body::before {
   animation: glowIce 8s ease-in-out infinite alternate;
 }
 @keyframes glowIce {
-  0%   { opacity: 0.7; filter: saturate(1);   transform: translate(0%, 0%); }
-  40%  { opacity: 1;   filter: saturate(1.4); transform: translate(2%, -1.5%); }
-  80%  { opacity: 0.8; filter: saturate(0.8); transform: translate(-1.5%, 1%); }
-  100% { opacity: 0.7; filter: saturate(1);   transform: translate(0%, 0%); }
+  0%   { opacity: 0.7; transform: translate(0%, 0%); }
+  40%  { opacity: 1;   transform: translate(2%, -1.5%); }
+  80%  { opacity: 0.8; transform: translate(-1.5%, 1%); }
+  100% { opacity: 0.7; transform: translate(0%, 0%); }
 }
 
 /* 玫瑰绒 — 柔和起伏 */
@@ -165,7 +165,9 @@ html[data-theme="rose-velvet"] body::before {
 .orb {
   position: absolute;
   border-radius: 50%;
-  filter: blur(60px);
+  /* Blur radius trimmed 60px -> 40px. A blurred layer re-rasterizes on every
+     translated frame; 40px keeps the soft glow while cutting that cost ~1/3. */
+  filter: blur(40px);
   will-change: transform, opacity;
 }
 
@@ -234,9 +236,13 @@ html[data-texture="fabric"] body::after {
   opacity: 0.5;
   animation: texFabric 16s linear infinite;
 }
+/* Opacity-only pulse — compositor-friendly. The previous background-position
+   drift forced a full-screen repaint every frame (the single biggest
+   continuous raster cost). A subtle opacity breath keeps the texture alive
+   at a tiny fraction of the cost. */
 @keyframes texFabric {
-  0%   { background-position: 0% 0%, 0% 0%, 0% 0%; }
-  100% { background-position: 8% 6%, -4% 3%, 5% -3%; }
+  0%, 100% { opacity: 0.5; }
+  50%      { opacity: 0.4; }
 }
 
 /* ---- GRAIN 影院金：35mm 胶片 ---- */
@@ -256,12 +262,13 @@ html[data-texture="grain"] body::after {
   opacity: 0.5;
   animation: texGrain 2s steps(4) infinite;
 }
+/* Film-grain flicker via opacity steps — compositor only, no repaint. */
 @keyframes texGrain {
-  0%   { transform: translate(0, 0); }
-  25%  { transform: translate(-4px, 3px); }
-  50%  { transform: translate(3px, -4px); }
-  75%  { transform: translate(-3px, -2px); }
-  100% { transform: translate(0, 0); }
+  0%   { opacity: 0.5; }
+  25%  { opacity: 0.42; }
+  50%  { opacity: 0.5; }
+  75%  { opacity: 0.44; }
+  100% { opacity: 0.5; }
 }
 
 /* ---- NOISE 星云紫：LED 像素矩阵 ---- */
@@ -282,14 +289,19 @@ html[data-texture="noise"] body::after {
   background-size: 16px 16px, 16px 16px, auto, auto;
   opacity: 0.4;
   mix-blend-mode: screen;
-  animation: texNoise 0.3s steps(4) infinite;
+  /* Lowered from 0.3s — the previous cadence repainted the full-screen
+     blend layer ~3x/second continuously, the single most expensive
+     background cost. 1.5s is visually near-identical but far cheaper. */
+  animation: texNoise 1.5s steps(4) infinite;
 }
+/* Opacity-only pulse (kept at steps(4) for the LED-matrix flicker feel).
+   Replaces the per-frame translate+repaint with a GPU-composited alpha breath. */
 @keyframes texNoise {
-  0%   { transform: translate(0, 0); opacity: 0.4; }
-  25%  { transform: translate(-4px, 2px); opacity: 0.5; }
-  50%  { transform: translate(3px, -4px); opacity: 0.3; }
-  75%  { transform: translate(-2px, 3px); opacity: 0.45; }
-  100% { transform: translate(0, 0); opacity: 0.4; }
+  0%   { opacity: 0.4; }
+  25%  { opacity: 0.5; }
+  50%  { opacity: 0.3; }
+  75%  { opacity: 0.45; }
+  100% { opacity: 0.4; }
 }
 
 /* ---- BARK 翡翠夜：原木宽纹 ---- */
@@ -328,10 +340,11 @@ html[data-texture="crystal"] body::after {
   opacity: 0.4;
   animation: texCrystal 4s ease-in-out infinite alternate;
 }
+/* Opacity breath instead of brightness filter — filter:brightness repaints
+   the full-screen layer every frame; opacity is composited on the GPU. */
 @keyframes texCrystal {
-  0%   { filter: brightness(0.85); }
-  50%  { filter: brightness(1.3); }
-  100% { filter: brightness(1); }
+  0%, 100% { opacity: 0.4; }
+  50%      { opacity: 0.5; }
 }
 
 /* ---- SILK 玫瑰绒：宽幅光泽缎带 ---- */
@@ -352,10 +365,10 @@ html[data-texture="silk"] body::after {
   opacity: 0.45;
   animation: texSilk 6s ease-in-out infinite alternate;
 }
+/* Opacity breath instead of background-position drift — no full-screen repaint. */
 @keyframes texSilk {
-  0%   { background-position: 0% 0%, 0% 0%, 0% 0%, 0% 0%, 0% 0%; opacity: 0.4; }
-  50%  { background-position: 4% 2%, -2% -1%, 1% 2%, 2% -1%, -1% 1%; opacity: 0.5; }
-  100% { background-position: -2% -1%, 1% 1%, -1% -1%, -1% 2%, 1% 0%; opacity: 0.42; }
+  0%, 100% { opacity: 0.45; }
+  50%      { opacity: 0.55; }
 }
 
 /* ==================================================================
@@ -376,7 +389,9 @@ html[data-texture="silk"] body::after {
   transform: translateX(-120%) skewX(-15deg);
   pointer-events: none;
   z-index: 2;
-  will-change: transform;
+  /* No permanent will-change here: the shine only plays on hover, so a
+     standing compositor layer on EVERY card (dozens in a virtualized grid)
+     would exhaust GPU memory. Hover promotion is handled in .card-base:hover. */
 }
 .card-base:hover::after {
   animation: shineSwipe 0.8s var(--ease-out-expo) forwards;
@@ -387,8 +402,13 @@ html[data-texture="silk"] body::after {
   to   { transform: translateX(220%) skewX(-15deg); }
 }
 
-/* Default */
+/* Default — do NOT reserve a compositor layer permanently.
+   Hundreds of cards each holding a will-change layer exhausts GPU memory
+   on low-end devices. Only promote to a layer while actually hovered. */
 .card-base {
+  will-change: auto;
+}
+.card-base:hover {
   will-change: transform, box-shadow;
 }
 
@@ -552,14 +572,31 @@ html[data-theme="arctic-ice"] .glass-panel {
   background: rgba(12, 18, 34, 0.5);
 }
 
+/* ==================== FOCUS VISIBILITY (A11Y) ==================== */
+/* Keyboard focus ring — invisible on mouse, visible on Tab.
+   This is the baseline WCAG 2.1 2.4.7 / 2.4.11 requirement. */
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  /* 不覆盖元素本身的 border-radius，否则会把登录框的 rounded-xl 压成 4px 直角框 */
+}
+/* Suppress the legacy focus outline for pointer interactions only. */
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
 /* ==================== BUTTON FEEL ==================== */
 html[data-theme="crimson-cinema"] button:active {
   transform: scale(0.95) translateY(1px);
   box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
   transition-duration: 0.05s;
 }
+/* Explicit transition properties instead of `transition: all`.
+   `all` triggers a style recalc on EVERY property change and forces the
+   browser to watch everything — a known jank source, especially when many
+   buttons mount/unmount during virtualized scroll. List only what we animate. */
 button {
-  transition: all 0.2s var(--ease-elastic);
+  transition: transform 0.2s var(--ease-elastic), background-color 0.2s var(--ease-elastic), opacity 0.2s var(--ease-elastic), box-shadow 0.2s var(--ease-elastic), color 0.2s var(--ease-elastic), border-color 0.2s var(--ease-elastic);
 }
 button:active {
   transform: scale(0.96);
@@ -574,19 +611,91 @@ html[data-theme="emerald-night"] *:not(.scrollbar-hide) {
 *::-webkit-scrollbar { display: none; }
 
 /* ==================== REDUCED MOTION ==================== */
+/* Universal override — covers EVERYTHING, including the keyframes that
+   were previously defined inline (Login.tsx) and Tailwind's animate-*
+   utilities (animate-spin/pulse/ping/bounce) which the old scoped
+   block missed. Vestibular-safe: no motion for users who ask for it. */
 @media (prefers-reduced-motion: reduce) {
-  .card-shine, .card-entrance, .page-enter,
-  .orb, .card-base::after {
-    animation: none !important;
-    transition: none !important;
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
   }
-  body::before, body::after {
-    animation: none !important;
-  }
+}
+
+/* ==================== ANIMATION PAUSE (perf) ==================== */
+/* Toggled by JS on document.visibilitychange — pauses the always-on
+   background layers when the tab is hidden so they stop burning GPU/CPU
+   in the background. */
+html.anim-paused body::before,
+html.anim-paused body::after,
+html.anim-paused .orb {
+  animation-play-state: paused !important;
 }
 
 /* ==================== MOBILE ==================== */
 @media (max-width: 767px) {
   html, body { -ms-overflow-style: none; scrollbar-width: none; }
   html::-webkit-scrollbar, body::-webkit-scrollbar { display: none; }
+
+  /* Background decoration is the biggest perf tax on phones — disable the
+     always-on glow/texture/orb animations entirely on small screens.
+     The static gradients still render a tasteful backdrop at zero cost. */
+  body::before, body::after, .orb {
+    animation: none !important;
+  }
+}
+
+/* ==================== LOGIN PAGE ANIMATIONS ==================== */
+/* Moved out of Login.tsx's inline <style> so they live under the global
+   reduced-motion override (defined above) and stay in one place. */
+@keyframes loginOrbA {
+  0%   { transform: translate(0, 0) scale(1); }
+  30%  { transform: translate(6%, 4%) scale(1.08); }
+  60%  { transform: translate(-3%, 6%) scale(0.95); }
+  100% { transform: translate(0, 0) scale(1); }
+}
+@keyframes loginOrbB {
+  0%   { transform: translate(0, 0) scale(1); }
+  40%  { transform: translate(-5%, -3%) scale(1.12); }
+  70%  { transform: translate(4%, -6%) scale(0.92); }
+  100% { transform: translate(0, 0) scale(1); }
+}
+@keyframes loginOrbC {
+  0%   { transform: translate(0, 0) scale(1); opacity: 0.05; }
+  25%  { transform: translate(8%, -4%) scale(1.15); opacity: 0.08; }
+  50%  { transform: translate(-2%, 5%) scale(0.9); opacity: 0.04; }
+  75%  { transform: translate(5%, 2%) scale(1.1); opacity: 0.07; }
+  100% { transform: translate(0, 0) scale(1); opacity: 0.05; }
+}
+.animate-loginOrbA { animation: loginOrbA 10s ease-in-out infinite; }
+.animate-loginOrbB { animation: loginOrbB 13s ease-in-out infinite; }
+.animate-loginOrbC { animation: loginOrbC 16s ease-in-out infinite; }
+
+@keyframes logoGlow {
+  0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.12; }
+  50%      { transform: translate(-50%, -50%) scale(1.3); opacity: 0.22; }
+}
+.animate-logoGlow { animation: logoGlow 3.5s ease-in-out infinite; }
+
+@keyframes cardSlideUp {
+  from { opacity: 0; transform: translateY(24px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes borderGlow {
+  0%, 100% { opacity: 0.3; transform: scaleX(0.8); }
+  50%      { opacity: 0.7; transform: scaleX(1); }
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  10%, 50%, 90% { transform: translateX(-5px); }
+  30%, 70% { transform: translateX(5px); }
 }

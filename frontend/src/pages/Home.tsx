@@ -10,7 +10,7 @@ import { getBangumiCalendar } from '../api/bangumi';
 import { historyStore } from '../store/history';
 import { favoritesStore } from '../store/favorites';
 import { useConfig } from '../store/config';
-import type { DoubanItem, BangumiCalendarData } from '../types';
+import type { DoubanItem, BangumiCalendarData, VideoItem } from '../types';
 import type { Favorite, WatchHistory } from '../store/db';
 
 // Section with scroll reveal
@@ -111,18 +111,23 @@ const Home = () => {
       const tvRaw = localStorage.getItem('douban_cache_cat:tv:tv:tv:20:0');
       const bangumiRaw = localStorage.getItem('bangumi_calendar');
 
+      let hasCache = false;
       if (moviesRaw) {
         const entry = JSON.parse(moviesRaw);
-        if (Date.now() < entry.expiry) setHotMovies(entry.data.list || []);
+        if (Date.now() < entry.expiry) { setHotMovies(entry.data.list || []); hasCache = true; }
       }
       if (tvRaw) {
         const entry = JSON.parse(tvRaw);
-        if (Date.now() < entry.expiry) setHotTvShows(entry.data.list || []);
+        if (Date.now() < entry.expiry) { setHotTvShows(entry.data.list || []); hasCache = true; }
       }
       if (bangumiRaw) {
         const entry = JSON.parse(bangumiRaw);
-        if (Date.now() < entry.expiry) setBangumiData(entry.data || []);
+        if (Date.now() < entry.expiry) { setBangumiData(entry.data || []); hasCache = true; }
       }
+      // Render cached content immediately instead of waiting for the network
+      // refresh — the loading gate used to keep the skeleton up until every
+      // remote request settled, defeating the local cache.
+      if (hasCache) setLoading(false);
     } catch {
       // Ignore invalid cache entries; fresh data is loaded below.
     }
@@ -172,8 +177,24 @@ const Home = () => {
     setFavoriteItems([]);
   }, []);
 
+  // Stable handlers passed straight to VideoCard's `onDelete` (typed
+  // (video) => void) so the card's memo isn't broken by a fresh inline
+  // closure on every parent render.
+  const handleRemoveFromHistory = useCallback(async (video: VideoItem) => {
+    await historyStore.removeByName(video.vod_name);
+    setContinueWatching((prev) => prev.filter((i) => i.vod_name !== video.vod_name));
+  }, []);
+
+  const handleRemoveFromFavoritesHome = useCallback(async (video: VideoItem) => {
+    await favoritesStore.remove(video.vod_id);
+    setFavoriteItems((prev) => prev.filter((i) => i.vod_id !== video.vod_id));
+  }, []);
+
   return (
     <PageContainer className="page-enter">
+      {/* Landmark h1 for document outline + screen readers (visually hidden).
+          The page otherwise jumped straight to <h2> section headers. */}
+      <h1 className="sr-only">{siteName}</h1>
       {activeTab === 'home' ? (
           loading ? (
             <div className="space-y-8">
@@ -210,10 +231,7 @@ const Home = () => {
                         video={item}
                         from="vod"
                         showActions
-                        onDelete={async () => {
-                          await historyStore.removeByName(item.vod_name);
-                          setContinueWatching(prev => prev.filter((i) => i.vod_name !== item.vod_name));
-                        }}
+                        onDelete={handleRemoveFromHistory}
                       />
                     ))}
                   </ScrollableRow>
@@ -299,10 +317,7 @@ const Home = () => {
               <VideoGrid variant="favorites">
                 {favoriteItems.map((item) => (
                   <div key={item.vod_id} className="w-full">
-                    <VideoCard video={item} from="vod" showActions onDelete={async () => {
-                      await favoritesStore.remove(item.vod_id);
-                      setFavoriteItems(prev => prev.filter((i) => i.vod_id !== item.vod_id));
-                    }} />
+                    <VideoCard video={item} from="vod" showActions onDelete={handleRemoveFromFavoritesHome} />
                   </div>
                 ))}
               </VideoGrid>

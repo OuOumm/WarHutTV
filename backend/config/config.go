@@ -32,6 +32,17 @@ type Config struct {
 	mu           sync.RWMutex
 }
 
+// ConfigSnapshot is the mutex-free, serializable view of Config.
+// Returning this (instead of a Config value) avoids copying the embedded
+// RWMutex, which is both a go vet error and undefined behavior.
+type ConfigSnapshot struct {
+	SiteName     string                `json:"site_name"`
+	Announcement string                `json:"announcement"`
+	Password     string                `json:"password"`
+	JWTSecret    string                `json:"jwt_secret"`
+	APISite      map[string]SiteConfig `json:"api_site"`
+}
+
 var (
 	globalConfig *Config
 	once         sync.Once
@@ -79,7 +90,7 @@ func Load(path string) {
 		}
 	}
 	if cfg.Password == DefaultPassword {
-		log.Printf("warning: using default password %q; change data/config.json before production use", DefaultPassword)
+		log.Printf("warning: using default password %q; update data/config.json before production use", DefaultPassword)
 	}
 
 	globalConfig = cfg
@@ -97,7 +108,7 @@ func Get() *Config {
 	return globalConfig
 }
 
-func Snapshot() Config {
+func Snapshot() ConfigSnapshot {
 	cfg := Get()
 	cfg.mu.RLock()
 	defer cfg.mu.RUnlock()
@@ -152,8 +163,8 @@ func (c *Config) Save(path string) error {
 	return os.WriteFile(path, data, 0644)
 }
 
-func (c *Config) snapshotLocked() Config {
-	return Config{
+func (c *Config) snapshotLocked() ConfigSnapshot {
+	return ConfigSnapshot{
 		SiteName:     c.SiteName,
 		Announcement: c.Announcement,
 		Password:     c.Password,

@@ -46,7 +46,7 @@ export async function getPlayableUrl(url: string, sourceKey?: string) {
 
 export async function applyHistoryProgress(
   setCurrentTime: (time: number) => void,
-  setToast: (message: string) => void,
+  toast: (message: string) => void,
   currentSiteKey: string,
   vodId: string | number,
   episodeName?: string,
@@ -58,8 +58,7 @@ export async function applyHistoryProgress(
     setCurrentTime(record.progress);
     const minutes = Math.floor(record.progress / 60);
     const seconds = Math.floor(record.progress % 60);
-    setToast(`已从 ${minutes}:${seconds.toString().padStart(2, '0')} 继续播放`);
-    setTimeout(() => setToast(''), 3000);
+    toast(`已从 ${minutes}:${seconds.toString().padStart(2, '0')} 继续播放`);
   } catch (err) {
     console.warn('Play: failed to apply history progress', err);
   }

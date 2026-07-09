@@ -1,5 +1,6 @@
 import type { VideoDetail } from '../../types';
 import type { SourceItem } from './types';
+import { cleanVodContent } from '../../utils/text';
 
 interface VideoInfoProps {
   currentDetail: VideoDetail;
@@ -21,6 +22,7 @@ export function VideoInfo({
   onToggleFavorite,
 }: VideoInfoProps) {
   const sourceName = sources.find((source) => source.key === currentSource)?.name || site;
+  const vodContent = cleanVodContent(currentDetail.vod_content);
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mt-2">
@@ -54,9 +56,9 @@ export function VideoInfo({
             {currentDetail.vod_remarks && <span className="text-muted">{currentDetail.vod_remarks}</span>}
           </div>
 
-          {currentDetail.vod_content && (
+          {vodContent && (
             <div className="text-base leading-relaxed text-muted" style={{ whiteSpace: 'pre-line' }}>
-              {currentDetail.vod_content.replace(/<[^>]*>/g, '')}
+              {vodContent}
               {site && /^\d+$/.test(site) && (
                 <div className="mt-4">
                   <button

@@ -28,9 +28,18 @@ export const detailCacheStore = {
     await db.detailCache.clear();
   },
 
-  // 清理过期缓存
+  // 清理过期缓存。
+  // 注意：apiCache 与 detailCache 共用同一张 db.detailCache 表，但 api_cache:
+  // 前缀的行有更长的 TTL（24h–7d，见 apiCache.ts）。这里只清「非 api_cache:」
+  // 前缀的详情缓存，避免误删长效 API 缓存（曾经的串扰 bug）。
   async cleanExpired(): Promise<void> {
     const threshold = Date.now() - CACHE_TTL;
-    await db.detailCache.where('cachedAt').below(threshold).delete();
+    const rows = await db.detailCache.toArray();
+    const expired = rows
+      .filter((r) => !r.cacheKey.startsWith('api_cache:') && r.cachedAt < threshold)
+      .map((r) => r.id!);
+    if (expired.length > 0) {
+      await db.detailCache.bulkDelete(expired);
+    }
   },
 };

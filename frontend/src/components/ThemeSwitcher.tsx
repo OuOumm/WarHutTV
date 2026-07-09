@@ -1,5 +1,6 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { themes, getCurrentTheme, saveTheme, applyTheme, type Theme } from '../store/theme';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 
 // 主题预览色块 - 展示每个主题的独特氛围
 const ThemePreview = ({ theme, isActive }: { theme: Theme; isActive: boolean }) => {
@@ -46,6 +47,12 @@ export default function ThemeSwitcher() {
   const [currentTheme, setCurrentTheme] = useState<Theme>(getCurrentTheme);
   const menuRef = useRef<HTMLDivElement>(null);
 
+  // Trap focus + Esc-to-close while the theme menu is open.
+  const themeTrapRef = useFocusTrap<HTMLDivElement>(
+    isOpen,
+    useCallback(() => setIsOpen(false), []),
+  );
+
   useEffect(() => {
     applyTheme(currentTheme);
   }, [currentTheme]);
@@ -71,6 +78,9 @@ export default function ThemeSwitcher() {
     <div className="relative" ref={menuRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
+        aria-haspopup="menu"
+        aria-expanded={isOpen}
+        aria-label="切换主题"
         className="w-10 h-10 p-2 rounded-full flex items-center justify-center text-muted hover:bg-primary-glow hover:text-primary transition-all duration-200"
         title="切换主题"
       >
@@ -80,7 +90,11 @@ export default function ThemeSwitcher() {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 top-full mt-2 w-72 glass-panel rounded-xl shadow-2xl overflow-hidden z-[100] animate-in fade-in slide-in-from-top-2 duration-200">
+        <div
+          ref={themeTrapRef}
+          role="menu"
+          aria-label="主题风格"
+          className="absolute right-0 top-full mt-2 w-72 glass-panel rounded-xl shadow-2xl overflow-hidden z-[100] animate-in fade-in slide-in-from-top-2 duration-200">
           <div className="px-4 py-3 border-b border-glass-border">
             <span className="text-sm font-semibold text-text tracking-wide">主题风格</span>
           </div>
@@ -90,6 +104,8 @@ export default function ThemeSwitcher() {
               return (
                 <button
                   key={theme.id}
+                  role="menuitem"
+                  aria-label={theme.name}
                   onClick={() => handleThemeChange(theme)}
                   className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 ${
                     isActive 
@@ -106,7 +122,7 @@ export default function ThemeSwitcher() {
                       <span className={`text-sm font-medium ${isActive ? 'text-primary' : 'text-text'}`}>
                         {theme.name}
                       </span>
-                      <span className="text-[10px] text-muted/60 font-mono">{theme.nameEn}</span>
+                      <span className="text-[10px] text-muted/70 font-mono">{theme.nameEn}</span>
                     </div>
                     <div className="text-[11px] text-muted leading-tight mt-0.5 truncate">
                       {theme.description}

@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth } from '../store/auth';
 import { useConfig } from '../store/config';
-import Toast from '../components/Toast';
+import { useToast } from '../components/ToastProvider';
 
 const Login = () => {
   const [password, setPassword] = useState('');
@@ -13,6 +13,7 @@ const Login = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
   const { siteName } = useConfig();
+  const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,14 +27,11 @@ const Login = () => {
         ? (err as { response?: { data?: { error?: string } } }).response?.data?.error
         : undefined;
       setError(message || '登录失败');
+      toast(message || '登录失败', 'error');
     } finally {
       setLoading(false);
     }
   };
-
-  const handleToastClose = useCallback(() => {
-    setError('');
-  }, []);
 
   // 登录失败后恢复输入框焦点
   useEffect(() => {
@@ -174,8 +172,24 @@ const Login = () => {
             }} />
 
           <form onSubmit={handleSubmit} className="space-y-5 relative z-[1]">
+            {/* 无障碍补位：本系统是单密码闸口（无用户名概念），但浏览器密码管理器
+                要求 password 字段配套一个 username 字段，否则控制台会提示
+                "Password forms should have username fields"。这里放一个视觉隐藏、
+                但语义存在的 username 字段即可消除提示，且不改变「只输密码」的 UI。 */}
+            <input
+              type="text"
+              name="username"
+              autoComplete="username"
+              value={siteName}
+              readOnly
+              tabIndex={-1}
+              aria-hidden="true"
+              className="sr-only"
+            />
+
             <div className="relative">
               <input
+                id="password-input"
                 ref={inputRef}
                 type="password"
                 value={password}
@@ -186,17 +200,20 @@ const Login = () => {
                 onFocus={() => setFocused(true)}
                 onBlur={() => setFocused(false)}
                 placeholder="请输入访问密码"
+                autoComplete="current-password"
                 disabled={loading}
                 autoFocus
-                className="w-full px-4 py-3.5 bg-deep/60 backdrop-blur-sm border rounded-xl text-text placeholder-muted/50
+                aria-label="访问密码"
+                aria-invalid={!!error}
+                aria-describedby={error ? 'password-error' : undefined}
+                className="w-full px-4 py-3.5 bg-deep/60 backdrop-blur-sm border rounded-xl text-text placeholder-muted/70
                   transition-all duration-300 outline-none"
                 style={{
+                  outline: 'none',
                   borderColor: focused ? 'var(--color-primary)' : error ? 'rgba(239, 68, 68, 0.5)' : 'var(--color-glass-border)',
-                  boxShadow: focused
-                    ? `0 0 0 2px var(--color-primary-glow), 0 0 20px var(--color-primary-glow)`
-                    : error
-                      ? `0 0 0 2px rgba(239, 68, 68, 0.15), 0 0 12px rgba(239, 68, 68, 0.1)`
-                      : 'none',
+                  boxShadow: error
+                    ? `0 0 0 2px rgba(239, 68, 68, 0.15), 0 0 12px rgba(239, 68, 68, 0.1)`
+                    : 'none',
                 }}
               />
               {/* 聚焦指示器 */}
@@ -207,14 +224,9 @@ const Login = () => {
                   opacity: password || error ? 1 : 0.3,
                 }} />
 
-              {/* Toast 气泡提示 */}
+              {/* 错误以全局 Toast 展示（见 useToast），此处保留 sr-only 文本供读屏 */}
               {error && (
-                <Toast
-                  message={error}
-                  type="error"
-                  duration={2500}
-                  onClose={handleToastClose}
-                />
+                <p id="password-error" className="sr-only">{error}</p>
               )}
             </div>
 
@@ -258,70 +270,12 @@ const Login = () => {
           </form>
 
           {/* 底部标语 */}
-          <p className="mt-6 text-center text-muted/40 text-[10px] tracking-[0.2em] uppercase"
+          <p className="mt-6 text-center text-muted/70 text-[10px] tracking-[0.2em] uppercase"
             style={{ animation: 'fadeIn 0.8s ease-out 0.5s backwards' }}>
             影音无界 · 即刻启幕
           </p>
         </div>
       </div>
-
-      <style>{`
-        /* ---- 光晕浮动 ---- */
-        @keyframes loginOrbA {
-          0%   { transform: translate(0, 0) scale(1); }
-          30%  { transform: translate(6%, 4%) scale(1.08); }
-          60%  { transform: translate(-3%, 6%) scale(0.95); }
-          100% { transform: translate(0, 0) scale(1); }
-        }
-        @keyframes loginOrbB {
-          0%   { transform: translate(0, 0) scale(1); }
-          40%  { transform: translate(-5%, -3%) scale(1.12); }
-          70%  { transform: translate(4%, -6%) scale(0.92); }
-          100% { transform: translate(0, 0) scale(1); }
-        }
-        @keyframes loginOrbC {
-          0%   { transform: translate(0, 0) scale(1); opacity: 0.05; }
-          25%  { transform: translate(8%, -4%) scale(1.15); opacity: 0.08; }
-          50%  { transform: translate(-2%, 5%) scale(0.9); opacity: 0.04; }
-          75%  { transform: translate(5%, 2%) scale(1.1); opacity: 0.07; }
-          100% { transform: translate(0, 0) scale(1); opacity: 0.05; }
-        }
-        .animate-loginOrbA { animation: loginOrbA 10s ease-in-out infinite; }
-        .animate-loginOrbB { animation: loginOrbB 13s ease-in-out infinite; }
-        .animate-loginOrbC { animation: loginOrbC 16s ease-in-out infinite; }
-
-        /* ---- Logo 聚光呼吸 ---- */
-        @keyframes logoGlow {
-          0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.12; }
-          50%      { transform: translate(-50%, -50%) scale(1.3); opacity: 0.22; }
-        }
-        .animate-logoGlow { animation: logoGlow 3.5s ease-in-out infinite; }
-
-        /* ---- 卡片入场 ---- */
-        @keyframes cardSlideUp {
-          from { opacity: 0; transform: translateY(24px) scale(0.97); }
-          to   { opacity: 1; transform: translateY(0) scale(1); }
-        }
-
-        /* ---- 淡入 ---- */
-        @keyframes fadeIn {
-          from { opacity: 0; }
-          to   { opacity: 1; }
-        }
-
-        /* ---- 顶部装饰线呼吸 ---- */
-        @keyframes borderGlow {
-          0%, 100% { opacity: 0.3; transform: scaleX(0.8); }
-          50%      { opacity: 0.7; transform: scaleX(1); }
-        }
-
-        /* ---- 晃动（错误时） ---- */
-        @keyframes shake {
-          0%, 100% { transform: translateX(0); }
-          10%, 50%, 90% { transform: translateX(-5px); }
-          30%, 70% { transform: translateX(5px); }
-        }
-      `}</style>
     </div>
   );
 };

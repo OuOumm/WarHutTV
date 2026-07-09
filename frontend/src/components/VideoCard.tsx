@@ -1,7 +1,7 @@
 import { useState, useCallback, memo } from 'react';
 import { Link } from 'react-router-dom';
 import type { VideoItem, DoubanItem, BangumiItem } from '../types';
-import { processImageUrl } from '../utils/image';
+import { processImageUrl, buildDoubanSrcSet, buildBangumiSrcSet, CARD_IMAGE_SIZES } from '../utils/image';
 import { favoritesStore } from '../store/favorites';
 import { historyStore } from '../store/history';
 
@@ -10,14 +10,20 @@ interface VideoCardProps {
   douban?: DoubanItem;
   bangumi?: BangumiItem;
   from?: 'vod' | 'douban' | 'bangumi';
-  onDelete?: () => void;
+  /** Stable delete handler. Pass a `useCallback` from the parent so the card's
+   *  memo isn't broken by a fresh inline closure on every render. */
+  onDelete?: (video: VideoItem) => void;
   showActions?: boolean;
+  /** Play the entrance animation on mount. Set false inside virtualized
+   *  grids — the window virtualizer mounts/unmounts rows on scroll, so a
+   *  per-card entrance would replay on every scroll tick and stutter. */
+  animate?: boolean;
 }
 
 // ─── Sub-components (memoised) ───
 
 const PlayOverlay = memo(() => (
-  <div className="hidden sm:flex absolute inset-x-0 top-0 bottom-16 items-center justify-center z-[3] opacity-0 sm:group-hover:opacity-100 transition-opacity duration-300">
+  <div className="hidden sm:flex absolute inset-0 items-center justify-center z-[3] opacity-0 sm:group-hover:opacity-100 transition-opacity duration-300">
     <div className="relative">
       <div className="absolute inset-0 w-16 h-16 -m-2 rounded-full border-2 border-primary/30 scale-0 sm:group-hover:scale-100 sm:group-hover:opacity-0 transition-all duration-700 ease-out" />
       <div className="w-12 h-12 rounded-full bg-primary/90 backdrop-blur-sm flex items-center justify-center shadow-lg shadow-primary/25 scale-0 sm:group-hover:scale-100 transition-transform duration-300"
@@ -59,20 +65,23 @@ const ActionButton = memo(({ onClick, variant, children }: {
 
 // ─── Base card ───
 
-const CardBase = memo(({ to, poster, title, badge, children, actions }: {
+const CardBase = memo(({ to, poster, title, badge, children, actions, animate = true, srcSet, sizes = CARD_IMAGE_SIZES }: {
   to: string;
   poster: string;
   title: string;
   badge?: React.ReactNode;
   children?: React.ReactNode;
   actions?: React.ReactNode;
+  animate?: boolean;
+  srcSet?: string;
+  sizes?: string;
 }) => {
   const [lifted, setLifted] = useState(false);
 
   return (
     <Link
       to={to}
-      className={`group relative block rounded-xl overflow-hidden cursor-pointer w-full card-entrance card-base transition-all duration-350 ${
+      className={`group relative block rounded-xl overflow-hidden cursor-pointer w-full ${animate ? 'card-entrance' : ''} card-base transition-all duration-350 ${
         lifted ? '-translate-y-1.5 scale-[1.02] shadow-xl shadow-black/30' : ''
       }`}
       style={{ transitionTimingFunction: 'var(--ease-elastic), var(--ease-out-expo)' }}
@@ -82,10 +91,13 @@ const CardBase = memo(({ to, poster, title, badge, children, actions }: {
       <div className="relative aspect-[2/3] overflow-hidden bg-surface">
         <img
           src={poster}
+          srcSet={srcSet}
+          sizes={sizes}
           alt={title}
           className="w-full h-full object-cover transition-transform duration-[800ms] group-hover:scale-[1.08]"
           style={{ transitionTimingFunction: 'var(--ease-out-expo)' }}
           loading="lazy"
+          decoding="async"
         />
 
         {/* Gradient overlay */}
@@ -129,7 +141,7 @@ const CardBase = memo(({ to, poster, title, badge, children, actions }: {
 
 // ─── Main component ───
 
-const VideoCard = memo(({ video, douban, bangumi, from = 'vod', onDelete, showActions = false }: VideoCardProps) => {
+const VideoCard = memo(({ video, douban, bangumi, from = 'vod', onDelete, showActions = false, animate = true }: VideoCardProps) => {
   const [isFavorited, setIsFavorited] = useState(false);
 
   const handleFavoriteClick = useCallback(async (e: React.MouseEvent) => {
@@ -145,7 +157,7 @@ const VideoCard = memo(({ video, douban, bangumi, from = 'vod', onDelete, showAc
     e.stopPropagation();
     if (!video) return;
     if (onDelete) {
-      onDelete();
+      onDelete(video);
       return;
     }
     historyStore.remove(video.vod_id);
@@ -155,13 +167,14 @@ const VideoCard = memo(({ video, douban, bangumi, from = 'vod', onDelete, showAc
   if (from === 'douban' && douban) {
     const searchUrl = `/search?wd=${encodeURIComponent(douban.title.replace(/\s+/g, ''))}`;
     return (
-      <CardBase to={searchUrl} poster={processImageUrl(douban.poster)} title={douban.title}
-        badge={douban.rate ? <Badge variant="highlight">{douban.rate}</Badge> : undefined}>
+      <CardBase to={searchUrl} poster={processImageUrl(douban.poster)} srcSet={buildDoubanSrcSet(douban.poster)} title={douban.title}
+        badge={douban.rate ? <Badge variant="highlight">{douban.rate}</Badge> : undefined}
+        animate={animate}>
         <h3 className="font-['Anton'] text-[13px] text-white uppercase tracking-wider leading-tight mb-1.5 truncate drop-shadow-sm">
           {douban.title}
         </h3>
         {douban.year && (
-          <span className="text-[11px] text-white/50 font-medium tracking-wide">{douban.year}</span>
+          <span className="text-[11px] text-white/70 font-medium tracking-wide">{douban.year}</span>
         )}
       </CardBase>
     );
@@ -171,17 +184,19 @@ const VideoCard = memo(({ video, douban, bangumi, from = 'vod', onDelete, showAc
   if (from === 'bangumi' && bangumi) {
     const searchUrl = `/search?wd=${encodeURIComponent((bangumi.name_cn || bangumi.name).replace(/\s+/g, ''))}`;
     const poster = processImageUrl(bangumi.images?.large || bangumi.images?.common || bangumi.images?.medium || '');
+    const srcSet = buildBangumiSrcSet(bangumi.images);
     const title = bangumi.name_cn || bangumi.name;
     const rating = bangumi.rating?.score > 0 ? bangumi.rating.score.toFixed(1) : null;
     const year = bangumi?.air_date ? bangumi.air_date.split('-')[0] : null;
 
     return (
-      <CardBase to={searchUrl} poster={poster} title={title}
-        badge={rating ? <Badge variant="highlight">{rating}</Badge> : undefined}>
+      <CardBase to={searchUrl} poster={poster} srcSet={srcSet} title={title}
+        badge={rating ? <Badge variant="highlight">{rating}</Badge> : undefined}
+        animate={animate}>
         <h3 className="font-['Anton'] text-[13px] text-white uppercase tracking-wider leading-tight mb-1.5 truncate drop-shadow-sm">
           {title}
         </h3>
-        {year && <span className="text-[11px] text-white/50 font-medium tracking-wide">{year}</span>}
+        {year && <span className="text-[11px] text-white/70 font-medium tracking-wide">{year}</span>}
       </CardBase>
     );
   }
@@ -195,6 +210,7 @@ const VideoCard = memo(({ video, douban, bangumi, from = 'vod', onDelete, showAc
     return (
       <CardBase to={playUrl} poster={video.vod_pic || '/placeholder.jpg'} title={video.vod_name}
         badge={remarks ? <Badge>{remarks}</Badge> : undefined}
+        animate={animate}
         actions={showActions ? (
           <>
             <ActionButton onClick={handleDeleteClick} variant="delete">
@@ -213,7 +229,7 @@ const VideoCard = memo(({ video, douban, bangumi, from = 'vod', onDelete, showAc
           {video.vod_name}
         </h3>
         {metaParts.length > 0 && (
-          <span className="text-[11px] text-white/50 font-medium tracking-wide">{metaParts.join(' · ')}</span>
+          <span className="text-[11px] text-white/70 font-medium tracking-wide">{metaParts.join(' · ')}</span>
         )}
       </CardBase>
     );

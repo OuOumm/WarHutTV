@@ -36,8 +36,11 @@ const ScrollableRow = memo(({ children, scrollDistance = 800 }: ScrollableRowPro
 
   useEffect(() => {
     if (!containerRef.current) return;
+    // Only structural changes matter for arrow visibility — dropping
+    // `attributes: true` avoids re-rendering the whole row on every card
+    // hover (CardBase toggles a `lifted` class on mouse enter/leave).
     const mo = new MutationObserver(() => setTimeout(checkScroll, 100));
-    mo.observe(containerRef.current, { childList: true, subtree: true, attributes: true });
+    mo.observe(containerRef.current, { childList: true, subtree: true });
     return () => mo.disconnect();
   }, []);
 

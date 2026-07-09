@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useLayoutEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import VideoCard from '../components/VideoCard';
-import LazyGrid from '../components/LazyGrid';
 import PageContainer from '../components/PageContainer';
 import VideoGrid from '../components/VideoGrid';
 import WeekdaySelector, { getTodayWeekday } from '../components/WeekdaySelector';
@@ -334,9 +333,11 @@ export default function DoubanPage() {
               </div>
             )}
             {showWeekdaySelector && (
-              <div className="flex flex-wrap gap-2 items-center">
-                <span className="text-xs sm:text-sm font-medium text-muted min-w-[48px]">星期</span>
-                <WeekdaySelector value={selectedWeekday} onChange={setSelectedWeekday} />
+              <div className="flex gap-2 items-center">
+                <span className="text-xs sm:text-sm font-medium text-muted min-w-[48px] self-center">星期</span>
+                <div className="overflow-x-auto scrollbar-hide min-w-0">
+                  <WeekdaySelector value={selectedWeekday} onChange={setSelectedWeekday} className="min-w-max" />
+                </div>
               </div>
             )}
             {showSecondarySelector && secondaryOptions.length > 0 && (
@@ -363,12 +364,11 @@ export default function DoubanPage() {
             ))}
           </VideoGrid>
         ) : (
-          <LazyGrid
-            items={data}
-            renderItem={(item, index) => (
+          <VideoGrid variant="search">
+            {data.map((item, index) => (
               <VideoCard key={`${item.id}-${index}`} douban={item} from="douban" />
-            )}
-          />
+            ))}
+          </VideoGrid>
         )}
 
         {/* Load more */}

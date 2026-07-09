@@ -3,8 +3,7 @@ export interface LoginRequest {
 }
 
 export interface LoginResponse {
-  token: string;
-  expiresAt: number;
+  message?: string;
 }
 
 export interface VideoItem {

@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import type { ReactNode } from 'react';
 import { authApi } from '../api/auth';
 import { refreshConfig } from './config';
@@ -18,11 +18,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const checkAuth = async () => {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        setIsLoading(false);
-        return;
-      }
+      // The session token is an HttpOnly cookie; we infer auth state by asking
+      // the backend rather than reading any client-side token.
       const valid = await authApi.verify();
       setIsAuthenticated(valid);
       setIsLoading(false);
@@ -30,22 +27,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     checkAuth();
   }, []);
 
-  const login = async (password: string) => {
-    const response = await authApi.login({ password });
-    localStorage.setItem('token', response.token);
-    localStorage.setItem('expiresAt', response.expiresAt.toString());
+  const login = useCallback(async (password: string) => {
+    await authApi.login({ password });
     setIsAuthenticated(true);
     refreshConfig();
-  };
+  }, [setIsAuthenticated]);
 
-  const logout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('expiresAt');
+  const logout = useCallback(() => {
+    // Fire-and-forget; the backend clears the HttpOnly cookie.
+    authApi.logout().catch(() => {});
     setIsAuthenticated(false);
-  };
+  }, [setIsAuthenticated]);
+
+  // Memoize the context value so consumers (e.g. Layout) don't re-render on
+  // every AuthProvider render. Login/logout are stabilized above.
+  const value = useMemo(
+    () => ({ isAuthenticated, isLoading, login, logout }),
+    [isAuthenticated, isLoading, login, logout],
+  );
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, isLoading, login, logout }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );

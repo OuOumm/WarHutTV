@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import type { ReactNode } from 'react';
 import { configApi } from '../api/config';
 import type { SiteConfig } from '../types';
@@ -33,7 +33,7 @@ export const ConfigProvider = ({ children }: { children: ReactNode }) => {
   const [config, setConfig] = useState<SiteConfig | null>(configCache);
   const [isLoading, setIsLoading] = useState(!configCache);
 
-  const fetchConfig = async () => {
+  const fetchConfig = useCallback(async () => {
     try {
       const data = await configApi.getConfig();
       configCache = data;
@@ -43,22 +43,27 @@ export const ConfigProvider = ({ children }: { children: ReactNode }) => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     if (configCache) return;
     fetchConfig();
-  }, []);
+  }, [fetchConfig]);
+
+  // Memoize the context value so consumers don't re-render on every
+  // ConfigProvider render. refresh (fetchConfig) is stabilized above.
+  const value = useMemo(
+    () => ({
+      config,
+      siteName: config?.site_name || DEFAULT_SITE_NAME,
+      isLoading,
+      refresh: fetchConfig,
+    }),
+    [config, isLoading, fetchConfig],
+  );
 
   return (
-    <ConfigContext.Provider
-      value={{
-        config,
-        siteName: config?.site_name || DEFAULT_SITE_NAME,
-        isLoading,
-        refresh: fetchConfig,
-      }}
-    >
+    <ConfigContext.Provider value={value}>
       {children}
     </ConfigContext.Provider>
   );

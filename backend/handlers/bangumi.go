@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"fmt"
-	"io"
 	"net/http"
 	"time"
 
@@ -48,7 +47,7 @@ func BangumiCalendar(c *gin.Context) {
 		return
 	}
 
-	body, err := readLimitedBody(resp.Body, maxBangumiResponseBytes)
+	body, err := services.ReadLimited(resp.Body, maxBangumiResponseBytes)
 	if err != nil {
 		c.JSON(http.StatusBadGateway, gin.H{"error": "获取 Bangumi 日历失败"})
 		return
@@ -56,15 +55,4 @@ func BangumiCalendar(c *gin.Context) {
 
 	services.AppCache.Set(cacheKey, string(body), 12*time.Hour)
 	c.Data(http.StatusOK, "application/json", body)
-}
-
-func readLimitedBody(r io.Reader, limit int64) ([]byte, error) {
-	body, err := io.ReadAll(io.LimitReader(r, limit+1))
-	if err != nil {
-		return nil, err
-	}
-	if int64(len(body)) > limit {
-		return nil, fmt.Errorf("response exceeds %d bytes", limit)
-	}
-	return body, nil
 }

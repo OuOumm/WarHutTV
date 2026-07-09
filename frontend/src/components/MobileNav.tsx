@@ -65,9 +65,9 @@ const MobileNav = () => {
   }, [location, navigate]);
 
   return (
-    <nav
-      className="md:hidden fixed left-0 right-0 z-[600] border-t border-glass-border/50 bg-card/90 backdrop-blur-xl backdrop-saturate-150"
-      style={{ bottom: 0, paddingBottom: 'env(safe-area-inset-bottom)' }}
+      <nav
+        className="md:hidden fixed left-0 right-0 z-[600] border-t border-glass-border/50 bg-card/95"
+        style={{ bottom: 0, paddingBottom: 'env(safe-area-inset-bottom)' }}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >

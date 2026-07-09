@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import Artplayer from 'artplayer';
 import Hls from 'hls.js';
 import { getCurrentTheme } from '../store/theme';
@@ -42,6 +42,10 @@ function destroyPlayer(art: Artplayer | null, container?: HTMLDivElement | null)
   }
 }
 
+function isM3u8(url: string): boolean {
+  return url.startsWith('blob:') || url.includes('.m3u8');
+}
+
 const Player = ({ url, title, currentTime, onTimeUpdate }: PlayerProps) => {
   const artRef = useRef<HTMLDivElement>(null);
   const artInstance = useRef<Artplayer | null>(null);
@@ -49,7 +53,8 @@ const Player = ({ url, title, currentTime, onTimeUpdate }: PlayerProps) => {
   const seekDoneRef = useRef(false);
   const seekTimeRef = useRef(0);
   const onTimeUpdateRef = useRef(onTimeUpdate);
-  const [themeId, setThemeId] = useState(getCurrentTheme().id);
+  // 跳过 switch effect 的首帧（创建时已加载首个 url，无需再 switch）
+  const skipFirstSwitch = useRef(true);
 
   // Keep callback ref in sync without triggering effect re-runs
   useEffect(() => { onTimeUpdateRef.current = onTimeUpdate; });
@@ -61,21 +66,9 @@ const Player = ({ url, title, currentTime, onTimeUpdate }: PlayerProps) => {
     }
   }, [currentTime]);
 
-  useEffect(() => {
-    const handleThemeChange = (e: CustomEvent) => {
-      if (e.detail?.id) {
-        setThemeId(e.detail.id);
-      }
-    };
-    window.addEventListener('theme-change', handleThemeChange as EventListener);
-    return () => window.removeEventListener('theme-change', handleThemeChange as EventListener);
-  }, []);
-
+  // 创建播放器实例（仅挂载时一次）。换源/换主题均不重建，避免闪烁与状态丢失。
   useEffect(() => {
     if (!artRef.current || !url) return;
-
-    destroyPlayer(artInstance.current, artRef.current);
-    artInstance.current = null;
 
     // 清理上一次的 Blob URL
     if (prevBlobUrl.current) {
@@ -98,7 +91,7 @@ const Player = ({ url, title, currentTime, onTimeUpdate }: PlayerProps) => {
       url: url,
       // Explicitly set type for blob: URLs that contain m3u8 content
       // (Artplayer auto-detects from URL extension, but blob: has none)
-      type: url.startsWith('blob:') || url.includes('.m3u8') ? 'm3u8' : '',
+      type: isM3u8(url) ? 'm3u8' : '',
       volume: 0.7,
       isLive: false,
       muted: false,
@@ -212,7 +205,57 @@ const Player = ({ url, title, currentTime, onTimeUpdate }: PlayerProps) => {
         prevBlobUrl.current = null;
       }
     };
-  }, [url, themeId]);
+    // 仅在挂载时创建一次；url 变化走下方 switch effect 原地换源
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // 换源：原地切换，不重建播放器（保留音量/倍速/设置/主题）
+  useEffect(() => {
+    if (skipFirstSwitch.current) {
+      skipFirstSwitch.current = false;
+      return;
+    }
+    const art = artInstance.current;
+    if (!art || !url) return;
+
+    // 清理上一次的 Blob URL（m3u8 customType 分支不会自动 revoke）
+    if (prevBlobUrl.current) {
+      revokeBlobUrl(prevBlobUrl.current);
+      prevBlobUrl.current = null;
+    }
+    if (url.startsWith('blob:')) {
+      prevBlobUrl.current = url;
+    }
+
+    // 先更新 type，确保 switch 走正确的 customType（blob 无扩展名需显式 m3u8）
+    art.option.type = isM3u8(url) ? 'm3u8' : '';
+
+    // 重置进度恢复标记，新源 loadedmetadata 后再 seek
+    seekDoneRef.current = false;
+    if (seekTimeRef.current > 0) {
+      art.once('video:loadedmetadata', () => {
+        if (!seekDoneRef.current && seekTimeRef.current > 0) {
+          art.seek = seekTimeRef.current;
+          seekDoneRef.current = true;
+        }
+      });
+    }
+
+    // 原地换源（Artplayer 官方 API），保留播放器实例与所有状态
+    art.switch = url;
+  }, [url]);
+
+  // 换主题：原地更新播放器主题色，无需重建
+  useEffect(() => {
+    const handleThemeChange = () => {
+      const art = artInstance.current;
+      if (art) {
+        art.theme = getCurrentTheme().colors.primary;
+      }
+    };
+    window.addEventListener('theme-change', handleThemeChange as EventListener);
+    return () => window.removeEventListener('theme-change', handleThemeChange as EventListener);
+  }, []);
 
   useEffect(() => {
     if (artInstance.current && title) {

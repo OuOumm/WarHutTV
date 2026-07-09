@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import SearchBar from '../components/SearchBar';
 import VideoCard from '../components/VideoCard';
 import PageContainer from '../components/PageContainer';
-import VideoGrid from '../components/VideoGrid';
+import VirtualVideoGrid, { useResponsiveColumns } from '../components/VirtualVideoGrid';
 import type { VideoItem } from '../types';
 import { streamSearchResults } from '../api/searchStream';
 import { filterYellowItems, isExactMatch } from '../utils/filter';
@@ -126,6 +126,7 @@ const Search = () => {
   };
 
   const [viewMode, setViewMode] = useState<'agg' | 'all'>(getDefaultAggregate() ? 'agg' : 'all');
+  const searchColumns = useResponsiveColumns({ base: 3, sm: 4, lg: 5, xl: 6 });
 
   // 保存精确匹配设置
   const toggleExactMatch = () => {
@@ -283,21 +284,34 @@ const Search = () => {
               onViewChange={handleViewChange}
             />
 
-            <VideoGrid variant="search">
-              {viewMode === 'agg'
-                ? aggregatedResults.map((agg) => (
-                    <div key={agg.key} className="w-full">
-                      <VideoCard video={agg.item} from="vod" />
-                      <SourceCountBadge sourceCount={agg.sourceCount} />
-                    </div>
-                  ))
-                : filteredResults.map((item, index) => (
-                    <div key={`${item.vod_id}-${item.type_name}-${index}`} className="w-full">
-                      <VideoCard video={item} from="vod" />
-                    </div>
-                  ))
-              }
-            </VideoGrid>
+            {viewMode === 'agg' ? (
+              <VirtualVideoGrid
+                items={aggregatedResults}
+                columnCount={searchColumns}
+                innerGridClassName="grid gap-x-2 sm:gap-x-8"
+                rowClassName="pb-12 sm:pb-20"
+                estimateRowHeight={420}
+                className="content-fade-in"
+                renderItem={(agg) => (
+                  <>
+                    <VideoCard video={agg.item} from="vod" animate={false} />
+                    <SourceCountBadge sourceCount={agg.sourceCount} />
+                  </>
+                )}
+              />
+            ) : (
+              <VirtualVideoGrid
+                items={filteredResults}
+                columnCount={searchColumns}
+                innerGridClassName="grid gap-x-2 sm:gap-x-8"
+                rowClassName="pb-12 sm:pb-20"
+                estimateRowHeight={420}
+                className="content-fade-in"
+                renderItem={(item) => (
+                  <VideoCard video={item} from="vod" animate={false} />
+                )}
+              />
+            )}
           </div>
         )}
       </div>

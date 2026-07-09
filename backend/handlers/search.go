@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
 	"warhutv/config"
+	"warhutv/middleware"
 	"warhutv/services"
 	"warhutv/utils"
 
@@ -32,14 +32,9 @@ func setSSEHeaders(c *gin.Context) {
 }
 
 func SearchStream(c *gin.Context) {
-	authHeader := c.GetHeader("Authorization")
-	if authHeader == "" {
+	token, ok := middleware.ExtractToken(c)
+	if !ok {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "未提供认证令牌"})
-		return
-	}
-	token := strings.TrimPrefix(authHeader, "Bearer ")
-	if token == authHeader {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "无效的认证格式"})
 		return
 	}
 	if _, err := utils.ValidateToken(token, config.JWTSecret()); err != nil {
@@ -161,13 +156,13 @@ func SearchStream(c *gin.Context) {
 				current := completed
 				mu.Unlock()
 
-				sendSSE("error", map[string]interface{}{
-					"site":      key,
-					"name":      site.Name,
-					"error":     err.Error(),
-					"completed": current,
-					"total":     siteCount,
-				})
+			sendSSE("error", map[string]interface{}{
+				"site":      key,
+				"name":      site.Name,
+				"error":     "上游请求失败",
+				"completed": current,
+				"total":     siteCount,
+			})
 				return
 			}
 

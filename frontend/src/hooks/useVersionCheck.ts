@@ -1,6 +1,7 @@
 declare const __APP_VERSION__: string;
 
 import { useState, useEffect } from 'react';
+import apiClient from '../api/client';
 
 const CURRENT_VERSION = __APP_VERSION__;
 const GITHUB_URL = 'https://github.com/OuOumm/WarHutTV';
@@ -19,10 +20,9 @@ export function useVersionCheck(): VersionInfo {
   });
 
   useEffect(() => {
-    fetch('/api/version')
-      .then((res) => res.json())
-      .then((data) => {
-        const latest = data.version;
+    apiClient.get<{ version: string }>('/version')
+      .then((res) => {
+        const latest = res.data.version;
         if (latest && latest !== CURRENT_VERSION) {
           setInfo({ current: CURRENT_VERSION, latest, hasUpdate: true });
         }

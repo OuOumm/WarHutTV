@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -62,6 +64,15 @@ const maxUpstreamResponseBytes = 10 << 20
 
 var client = &http.Client{
 	Timeout: 15 * time.Second,
+	CheckRedirect: func(req *http.Request, via []*http.Request) error {
+		if len(via) >= 5 {
+			return fmt.Errorf("too many redirects")
+		}
+		if IsBlockedHost(req.URL.Host) {
+			return fmt.Errorf("redirect blocked: target host not allowed")
+		}
+		return nil
+	},
 }
 
 func ProxySearch(siteKey, keyword string, pg int) (*SearchResult, error) {
@@ -80,7 +91,7 @@ func ProxyDetail(siteKey, vodID string) (*DetailResult, error) {
 		return nil, err
 	}
 
-	url := fmt.Sprintf("%s?ac=detail&ids=%s", site.API, vodID)
+	url := fmt.Sprintf("%s?ac=detail&ids=%s", site.API, url.QueryEscape(vodID))
 	return doRequest[DetailResult](url)
 }
 
@@ -90,7 +101,7 @@ func ProxyPlay(siteKey, vodID string) (string, error) {
 		return "", err
 	}
 
-	url := fmt.Sprintf("%s?ac=play&ids=%s", site.API, vodID)
+	url := fmt.Sprintf("%s?ac=play&ids=%s", site.API, url.QueryEscape(vodID))
 	playResult, err := doRequest[PlayResult](url)
 	if err != nil {
 		return "", err
@@ -112,8 +123,16 @@ func getSite(siteKey string) (config.SiteConfig, error) {
 	return site, nil
 }
 
-func doRequest[T any](url string) (*T, error) {
-	resp, err := client.Get(url)
+func doRequest[T any](rawURL string) (*T, error) {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return nil, fmt.Errorf("invalid upstream URL")
+	}
+	if IsBlockedHost(u.Host) {
+		log.Printf("SSRF guard blocked upstream host %q", u.Host)
+		return nil, fmt.Errorf("upstream host not allowed")
+	}
+	resp, err := client.Get(rawURL)
 	if err != nil {
 		return nil, err
 	}
@@ -128,7 +147,7 @@ func doRequest[T any](url string) (*T, error) {
 		return nil, fmt.Errorf("upstream status %d: %s", resp.StatusCode, message)
 	}
 
-	body, err := readLimited(resp.Body, maxUpstreamResponseBytes)
+	body, err := ReadLimited(resp.Body, maxUpstreamResponseBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -141,7 +160,9 @@ func doRequest[T any](url string) (*T, error) {
 	return &result, nil
 }
 
-func readLimited(r io.Reader, limit int64) ([]byte, error) {
+// ReadLimited reads r but rejects responses larger than limit bytes.
+// Shared by all upstream fetches to bound memory usage.
+func ReadLimited(r io.Reader, limit int64) ([]byte, error) {
 	body, err := io.ReadAll(io.LimitReader(r, limit+1))
 	if err != nil {
 		return nil, err
@@ -150,4 +171,34 @@ func readLimited(r io.Reader, limit int64) ([]byte, error) {
 		return nil, fmt.Errorf("upstream response exceeds %d bytes", limit)
 	}
 	return body, nil
+}
+
+// IsBlockedHost reports whether host (with or without port) resolves to a
+// private, loopback, link-local, or otherwise internal address. It is the SSRF
+// guard applied to admin-configured upstream sites and to HTTP redirects.
+func IsBlockedHost(host string) bool {
+	if h, _, err := net.SplitHostPort(host); err == nil {
+		host = h
+	}
+	host = strings.Trim(host, "[]")
+	if ip := net.ParseIP(host); ip != nil {
+		return isPrivateIP(ip)
+	}
+	ips, err := net.LookupIP(host)
+	if err != nil {
+		// Unresolvable at request time; let the HTTP layer surface the error
+		// rather than blocking (avoids breaking legitimate CDN-backed hosts).
+		return false
+	}
+	for _, ip := range ips {
+		if isPrivateIP(ip) {
+			return true
+		}
+	}
+	return false
+}
+
+func isPrivateIP(ip net.IP) bool {
+	return ip.IsLoopback() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() ||
+		ip.IsPrivate() || ip.IsUnspecified()
 }

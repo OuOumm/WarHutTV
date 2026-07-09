@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { getCurrentTheme } from '../store/theme';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 
 interface AnnouncementProps {
   content: string;
@@ -12,15 +13,18 @@ const Announcement = ({ content, siteName, onDismiss }: AnnouncementProps) => {
   const [isExiting, setIsExiting] = useState(false);
   const theme = getCurrentTheme();
 
+  const handleDismiss = useCallback(() => {
+    setIsExiting(true);
+    setTimeout(onDismiss, 400);
+  }, [onDismiss]);
+
+  // Dialog semantics: trap focus, close on Esc, restore focus on close.
+  const dialogRef = useFocusTrap<HTMLDivElement>(true, handleDismiss);
+
   useEffect(() => {
     const timer = setTimeout(() => setIsVisible(true), 300);
     return () => clearTimeout(timer);
   }, []);
-
-  const handleDismiss = () => {
-    setIsExiting(true);
-    setTimeout(onDismiss, 400);
-  };
 
   const getThemeDecoration = () => {
     const { accentEffect } = theme.visual;
@@ -57,15 +61,22 @@ const Announcement = ({ content, siteName, onDismiss }: AnnouncementProps) => {
 
   return (
     <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="announcement-title"
+      aria-describedby="announcement-body"
       className={`fixed inset-0 z-[100] flex items-center justify-center p-4 transition-all duration-400 ${
         isVisible && !isExiting ? 'opacity-100' : 'opacity-0 pointer-events-none'
       }`}
       style={{ background: 'rgba(0, 0, 0, 0.6)' }}
+      onClick={handleDismiss}
     >
       <div
+        ref={dialogRef}
         className={`relative w-full max-w-md transform transition-all duration-500 ${
           isVisible && !isExiting ? 'scale-100 translate-y-0' : 'scale-95 translate-y-8'
         }`}
+        onClick={(e) => e.stopPropagation()}
       >
         {/* Background glow */}
         <div
@@ -100,7 +111,7 @@ const Announcement = ({ content, siteName, onDismiss }: AnnouncementProps) => {
               <div className="flex items-center gap-3">
                 <span className="text-2xl">{decoration.icon}</span>
                 <div>
-                  <h2 className="text-xl font-bold tracking-tight text-text">
+                  <h2 id="announcement-title" className="text-xl font-bold tracking-tight text-text">
                     {siteName}
                   </h2>
                   <p className="text-xs tracking-wider uppercase mt-0.5 text-muted">
@@ -111,7 +122,7 @@ const Announcement = ({ content, siteName, onDismiss }: AnnouncementProps) => {
             </div>
 
             {/* Content body */}
-            <div className="rounded-xl p-4 mb-6 bg-glass border border-glass-border">
+            <div id="announcement-body" className="rounded-xl p-4 mb-6 bg-glass border border-glass-border">
               <p className="text-sm leading-relaxed whitespace-pre-wrap text-text">
                 {content}
               </p>

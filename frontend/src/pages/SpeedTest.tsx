@@ -107,7 +107,7 @@ const SummaryBar = ({
   <div className="px-4 py-2.5 border-t border-glass-border/20 flex items-center gap-3 text-xs text-muted">
     <span className="text-green-400">可用: {successCount}</span>
     <span className="text-red-400">不可用: {errorCount}</span>
-    <span className="text-muted/50">共 {total} 个源</span>
+    <span className="text-muted/70">共 {total} 个源</span>
   </div>
 );
 

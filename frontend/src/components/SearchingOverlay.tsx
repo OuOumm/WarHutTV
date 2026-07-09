@@ -32,7 +32,7 @@ export const SearchingOverlay = ({ searchProgress, stopSearch }: {
         </div>
 
         {/* 文字信息 */}
-        <div className="text-center space-y-2">
+        <div className="text-center space-y-2" role="status" aria-live="polite">
           <h3 className="text-lg font-semibold text-text">正在搜索播放源</h3>
           <p className="text-sm text-muted">
             {searchProgress ? (

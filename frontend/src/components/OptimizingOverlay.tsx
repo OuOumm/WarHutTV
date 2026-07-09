@@ -57,7 +57,7 @@ export const OptimizingOverlay = ({ sources }: {
         </div>
 
         {/* 文字信息 */}
-        <div className="text-center space-y-2">
+        <div className="text-center space-y-2" role="status" aria-live="polite">
           <h3 className="text-lg font-semibold text-text">正在优选最佳播放地址</h3>
           <p className="text-sm text-muted">
             {currentTesting ? (

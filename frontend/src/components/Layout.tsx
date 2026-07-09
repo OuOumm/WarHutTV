@@ -47,6 +47,14 @@ const Layout = memo(({ children }: LayoutProps) => {
 
   return (
     <div className="w-full min-h-screen relative">
+      {/* Skip link — keyboard users jump straight to content, bypassing nav */}
+      <a
+        href="#main"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[1000] focus:px-4 focus:py-2 focus:rounded-lg focus:bg-card focus:text-text focus:shadow-lg focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+      >
+        跳到主内容
+      </a>
+
       {/* Floating ambient orbs */}
       <div id="orb-layer" className="pointer-events-none">
         <div className="orb orb-a" style={{ top: '10%', left: '10%' }} />
@@ -127,7 +135,7 @@ const Layout = memo(({ children }: LayoutProps) => {
           </div>
         </div>
 
-        <main className="px-4 sm:px-6">
+        <main id="main" className="px-4 sm:px-6">
           <HomeTabContext.Provider value={{ activeTab: homeTab, setActiveTab: setHomeTab }}>
             {children}
           </HomeTabContext.Provider>

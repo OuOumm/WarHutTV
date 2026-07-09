@@ -20,20 +20,6 @@ const Play = () => {
 
   return (
     <div>
-      {controller.toast && (
-        <div
-          className="fixed top-20 left-1/2 -translate-x-1/2 z-[1000] px-4 py-2 text-sm font-medium rounded-lg shadow-lg backdrop-blur-xl"
-          style={{
-            background: 'var(--color-primary-glow)',
-            border: '1px solid var(--color-glass-border)',
-            color: 'var(--color-primary)',
-            boxShadow: '0 4px 16px rgba(0, 0, 0, 0.2), 0 0 12px var(--color-primary-glow)',
-          }}
-        >
-          {controller.toast}
-        </div>
-      )}
-
       <div className="flex flex-col gap-4 py-4 px-3 sm:px-5 lg:px-8">
         <div className="py-1">
           <h1 className="text-xl font-semibold text-text">

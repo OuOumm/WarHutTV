@@ -1,5 +1,6 @@
-import { useState, useEffect, useRef } from 'react';
-import { useAuth } from '../hooks/useAuth';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { useAuth } from '../store/auth';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 
 interface Settings {
   doubanProxy: 'tencent' | 'ali' | 'direct';
@@ -44,6 +45,16 @@ export default function UserMenu() {
   const { settings, update } = useSettings();
   const menuRef = useRef<HTMLDivElement>(null);
 
+  // Trap focus inside each popover; Esc closes (menu → hide, settings → back to menu).
+  const menuTrapRef = useFocusTrap<HTMLDivElement>(
+    showDropdown && !showSettings,
+    useCallback(() => setShowDropdown(false), []),
+  );
+  const settingsTrapRef = useFocusTrap<HTMLDivElement>(
+    showDropdown && showSettings,
+    useCallback(() => setShowSettings(false), []),
+  );
+
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
@@ -59,6 +70,9 @@ export default function UserMenu() {
     <div className="relative" ref={menuRef}>
       <button
         onClick={() => { setShowDropdown(!showDropdown); setShowSettings(false); }}
+        aria-haspopup="menu"
+        aria-expanded={showDropdown}
+        aria-label="用户菜单"
         className="w-10 h-10 p-2 rounded-full flex items-center justify-center text-muted hover:text-primary hover:bg-primary-glow transition-all duration-200"
       >
         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -67,8 +81,14 @@ export default function UserMenu() {
       </button>
 
       {showDropdown && !showSettings && (
-        <div className="absolute right-0 top-full mt-2 w-40 glass-panel rounded-xl shadow-2xl overflow-hidden z-[100] animate-in fade-in slide-in-from-top-2 duration-200">
+        <div
+          ref={menuTrapRef}
+          role="menu"
+          aria-label="用户菜单"
+          className="absolute right-0 top-full mt-2 w-40 glass-panel rounded-xl shadow-2xl overflow-hidden z-[100] animate-in fade-in slide-in-from-top-2 duration-200"
+        >
           <button
+            role="menuitem"
             onClick={() => setShowSettings(true)}
             className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-text hover:bg-white/[0.05] transition-colors"
           >
@@ -80,6 +100,7 @@ export default function UserMenu() {
           </button>
           <div className="border-t border-glass-border/50" />
           <button
+            role="menuitem"
             onClick={() => logout()}
             className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-500 hover:bg-red-500/10 transition-colors"
           >
@@ -92,7 +113,11 @@ export default function UserMenu() {
       )}
 
       {showDropdown && showSettings && (
-        <div className="absolute right-0 top-full mt-2 w-72 glass-panel rounded-xl shadow-2xl overflow-hidden z-[100] animate-in fade-in slide-in-from-top-2 duration-200">
+        <div
+          ref={settingsTrapRef}
+          role="dialog"
+          aria-label="设置"
+          className="absolute right-0 top-full mt-2 w-72 glass-panel rounded-xl shadow-2xl overflow-hidden z-[100] animate-in fade-in slide-in-from-top-2 duration-200">
           <div className="flex items-center justify-between px-4 py-3 border-b border-glass-border/50">
             <span className="text-sm font-medium text-text">设置</span>
             <button
@@ -134,6 +159,7 @@ export default function UserMenu() {
                 }`}
                 role="switch"
                 aria-checked={settings.defaultAggregate}
+                aria-label="默认聚合搜索"
               >
                 <div className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-all duration-200 ${
                   settings.defaultAggregate ? 'translate-x-4' : 'translate-x-0'

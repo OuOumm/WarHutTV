@@ -103,8 +103,11 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
       className="fixed top-0 left-0 h-screen transition-all duration-300 z-10 flex flex-col"
       style={{ width: collapsed ? 64 : 256 }}
     >
-      {/* Glass background */}
-      <div className="absolute inset-0 bg-glass backdrop-blur-2xl border-r border-glass-border/80" />
+      {/* Glass background — blur lowered from 2xl (~40px) to md (~12px):
+          the sidebar floats over the always-animating body background, and a
+          heavy blur here means re-blurring every frame while that background
+          repaints. md keeps the glass look at a fraction of the compositing cost. */}
+      <div className="absolute inset-0 bg-glass backdrop-blur-md border-r border-glass-border/80" />
 
       {/* Subtle ambient glow */}
       <div
@@ -146,7 +149,7 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
           )}
           <button
             onClick={onToggle}
-            className={`absolute top-1/2 -translate-y-1/2 flex items-center justify-center w-7 h-7 rounded-lg text-muted/40 hover:text-text hover:bg-white/[0.05] transition-all duration-200 ${
+            className={`absolute top-1/2 -translate-y-1/2 flex items-center justify-center w-7 h-7 rounded-lg text-muted/70 hover:text-text hover:bg-white/[0.05] transition-all duration-200 ${
               collapsed ? 'left-1/2 -translate-x-1/2' : 'right-3'
             }`}
             aria-label={collapsed ? '展开侧边栏' : '收起侧边栏'}

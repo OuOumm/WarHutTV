@@ -29,7 +29,6 @@ export function PlayerViewport({
         {playUrl && optimizeComplete ? (
           <Suspense fallback={<div className="w-full h-full flex items-center justify-center text-muted">加载播放器...</div>}>
             <Player
-              key={playUrl}
               url={playUrl}
               title={currentDetail.vod_name}
               currentTime={currentTime}

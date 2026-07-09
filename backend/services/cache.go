@@ -24,7 +24,7 @@ type Cache struct {
 }
 
 func NewCache() *Cache {
-	os.MkdirAll(cacheDir, 0644)
+	os.MkdirAll(cacheDir, 0755)
 	return &Cache{
 		items: make(map[string]*CacheItem),
 	}
@@ -60,7 +60,7 @@ func (c *Cache) Clear() {
 	c.items = make(map[string]*CacheItem)
 	c.mu.Unlock()
 	os.RemoveAll(cacheDir)
-	os.MkdirAll(cacheDir, 0644)
+	os.MkdirAll(cacheDir, 0755)
 }
 
 func (c *Cache) getFromDisk(key string) (interface{}, bool) {

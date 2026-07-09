@@ -1,4 +1,4 @@
-import { processImageUrl } from '../../utils/image';
+import { processImageUrl, buildDoubanSrcSet } from '../../utils/image';
 import { SourceStatusBadge } from './SourceStatusBadge';
 import type { Episode, SourcePanelState } from './types';
 
@@ -97,9 +97,16 @@ function SourceList({ currentDetailName, currentSource, sourceListRef, sourceLoa
     <div ref={sourceListRef} className="flex-1 min-h-0 max-h-full overflow-y-auto bg-deep">
       <div className="space-y-1.5">
         {sources.map((source) => (
-          <div key={source.key} onClick={() => onSourceSwitch(source.key)} data-active={currentSource === source.key ? 'true' : undefined} className={`flex gap-2.5 p-2 rounded-lg cursor-pointer transition-colors ${currentSource === source.key ? 'bg-primary-glow ring-1 ring-primary' : 'hover:bg-surface'}`}>
+          <button
+            key={source.key}
+            type="button"
+            onClick={() => onSourceSwitch(source.key)}
+            aria-label={`切换播放源：${source.name}`}
+            data-active={currentSource === source.key ? 'true' : undefined}
+            className={`flex gap-2.5 p-2 w-full text-left rounded-lg cursor-pointer transition-colors ${currentSource === source.key ? 'bg-primary-glow ring-1 ring-primary' : 'hover:bg-surface'}`}
+          >
             <div className="w-12 h-16 flex-shrink-0 rounded overflow-hidden bg-surface">
-              {source.poster ? <img src={processImageUrl(source.poster)} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-muted text-xs">暂无</div>}
+              {source.poster ? <img src={processImageUrl(source.poster)} srcSet={buildDoubanSrcSet(source.poster)} sizes="48px" alt="" className="w-full h-full object-cover" decoding="async" /> : <div className="w-full h-full flex items-center justify-center text-muted text-xs">暂无</div>}
             </div>
             <div className="flex-1 min-w-0 flex flex-col justify-between">
               <div>
@@ -117,7 +124,7 @@ function SourceList({ currentDetailName, currentSource, sourceListRef, sourceLoa
                 <SourceStatusBadge source={source} />
               </div>
             </div>
-          </div>
+          </button>
         ))}
       </div>
     </div>

@@ -7,6 +7,10 @@ export const authApi = {
     return response.data;
   },
 
+  logout: async (): Promise<void> => {
+    await apiClient.post('/auth/logout');
+  },
+
   verify: async (): Promise<boolean> => {
     try {
       const response = await apiClient.get('/auth/verify');

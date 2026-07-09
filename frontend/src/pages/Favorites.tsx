@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom';
 import VideoCard from '../components/VideoCard';
 import PageContainer from '../components/PageContainer';
 import VideoGrid from '../components/VideoGrid';
+import VirtualVideoGrid, { useResponsiveColumns } from '../components/VirtualVideoGrid';
 import type { VideoItem } from '../types';
 import { favoritesStore } from '../store/favorites';
 
@@ -10,6 +11,7 @@ const Favorites = () => {
   const [favorites, setFavorites] = useState<VideoItem[]>([]);
   const [loading, setLoading] = useState(true);
   const location = useLocation();
+  const columns = useResponsiveColumns({ base: 2, sm: 4, lg: 5, xl: 5 });
 
   useEffect(() => {
     loadFavorites();
@@ -71,13 +73,20 @@ const Favorites = () => {
           <p className="mt-2 text-sm">浏览影片时点击爱心图标收藏</p>
         </div>
       ) : (
-        <VideoGrid variant="favorites" className="content-fade-in">
-          {favorites.map((item) => (
-            <div key={item.vod_id} className="relative group">
-              <VideoCard video={item} showActions />
+        <VirtualVideoGrid
+          items={favorites}
+          columnCount={columns}
+          innerGridClassName="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-x-2 sm:gap-x-6"
+          rowClassName="pb-12 sm:pb-16"
+          estimateRowHeight={360}
+          className="content-fade-in"
+          renderItem={(item) => (
+            <div className="relative group">
+              <VideoCard video={item} showActions animate={false} />
               <div className="absolute top-2 left-2 z-[5]">
                 <button
                   onClick={() => handleRemove(item.vod_id)}
+                  aria-label={`移除收藏 ${item.vod_name}`}
                   className="w-7 h-7 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center text-white/80 hover:bg-red-500/80 hover:text-white hover:scale-110 active:scale-95 border border-white/10 transition-all duration-200"
                 >
                   <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -86,8 +95,8 @@ const Favorites = () => {
                 </button>
               </div>
             </div>
-          ))}
-        </VideoGrid>
+          )}
+        />
       )}
     </PageContainer>
   );

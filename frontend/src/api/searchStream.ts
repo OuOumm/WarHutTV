@@ -1,3 +1,5 @@
+import { handleAuthFailure } from './client';
+
 export interface SearchStreamStartEvent {
   keyword: string;
   site_count: number;
@@ -50,13 +52,14 @@ export async function streamSearchResults<T>(
   const params = new URLSearchParams({ wd: keyword });
   if (options.page) params.set('pg', String(options.page));
 
-  const token = localStorage.getItem('token');
   const response = await fetch(`/api/search/stream?${params.toString()}`, {
-    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    credentials: 'include',
     signal: options.signal,
   });
 
   if (!response.ok) {
+    // Surface auth failures consistently with the rest of the app.
+    if (response.status === 401) handleAuthFailure();
     throw new Error(`搜索连接失败: ${response.status}`);
   }
   if (!response.body) {
