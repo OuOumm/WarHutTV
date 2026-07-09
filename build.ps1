@@ -21,7 +21,7 @@ Write-Host "  Done" -ForegroundColor Green
 # 2. Build frontend
 Write-Host "`n[2/5] Building frontend..." -ForegroundColor Yellow
 Push-Location "frontend"
-npm run build
+pnpm run build
 $frontendOk = $LASTEXITCODE -eq 0
 Pop-Location
 if (-not $frontendOk) {

@@ -1,7 +1,7 @@
 .PHONY: build run clean dev
 
 build-frontend:
-	cd frontend && npm run build
+	cd frontend && pnpm run build
 
 build-backend:
 	cd backend && cp -r ../frontend/dist frontend/dist && go build -tags embed -ldflags="-s -w" -o ../bin/warhutv . && rm -rf frontend
@@ -15,7 +15,7 @@ run:
 	cd backend && go run .
 
 dev:
-	cd frontend && npm run dev
+	cd frontend && pnpm run dev
 
 clean:
 	rm -rf bin/ frontend/dist/ backend/frontend/

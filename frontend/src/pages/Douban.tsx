@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import VideoCard from '../components/VideoCard';
 import PageContainer from '../components/PageContainer';
 import VideoGrid from '../components/VideoGrid';
+import { useAutoFillColumns, AUTO_FILL_GRID, CARD_COLUMN_GAP } from '../components/gridColumns';
 import WeekdaySelector, { getTodayWeekday } from '../components/WeekdaySelector';
 import { getDoubanCategories, getDoubanRecommends } from '../api/douban';
 import { getBangumiCalendar } from '../api/bangumi';
@@ -299,6 +300,10 @@ export default function DoubanPage() {
     setHasMore(true);
   };
 
+  // 固定卡片宽、自动填充列数（最少 2 列），首屏内卡片用 eager 加载
+  const columns = useAutoFillColumns(150, 24, 2);
+  const eagerCount = columns * Math.ceil((typeof window !== 'undefined' ? window.innerHeight : 800) / 340);
+
   const getTitle = () => {
     return type === 'movie' ? '电影' : type === 'tv' ? '电视剧' : type === 'show' ? '综艺' : '动漫';
   };
@@ -364,11 +369,16 @@ export default function DoubanPage() {
             ))}
           </VideoGrid>
         ) : (
-          <VideoGrid variant="search">
-            {data.map((item, index) => (
-              <VideoCard key={`${item.id}-${index}`} douban={item} from="douban" />
+          <div
+            className="gap-y-8"
+            style={{ display: 'grid', gridTemplateColumns: AUTO_FILL_GRID, columnGap: CARD_COLUMN_GAP }}
+          >
+            {data.map((item, i) => (
+              <div key={item.id} className="w-full">
+                <VideoCard douban={item} from="douban" eager={i < eagerCount} />
+              </div>
             ))}
-          </VideoGrid>
+          </div>
         )}
 
         {/* Load more */}

@@ -12,18 +12,60 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
       - name: Setup Node.js
         uses: actions/setup-node@v5
         with:
           node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
+          cache: 'pnpm'
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Install Frontend
+        working-directory: frontend
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint Frontend
+        working-directory: frontend
+        run: pnpm run lint
+
+      - name: Test Frontend
+        working-directory: frontend
+        run: pnpm test
 
       - name: Build Frontend
         working-directory: frontend
+        run: pnpm run build
+
+      # Bundle-size gate: fail CI if any chunk blows past its gzip budget.
+      # The `player` chunk (artplayer + hls.js) is the only intentionally
+      # heavy one and is loaded on-demand, so it gets a larger allowance.
+      - name: Bundle size gate
+        working-directory: frontend
         run: |
-          npm ci
-          npm run build
+          node -e '
+            const fs = require("fs");
+            const zlib = require("zlib");
+            const path = require("path");
+            const dir = "dist/assets";
+            const budgets = {
+              "index": 45 * 1024,    // entry chunk
+              "player": 210 * 1024,  // artplayer + hls.js (on-demand)
+              "default": 120 * 1024, // every other chunk
+            };
+            let failed = false;
+            for (const f of fs.readdirSync(dir).filter((x) => x.endsWith(".js"))) {
+              const gz = zlib.gzipSync(fs.readFileSync(path.join(dir, f))).length;
+              const key = Object.keys(budgets).find((k) => f.startsWith(k + "-")) || "default";
+              const ok = gz <= budgets[key];
+              if (!ok) failed = true;
+              console.log((ok ? "OK   " : "FAIL ") + f + "  gzip " + (gz / 1024).toFixed(1) + "KB  (budget " + (budgets[key] / 1024).toFixed(0) + "KB)");
+            }
+            if (failed) { console.error("Bundle size budget exceeded"); process.exit(1); }
+          '
 
       - name: Setup Go
         uses: actions/setup-go@v6

@@ -20,7 +20,7 @@ echo -e "${GREEN}  Done${NC}"
 # 2. Build frontend
 echo -e "\n${YELLOW}[2/5] Building frontend...${NC}"
 cd frontend
-if ! npm run build; then
+if ! pnpm run build; then
     echo -e "${RED}  Frontend build failed!${NC}"
     exit 1
 fi

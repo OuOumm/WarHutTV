@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import SearchBar from '../components/SearchBar';
 import VideoCard from '../components/VideoCard';
 import PageContainer from '../components/PageContainer';
-import VirtualVideoGrid, { useResponsiveColumns } from '../components/VirtualVideoGrid';
+import { useAutoFillColumns, AUTO_FILL_GRID, CARD_COLUMN_GAP } from '../components/gridColumns';
 import type { VideoItem } from '../types';
 import { streamSearchResults } from '../api/searchStream';
 import { filterYellowItems, isExactMatch } from '../utils/filter';
@@ -126,7 +126,9 @@ const Search = () => {
   };
 
   const [viewMode, setViewMode] = useState<'agg' | 'all'>(getDefaultAggregate() ? 'agg' : 'all');
-  const searchColumns = useResponsiveColumns({ base: 3, sm: 4, lg: 5, xl: 6 });
+  const searchColumns = useAutoFillColumns(150, 24, 2);
+  // 首屏内的卡片用 eager 加载（消除 Chrome 懒加载干预），约一列数 × 视口可容纳行数
+  const eagerCount = searchColumns * Math.ceil((typeof window !== 'undefined' ? window.innerHeight : 800) / 420);
 
   // 保存精确匹配设置
   const toggleExactMatch = () => {
@@ -285,32 +287,28 @@ const Search = () => {
             />
 
             {viewMode === 'agg' ? (
-              <VirtualVideoGrid
-                items={aggregatedResults}
-                columnCount={searchColumns}
-                innerGridClassName="grid gap-x-2 sm:gap-x-8"
-                rowClassName="pb-12 sm:pb-20"
-                estimateRowHeight={420}
-                className="content-fade-in"
-                renderItem={(agg) => (
-                  <>
-                    <VideoCard video={agg.item} from="vod" animate={false} />
+              <div
+                className="gap-y-12 sm:gap-y-20"
+                style={{ display: 'grid', gridTemplateColumns: AUTO_FILL_GRID, columnGap: CARD_COLUMN_GAP }}
+              >
+                {aggregatedResults.map((agg, i) => (
+                  <div key={`${i}-${agg.item.vod_id}`} className="w-full">
+                    <VideoCard video={agg.item} from="vod" animate={false} eager={i < eagerCount} showFavorite />
                     <SourceCountBadge sourceCount={agg.sourceCount} />
-                  </>
-                )}
-              />
+                  </div>
+                ))}
+              </div>
             ) : (
-              <VirtualVideoGrid
-                items={filteredResults}
-                columnCount={searchColumns}
-                innerGridClassName="grid gap-x-2 sm:gap-x-8"
-                rowClassName="pb-12 sm:pb-20"
-                estimateRowHeight={420}
-                className="content-fade-in"
-                renderItem={(item) => (
-                  <VideoCard video={item} from="vod" animate={false} />
-                )}
-              />
+              <div
+                className="gap-y-12 sm:gap-y-20"
+                style={{ display: 'grid', gridTemplateColumns: AUTO_FILL_GRID, columnGap: CARD_COLUMN_GAP }}
+              >
+                {filteredResults.map((item, i) => (
+                  <div key={`${i}-${item.vod_id}`} className="w-full">
+                    <VideoCard video={item} from="vod" animate={false} eager={i < eagerCount} showFavorite />
+                  </div>
+                ))}
+              </div>
             )}
           </div>
         )}

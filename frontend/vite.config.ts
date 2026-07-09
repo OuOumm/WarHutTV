@@ -24,7 +24,7 @@ function themeInlinePlugin(): Plugin {
         id: string;
         colors: Record<string, string>;
         visual: { texture: string; glowAnimation: string };
-      }> = [];
+      }>;
       try {
         palettes = JSON.parse(
           readFileSync(resolve(__dirname, 'src/store/themes.data.json'), 'utf-8'),

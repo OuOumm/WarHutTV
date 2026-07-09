@@ -2,6 +2,9 @@ import type { RefObject } from 'react';
 import type { VideoDetail, VideoItem } from '../../types';
 import type { SpeedTestResult } from '../../utils/speedtest';
 
+// Re-export so play-sub-hooks can import domain types from a single './types'.
+export type { VideoDetail } from '../../types';
+
 export interface Episode {
   name: string;
   url: string;

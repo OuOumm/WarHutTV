@@ -2,6 +2,7 @@
 
 ## 技术栈（非 Next.js）
 - `frontend/` = Vite 8 + React 19 + TypeScript(严格) + Tailwind v4 + react-router-dom 7 + Dexie(IndexedDB)。
+- **包管理用 pnpm（非 npm）**：`frontend/pnpm-lock.yaml` 为锁文件（`package-lock.json` 已删除）；`package.json` 含 `packageManager: pnpm@10.34.4`。CI(`pnpm/action-setup`+`pnpm install --frozen-lockfile`)、`Dockerfile`(`corepack enable`+pnpm)、`build.sh`/`build.ps1`/`Makefile`/`README` 全部走 pnpm。2026-07-09 由 npm 迁移，验证 `build`/`test`(29)/`lint` 与 npm 等价。新增 `.dockerignore` 排除 `frontend/node_modules`/`frontend/dist` 防镜像膨胀。
 - 状态：React Context（Auth/Config/theme 命令式注入）+ Dexie 本地缓存（apiCache/detailCache/favorites/history/db）。
 - 重型播放器 artplayer/hls.js 已独立 `player` chunk 且仅 `/play`、`/speed` 按需（PlayerViewport 内 `lazy()`）。
 - 路由级 `lazy()`+Suspense 已在 `App.tsx` 实施；标签页隐藏 `anim-paused` 已在 `main.tsx` 实施。

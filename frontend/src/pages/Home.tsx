@@ -225,12 +225,13 @@ const Home = () => {
                     <button onClick={handleClearHistory} className="text-sm text-muted hover:text-primary transition-colors">清空</button>
                   </div>
                   <ScrollableRow>
-                    {continueWatching.map((item) => (
+                    {continueWatching.map((item, i) => (
                       <VideoCard
                         key={item.vod_name}
                         video={item}
                         from="vod"
                         showActions
+                        eager={i < 8}
                         onDelete={handleRemoveFromHistory}
                       />
                     ))}
@@ -242,8 +243,8 @@ const Home = () => {
                 <Section>
                   <SectionHeader title="热门电影" href="/douban?type=movie" icon={<FilmIcon />} />
                   <ScrollableRow>
-                    {hotMovies.map((movie) => (
-                      <VideoCard key={movie.id} douban={movie} from="douban" />
+                    {hotMovies.map((movie, i) => (
+                      <VideoCard key={movie.id} douban={movie} from="douban" eager={i < 8} />
                     ))}
                   </ScrollableRow>
                 </Section>
@@ -253,8 +254,8 @@ const Home = () => {
                 <Section>
                   <SectionHeader title="热门剧集" href="/douban?type=tv" icon={<TvIcon />} />
                   <ScrollableRow>
-                    {hotTvShows.map((show) => (
-                      <VideoCard key={show.id} douban={show} from="douban" />
+                    {hotTvShows.map((show, i) => (
+                      <VideoCard key={show.id} douban={show} from="douban" eager={i < 8} />
                     ))}
                   </ScrollableRow>
                 </Section>
@@ -264,8 +265,8 @@ const Home = () => {
                 <Section>
                   <SectionHeader title="新番放送" href="/douban?type=anime" icon={<StarIcon />} />
                   <ScrollableRow>
-                    {todayBangumi.map((anime) => (
-                      <VideoCard key={anime.id} bangumi={anime} from="bangumi" />
+                    {todayBangumi.map((anime, i) => (
+                      <VideoCard key={anime.id} bangumi={anime} from="bangumi" eager={i < 8} />
                     ))}
                   </ScrollableRow>
                 </Section>
@@ -275,8 +276,8 @@ const Home = () => {
                 <Section>
                   <SectionHeader title="热门综艺" href="/douban?type=show" icon={<StarIcon />} />
                   <ScrollableRow>
-                    {hotVariety.map((show) => (
-                      <VideoCard key={show.id} douban={show} from="douban" />
+                    {hotVariety.map((show, i) => (
+                      <VideoCard key={show.id} douban={show} from="douban" eager={i < 8} />
                     ))}
                   </ScrollableRow>
                 </Section>
@@ -315,9 +316,9 @@ const Home = () => {
               </div>
             ) : (
               <VideoGrid variant="favorites">
-                {favoriteItems.map((item) => (
+                {favoriteItems.map((item, i) => (
                   <div key={item.vod_id} className="w-full">
-                    <VideoCard video={item} from="vod" showActions onDelete={handleRemoveFromFavoritesHome} />
+                    <VideoCard video={item} from="vod" showActions eager={i < 8} onDelete={handleRemoveFromFavoritesHome} />
                   </div>
                 ))}
               </VideoGrid>

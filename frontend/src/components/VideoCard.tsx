@@ -1,8 +1,8 @@
-import { useState, useCallback, memo } from 'react';
+import { useState, useEffect, useCallback, memo } from 'react';
 import { Link } from 'react-router-dom';
 import type { VideoItem, DoubanItem, BangumiItem } from '../types';
 import { processImageUrl, buildDoubanSrcSet, buildBangumiSrcSet, CARD_IMAGE_SIZES } from '../utils/image';
-import { favoritesStore } from '../store/favorites';
+import { favoritesStore, subscribeFavorites } from '../store/favorites';
 import { historyStore } from '../store/history';
 
 interface VideoCardProps {
@@ -14,10 +14,18 @@ interface VideoCardProps {
    *  memo isn't broken by a fresh inline closure on every render. */
   onDelete?: (video: VideoItem) => void;
   showActions?: boolean;
+  /** Show only the favorite toggle (no delete). Use on list pages where cards
+   *  aren't history/favorites entries, e.g. search results. */
+  showFavorite?: boolean;
   /** Play the entrance animation on mount. Set false inside virtualized
    *  grids — the window virtualizer mounts/unmounts rows on scroll, so a
    *  per-card entrance would replay on every scroll tick and stutter. */
   animate?: boolean;
+  /** Load the poster eagerly (no native lazy-loading). Pass true for cards
+   *  in the initial viewport to silence Chrome's "Images loaded lazily and
+   *  replaced with placeholders" intervention, which fires when lazy images
+   *  are already on screen at load time. */
+  eager?: boolean;
 }
 
 // ─── Sub-components (memoised) ───
@@ -46,26 +54,33 @@ const Badge = memo(({ children, variant = 'default' }: { children: React.ReactNo
   </div>
 ));
 
-const ActionButton = memo(({ onClick, variant, children }: {
+const ActionButton = memo(({ onClick, variant, active, children }: {
   onClick: (e: React.MouseEvent) => void;
   variant: 'delete' | 'favorite';
+  active?: boolean;
   children: React.ReactNode;
-}) => (
-  <button
-    onClick={onClick}
-    className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 shadow-lg backdrop-blur-md border border-white/10 hover:scale-110 active:scale-95 ${
-      variant === 'delete'
-        ? 'bg-black/50 text-white/80 hover:bg-red-500/80 hover:text-white hover:border-red-400/30'
-        : 'bg-black/50 text-white/80 hover:bg-pink-500/80 hover:text-white hover:border-pink-400/30'
-    }`}
-  >
-    {children}
-  </button>
-));
+}) => {
+  const stateCls =
+    variant === 'delete'
+      ? 'bg-black/50 text-white/80 hover:bg-red-500/80 hover:text-white hover:border-red-400/30'
+      : active
+        ? 'bg-pink-500/80 text-white border-pink-400/30 hover:bg-pink-500/90'
+        : 'bg-black/50 text-white/80 hover:bg-pink-500/80 hover:text-white hover:border-pink-400/30';
+  return (
+    <button
+      onClick={onClick}
+      aria-pressed={variant === 'favorite' ? !!active : undefined}
+      aria-label={variant === 'favorite' ? (active ? '取消收藏' : '收藏') : '删除'}
+      className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 shadow-lg backdrop-blur-md border border-white/10 hover:scale-110 active:scale-95 ${stateCls}`}
+    >
+      {children}
+    </button>
+  );
+});
 
 // ─── Base card ───
 
-const CardBase = memo(({ to, poster, title, badge, children, actions, animate = true, srcSet, sizes = CARD_IMAGE_SIZES }: {
+const CardBase = memo(({ to, poster, title, badge, children, actions, animate = true, srcSet, sizes = CARD_IMAGE_SIZES, eager = false }: {
   to: string;
   poster: string;
   title: string;
@@ -75,6 +90,7 @@ const CardBase = memo(({ to, poster, title, badge, children, actions, animate = 
   animate?: boolean;
   srcSet?: string;
   sizes?: string;
+  eager?: boolean;
 }) => {
   const [lifted, setLifted] = useState(false);
 
@@ -96,7 +112,8 @@ const CardBase = memo(({ to, poster, title, badge, children, actions, animate = 
           alt={title}
           className="w-full h-full object-cover transition-transform duration-[800ms] group-hover:scale-[1.08]"
           style={{ transitionTimingFunction: 'var(--ease-out-expo)' }}
-          loading="lazy"
+          loading={eager ? 'eager' : 'lazy'}
+          fetchPriority={eager ? 'high' : 'auto'}
           decoding="async"
         />
 
@@ -141,8 +158,26 @@ const CardBase = memo(({ to, poster, title, badge, children, actions, animate = 
 
 // ─── Main component ───
 
-const VideoCard = memo(({ video, douban, bangumi, from = 'vod', onDelete, showActions = false, animate = true }: VideoCardProps) => {
+const VideoCard = memo(({ video, douban, bangumi, from = 'vod', onDelete, showActions = false, showFavorite = false, animate = true, eager = false }: VideoCardProps) => {
   const [isFavorited, setIsFavorited] = useState(false);
+
+  // Sync the favorite state with the store: seed on mount (so already-favorited
+  // cards show a filled button) and re-check whenever favorites change anywhere.
+  useEffect(() => {
+    if (!video) return;
+    let active = true;
+    const sync = () => {
+      favoritesStore.isFavorite(video.vod_id).then((fav) => {
+        if (active) setIsFavorited(fav);
+      });
+    };
+    sync();
+    const unsubscribe = subscribeFavorites(sync);
+    return () => {
+      active = false;
+      unsubscribe();
+    };
+  }, [video]);
 
   const handleFavoriteClick = useCallback(async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -169,7 +204,7 @@ const VideoCard = memo(({ video, douban, bangumi, from = 'vod', onDelete, showAc
     return (
       <CardBase to={searchUrl} poster={processImageUrl(douban.poster)} srcSet={buildDoubanSrcSet(douban.poster)} title={douban.title}
         badge={douban.rate ? <Badge variant="highlight">{douban.rate}</Badge> : undefined}
-        animate={animate}>
+        animate={animate} eager={eager}>
         <h3 className="font-['Anton'] text-[13px] text-white uppercase tracking-wider leading-tight mb-1.5 truncate drop-shadow-sm">
           {douban.title}
         </h3>
@@ -192,7 +227,7 @@ const VideoCard = memo(({ video, douban, bangumi, from = 'vod', onDelete, showAc
     return (
       <CardBase to={searchUrl} poster={poster} srcSet={srcSet} title={title}
         badge={rating ? <Badge variant="highlight">{rating}</Badge> : undefined}
-        animate={animate}>
+        animate={animate} eager={eager}>
         <h3 className="font-['Anton'] text-[13px] text-white uppercase tracking-wider leading-tight mb-1.5 truncate drop-shadow-sm">
           {title}
         </h3>
@@ -210,15 +245,17 @@ const VideoCard = memo(({ video, douban, bangumi, from = 'vod', onDelete, showAc
     return (
       <CardBase to={playUrl} poster={video.vod_pic || '/placeholder.jpg'} title={video.vod_name}
         badge={remarks ? <Badge>{remarks}</Badge> : undefined}
-        animate={animate}
-        actions={showActions ? (
+        animate={animate} eager={eager}
+        actions={(showActions || showFavorite) ? (
           <>
-            <ActionButton onClick={handleDeleteClick} variant="delete">
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
-            </ActionButton>
-            <ActionButton onClick={handleFavoriteClick} variant="favorite">
+            {showActions && (
+              <ActionButton onClick={handleDeleteClick} variant="delete">
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </ActionButton>
+            )}
+            <ActionButton onClick={handleFavoriteClick} variant="favorite" active={isFavorited}>
               <svg className="w-3.5 h-3.5" fill={isFavorited ? 'currentColor' : 'none'} viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
               </svg>

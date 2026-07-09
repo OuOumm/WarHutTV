@@ -75,7 +75,8 @@ const initialState: PlayState = {
   historyVodId: '',
 };
 
-function reducer(state: PlayState, action: PlayAction): PlayState {
+// Exported for unit testing; the hook is just `useReducer(reducer, initialState)`.
+export function reducer(state: PlayState, action: PlayAction): PlayState {
   switch (action.type) {
     case 'patch':
       return { ...state, ...action.payload };

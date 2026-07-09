@@ -7,8 +7,7 @@ import Login from './pages/Login';
 import Home from './pages/Home';
 import { getCurrentTheme, applyTheme } from './store/theme';
 import { ToastProvider } from './components/ToastProvider';
-import { detailCacheStore } from './store/detailCache';
-import { apiCacheStore } from './store/apiCache';
+import ErrorBoundary from './components/ErrorBoundary';
 import Announcement from './components/Announcement';
 import ScrollToTop from './components/ScrollToTop';
 import PageSkeleton from './components/PageSkeleton';
@@ -17,21 +16,24 @@ import { useDocumentTitle, useDynamicManifest } from './hooks/useDocumentTitle';
 
 // Route-level code splitting — only the landing page (Home) and Login ship in
 // the initial bundle; the rest are fetched on demand so first-load JS drops
-// substantially (search/play/speed-test/douban/favorites/history).
+// substantially (search/play/speed-test/douban). The "继续观看" + "收藏"
+// personal sections live inline on Home (toggled via HomeTabContext), so no
+// dedicated routes are needed.
 const Search = lazy(() => import('./pages/Search'));
 const Play = lazy(() => import('./pages/Play'));
 const Douban = lazy(() => import('./pages/Douban'));
 const SpeedTest = lazy(() => import('./pages/SpeedTest'));
-const Favorites = lazy(() => import('./pages/Favorites'));
-const History = lazy(() => import('./pages/History'));
 
 // Force dark mode & apply saved theme
 document.documentElement.classList.add('dark');
 applyTheme(getCurrentTheme());
 
-// 清理过期缓存
-detailCacheStore.cleanExpired().catch(() => {});
-apiCacheStore.cleanExpired().catch(() => {});
+// 清理过期缓存（模块级动态 import：让 storage/Dexie chunk 不进入首屏包，
+// 在应用启动时异步拉取并执行，进一步压低首屏 JS 体积，且无需 React effect）。
+void Promise.all([
+  import('./store/detailCache').then((m) => m.detailCacheStore.cleanExpired()),
+  import('./store/apiCache').then((m) => m.apiCacheStore.cleanExpired()),
+]).catch(() => {});
 
 interface PrivateRouteProps {
   isAuthenticated: boolean;
@@ -77,18 +79,18 @@ function AppContent() {
         />
       )}
 
-      <Suspense fallback={<PageSkeleton />}>
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/" element={<PrivateRoute isAuthenticated={isAuthenticated} isLoading={isLoading}><Layout><Home /></Layout></PrivateRoute>} />
-          <Route path="/search" element={<PrivateRoute isAuthenticated={isAuthenticated} isLoading={isLoading}><Layout><Search /></Layout></PrivateRoute>} />
-          <Route path="/play/:site/:id" element={<PrivateRoute isAuthenticated={isAuthenticated} isLoading={isLoading}><Layout><Play /></Layout></PrivateRoute>} />
-                <Route path="/favorites" element={<PrivateRoute isAuthenticated={isAuthenticated} isLoading={isLoading}><Layout><Favorites /></Layout></PrivateRoute>} />
-          <Route path="/history" element={<PrivateRoute isAuthenticated={isAuthenticated} isLoading={isLoading}><Layout><History /></Layout></PrivateRoute>} />
-          <Route path="/speed" element={<PrivateRoute isAuthenticated={isAuthenticated} isLoading={isLoading}><Layout><SpeedTest /></Layout></PrivateRoute>} />
-          <Route path="/douban" element={<PrivateRoute isAuthenticated={isAuthenticated} isLoading={isLoading}><Layout><Douban /></Layout></PrivateRoute>} />
-        </Routes>
-      </Suspense>
+      <ErrorBoundary>
+        <Suspense fallback={<PageSkeleton />}>
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route path="/" element={<PrivateRoute isAuthenticated={isAuthenticated} isLoading={isLoading}><Layout><Home /></Layout></PrivateRoute>} />
+            <Route path="/search" element={<PrivateRoute isAuthenticated={isAuthenticated} isLoading={isLoading}><Layout><Search /></Layout></PrivateRoute>} />
+            <Route path="/play/:site/:id" element={<PrivateRoute isAuthenticated={isAuthenticated} isLoading={isLoading}><Layout><Play /></Layout></PrivateRoute>} />
+            <Route path="/speed" element={<PrivateRoute isAuthenticated={isAuthenticated} isLoading={isLoading}><Layout><SpeedTest /></Layout></PrivateRoute>} />
+            <Route path="/douban" element={<PrivateRoute isAuthenticated={isAuthenticated} isLoading={isLoading}><Layout><Douban /></Layout></PrivateRoute>} />
+          </Routes>
+        </Suspense>
+      </ErrorBoundary>
     </ToastProvider>
   );
 }
