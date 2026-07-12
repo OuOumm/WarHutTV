@@ -12,6 +12,7 @@
   --color-muted: #8a7580;
   --color-glass: rgba(26, 15, 20, 0.65);
   --color-glass-border: rgba(225, 29, 72, 0.15);
+  --color-watched: rgba(225, 29, 72, 0.22);
 }
 
 @layer utilities {

@@ -7,6 +7,7 @@ interface SourcePanelProps extends SourcePanelState {
   onEpisodeClick: (episode: Episode) => void;
   onEpisodePageChange: (page: number) => void;
   onSourceSwitch: (sourceKey: string) => void;
+  watchedEpisodes: string[];
 }
 
 export function SourcePanel({
@@ -24,6 +25,7 @@ export function SourcePanel({
   onEpisodeClick,
   onEpisodePageChange,
   onSourceSwitch,
+  watchedEpisodes,
 }: SourcePanelProps) {
   return (
     <div className="md:col-span-1 h-[300px] lg:h-full overflow-hidden">
@@ -57,6 +59,7 @@ export function SourcePanel({
                   episodesPerPage={episodesPerPage}
                   onEpisodeClick={onEpisodeClick}
                   onEpisodePageChange={onEpisodePageChange}
+                  watchedEpisodes={watchedEpisodes}
                 />
               ) : (
                 <SourceList
@@ -138,9 +141,10 @@ interface EpisodeGridProps {
   episodesPerPage: number;
   onEpisodeClick: (episode: Episode) => void;
   onEpisodePageChange: (page: number) => void;
+  watchedEpisodes: string[];
 }
 
-function EpisodeGrid({ currentEpisode, episodePage, episodes, episodesPerPage, onEpisodeClick, onEpisodePageChange }: EpisodeGridProps) {
+function EpisodeGrid({ currentEpisode, episodePage, episodes, episodesPerPage, onEpisodeClick, onEpisodePageChange, watchedEpisodes }: EpisodeGridProps) {
   return (
     <>
       {episodes.length > episodesPerPage && (
@@ -163,11 +167,21 @@ function EpisodeGrid({ currentEpisode, episodePage, episodes, episodesPerPage, o
         </div>
       )}
       <div className="p-2 grid grid-cols-4 gap-1.5">
-        {episodes.slice(episodePage * episodesPerPage, (episodePage + 1) * episodesPerPage).map((episode, index) => (
-          <button key={index} onClick={() => onEpisodeClick(episode)} className={`px-1.5 py-1.5 text-xs rounded-md transition-colors truncate ${currentEpisode?.name === episode.name ? 'bg-primary text-deep' : 'bg-surface text-muted hover:bg-card'}`} title={episode.name}>
-            {episode.name}
-          </button>
-        ))}
+        {episodes.slice(episodePage * episodesPerPage, (episodePage + 1) * episodesPerPage).map((episode, index) => {
+          const isCurrent = currentEpisode?.name === episode.name;
+          const isWatched = !isCurrent && watchedEpisodes.includes(episode.name);
+          return (
+            <button
+              key={index}
+              onClick={() => onEpisodeClick(episode)}
+              className={`px-1.5 py-1.5 text-xs rounded-md transition-colors ${isCurrent ? 'bg-primary text-deep' : isWatched ? 'bg-watched text-text ring-1 ring-primary/40' : 'bg-surface text-muted hover:bg-card'}`}
+              title={episode.name}
+              aria-label={isWatched ? `已观看：${episode.name}` : episode.name}
+            >
+              <span className="truncate">{isWatched ? '✓ ' : ''}{episode.name}</span>
+            </button>
+          );
+        })}
       </div>
     </>
   );

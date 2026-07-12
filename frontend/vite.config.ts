@@ -47,6 +47,7 @@ function themeInlinePlugin(): Plugin {
           muted: c.muted,
           glass: c.glass,
           glassBorder: c.glassBorder,
+          watched: c.watched,
           texture: t.visual.texture,
           glowAnim: t.visual.glowAnimation,
         };
@@ -70,6 +71,7 @@ function themeInlinePlugin(): Plugin {
         `r.style.setProperty('--color-muted',t.muted);` +
         `r.style.setProperty('--color-glass',t.glass);` +
         `r.style.setProperty('--color-glass-border',t.glassBorder);` +
+        `r.style.setProperty('--color-watched',t.watched);` +
         `})();</script>`;
 
       return html.replace('<!--theme-inline-->', script);

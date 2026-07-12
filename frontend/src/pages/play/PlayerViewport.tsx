@@ -7,6 +7,9 @@ const Player = lazy(() => import('../../components/Player'));
 
 interface PlayerViewportProps extends PlayerViewportState {
   onTimeUpdate: (time: number) => void;
+  onNext?: () => void;
+  onEnded?: () => void;
+  hasNext?: boolean;
 }
 
 export function PlayerViewport({
@@ -19,6 +22,9 @@ export function PlayerViewport({
   sourceSwitching,
   sources,
   onTimeUpdate,
+  onNext,
+  onEnded,
+  hasNext,
 }: PlayerViewportProps) {
   return (
     <div className="md:col-span-3 h-full">
@@ -33,6 +39,9 @@ export function PlayerViewport({
               title={currentDetail.vod_name}
               currentTime={currentTime}
               onTimeUpdate={onTimeUpdate}
+              onNext={onNext}
+              onEnded={onEnded}
+              hasNext={hasNext}
             />
           </Suspense>
         ) : !isOptimizing && optimizeComplete ? (

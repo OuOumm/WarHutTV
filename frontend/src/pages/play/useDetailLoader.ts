@@ -3,7 +3,7 @@ import apiClient from '../../api/client';
 import { detailCacheStore } from '../../store/detailCache';
 import { favoritesStore } from '../../store/favorites';
 import { historyStore } from '../../store/history';
-import { parseEpisodes } from './playUtils';
+import { parseEpisodes, resolveResumeEpisode, episodePageIndex } from './playUtils';
 import type { DetailResponse, Episode, VideoDetail } from './types';
 import type { PlayControllerDeps } from './playContext';
 
@@ -12,7 +12,7 @@ import type { PlayControllerDeps } from './playContext';
  * resume progress + history, then kicks off source optimization exactly once.
  */
 export function useDetailLoader(deps: PlayControllerDeps, startOptimize: (title: string, episodes: Episode[], baseVodId: string | number) => Promise<void>) {
-  const { dispatch, site, id, toast, setCurrentTime, optimizeStarted } = deps;
+  const { dispatch, site, id, toast, optimizeStarted } = deps;
 
   const loadDetail = useCallback(async () => {
     dispatch({
@@ -53,30 +53,23 @@ export function useDetailLoader(deps: PlayControllerDeps, startOptimize: (title:
       const videoDetail = detailList[0];
       const epList: Episode[] = videoDetail.vod_play_url ? parseEpisodes(videoDetail.vod_play_url) : [];
 
+      const targetEp = resolveResumeEpisode(epList, deps.initialEpisode);
+
       dispatch({
         type: 'patch',
         payload: {
           detail: videoDetail,
           currentSource: site || '',
           episodes: epList,
-          currentEpisode: epList.length > 0 ? epList[0] : null,
+          currentEpisode: targetEp,
+          episodePage: episodePageIndex(epList, targetEp, deps.episodesPerPage),
         },
       });
 
       const fav = await favoritesStore.isFavorite(id!);
       dispatch({ type: 'patch', payload: { isFavorite: fav } });
 
-      const firstEpName = epList.length > 0 ? epList[0].name : undefined;
-      const savedRecord = await historyStore.getByContext(site || '', id!, firstEpName);
-      const savedProgress = savedRecord?.progress && savedRecord.progress > 0 ? savedRecord.progress : 0;
-      if (savedProgress > 0) {
-        setCurrentTime(savedProgress);
-        const minutes = Math.floor(savedProgress / 60);
-        const seconds = Math.floor(savedProgress % 60);
-        toast(`已从 ${minutes}:${seconds.toString().padStart(2, '0')} 继续播放`);
-      }
-
-      await historyStore.add({ ...videoDetail, vod_id: id!, site_key: site }, firstEpName);
+      await historyStore.add({ ...videoDetail, vod_id: id!, site_key: site }, targetEp?.name);
       dispatch({ type: 'patch', payload: { historyVodId: id! } });
 
       if (!optimizeStarted.current) {
@@ -92,7 +85,7 @@ export function useDetailLoader(deps: PlayControllerDeps, startOptimize: (title:
     } finally {
       dispatch({ type: 'patch', payload: { loading: false } });
     }
-  }, [site, id, startOptimize, toast, setCurrentTime, optimizeStarted]);
+  }, [site, id, startOptimize, toast, dispatch, optimizeStarted, deps.initialEpisode, deps.episodesPerPage]);
 
   return { loadDetail };
 }

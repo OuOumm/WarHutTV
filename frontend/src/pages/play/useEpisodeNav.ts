@@ -39,5 +39,19 @@ export function useEpisodeNav(deps: PlayControllerDeps) {
     [id, dispatch, deps.playRequestId],
   );
 
-  return { handleEpisodeClick };
+  /**
+   * Jump to the episode immediately after the current one.
+   * Returns false when there is no next episode (or no selection yet).
+   */
+  const handleNextEpisode = useCallback((): boolean => {
+    const eps = stateRef.current.episodes;
+    const cur = stateRef.current.currentEpisode;
+    if (!cur || eps.length === 0) return false;
+    const idx = eps.findIndex((e) => e.name === cur.name);
+    if (idx === -1 || idx + 1 >= eps.length) return false;
+    handleEpisodeClick(eps[idx + 1]);
+    return true;
+  }, [stateRef, handleEpisodeClick]);
+
+  return { handleEpisodeClick, handleNextEpisode };
 }

@@ -20,6 +20,10 @@ export interface PlayControllerDeps {
   navigate: (path: string) => void;
   site?: string;
   id?: string;
+  /** Deep-link resume intent from a "继续观看" card (query params on /play). */
+  initialEpisode?: string;
+  initialTime?: number;
+  episodesPerPage: number;
   setCurrentTime: (t: number) => void;
   searchAbortRef: MutableRefObject<AbortController | null>;
   playRequestId: MutableRefObject<number>;

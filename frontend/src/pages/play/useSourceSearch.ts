@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { streamSearchResults } from '../../api/searchStream';
-import { getPlayableUrl, parseEpisodes, parseSpeed, applyHistoryProgress } from './playUtils';
+import { getPlayableUrl, parseEpisodes, parseSpeed, resolveResumeEpisode, applyResumeProgress, episodePageIndex } from './playUtils';
 import { getCachedDetail } from './playApi';
 import { filterYellowItems, isExactMatch } from '../../utils/filter';
 import { historyStore } from '../../store/history';
@@ -111,11 +111,12 @@ export function useSourceSearch(deps: PlayControllerDeps) {
         if (!data) data = await streamSearch(title);
 
         const playFallback = async () => {
-          if (initialEpisodes.length > 0 && initialEpisodes[0].url) {
-            const url = await getPlayableUrl(initialEpisodes[0].url, site);
+          const targetEp = resolveResumeEpisode(initialEpisodes, deps.initialEpisode);
+          if (targetEp?.url) {
+            const url = await getPlayableUrl(targetEp.url, site);
             dispatch({ type: 'patch', payload: { playUrl: url } });
           }
-          await applyHistoryProgress(setCurrentTime, toast, site || '', baseVodId, initialEpisodes[0]?.name);
+          await applyResumeProgress(setCurrentTime, toast, site || '', baseVodId, targetEp, deps.initialTime);
         };
 
         if (!data || !Array.isArray(data) || data.length === 0) {
@@ -164,7 +165,8 @@ export function useSourceSearch(deps: PlayControllerDeps) {
             const onlyDetail = await getCachedDetail(onlySource.key, onlySource.vodId);
             if (onlyDetail) {
               const epList = onlyDetail.vod_play_url ? parseEpisodes(onlyDetail.vod_play_url) : [];
-              const url = epList.length > 0 ? await getPlayableUrl(epList[0].url, onlySource.key) : '';
+              const targetEp = resolveResumeEpisode(epList, deps.initialEpisode);
+              const url = targetEp ? await getPlayableUrl(targetEp.url, onlySource.key) : '';
               dispatch({
                 type: 'applySource',
                 source: {
@@ -175,8 +177,9 @@ export function useSourceSearch(deps: PlayControllerDeps) {
                   historyVodId: onlyDetail.vod_id,
                 },
               });
+              dispatch({ type: 'patch', payload: { currentEpisode: targetEp, episodePage: episodePageIndex(epList, targetEp, deps.episodesPerPage) } });
               await historyStore.updateSource(baseVodId, onlySource.key, onlyDetail.vod_id);
-              await applyHistoryProgress(setCurrentTime, toast, onlySource.key, onlyDetail.vod_id, '');
+              await applyResumeProgress(setCurrentTime, toast, onlySource.key, onlyDetail.vod_id, targetEp, deps.initialTime);
             }
           }
           dispatch({ type: 'patch', payload: { optimizeComplete: true, searchProgress: null } });
@@ -217,7 +220,8 @@ export function useSourceSearch(deps: PlayControllerDeps) {
 
         const applyPicked = async (picked: { key: string; detail: VideoDetail }) => {
           const epList = picked.detail.vod_play_url ? parseEpisodes(picked.detail.vod_play_url) : [];
-          const url = epList.length > 0 ? await getPlayableUrl(epList[0].url, picked.key) : '';
+          const targetEp = resolveResumeEpisode(epList, deps.initialEpisode);
+          const url = targetEp ? await getPlayableUrl(targetEp.url, picked.key) : '';
           dispatch({
             type: 'applySource',
             source: {
@@ -228,8 +232,9 @@ export function useSourceSearch(deps: PlayControllerDeps) {
               historyVodId: picked.detail.vod_id,
             },
           });
+          dispatch({ type: 'patch', payload: { currentEpisode: targetEp, episodePage: episodePageIndex(epList, targetEp, deps.episodesPerPage) } });
           await historyStore.updateSource(baseVodId, picked.key, picked.detail.vod_id);
-          await applyHistoryProgress(setCurrentTime, toast, picked.key, picked.detail.vod_id, '');
+          await applyResumeProgress(setCurrentTime, toast, picked.key, picked.detail.vod_id, targetEp, deps.initialTime);
         };
 
         if (validResults.length > 0) {
@@ -248,14 +253,15 @@ export function useSourceSearch(deps: PlayControllerDeps) {
         } else {
           await playFallback();
         }
-      } catch (err) {
-        console.error('优选失败:', err);
-        if (initialEpisodes.length > 0 && initialEpisodes[0].url) {
-          const url = await getPlayableUrl(initialEpisodes[0].url, site);
-          dispatch({ type: 'patch', payload: { playUrl: url } });
-        }
-        await applyHistoryProgress(setCurrentTime, toast, site || '', baseVodId, initialEpisodes[0]?.name);
-      } finally {
+    } catch (err) {
+      console.error('优选失败:', err);
+      const targetEp = resolveResumeEpisode(initialEpisodes, deps.initialEpisode);
+      if (targetEp?.url) {
+        const url = await getPlayableUrl(targetEp.url, site);
+        dispatch({ type: 'patch', payload: { playUrl: url } });
+      }
+      await applyResumeProgress(setCurrentTime, toast, site || '', baseVodId, targetEp, deps.initialTime);
+    } finally {
         dispatch({
           type: 'patch',
           payload: { sourceLoading: false, optimizeComplete: true, searchProgress: null },
@@ -263,7 +269,7 @@ export function useSourceSearch(deps: PlayControllerDeps) {
         setTimeout(() => dispatch({ type: 'patch', payload: { isOptimizing: false } }), 800);
       }
     },
-    [site, toast, setCurrentTime, streamSearch, dispatch],
+    [site, toast, setCurrentTime, streamSearch, dispatch, deps.initialEpisode, deps.initialTime, deps.episodesPerPage],
   );
 
   return { streamSearch, startOptimize };

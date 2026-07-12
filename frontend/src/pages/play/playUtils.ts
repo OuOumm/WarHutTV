@@ -1,4 +1,5 @@
 import { historyStore } from '../../store/history';
+import type { ToastType } from '../../components/ToastProvider';
 import type { Episode } from './types';
 
 export function parseEpisodes(playUrl: string): Episode[] {
@@ -62,4 +63,55 @@ export async function applyHistoryProgress(
   } catch (err) {
     console.warn('Play: failed to apply history progress', err);
   }
+}
+
+/**
+ * Resolve which episode to resume from. When `initialEpisode` is supplied
+ * (e.g. from a "继续观看" deep-link) we match it by exact name; otherwise we
+ * fall back to the first episode — preserving the previous default behaviour
+ * for normal (search / favorite) entry points.
+ */
+export function resolveResumeEpisode(episodes: Episode[], initialEpisode?: string): Episode | null {
+  if (initialEpisode) {
+    const hit = episodes.find((e) => e.name === initialEpisode);
+    if (hit) return hit;
+  }
+  return episodes.length > 0 ? episodes[0] : null;
+}
+
+/** Index of the page that should be visible so `target` is in view. */
+export function episodePageIndex(episodes: Episode[], target: Episode | null, perPage: number): number {
+  if (!target) return 0;
+  const idx = episodes.findIndex((e) => e.name === target.name);
+  return idx < 0 ? 0 : Math.floor(idx / perPage);
+}
+
+/**
+ * Resume playback time for the given episode.
+ * Prefers an explicit `initialTime` (the deep-link's stored progress) and
+ * otherwise reads the per-episode progress from history. Sets `currentTime`
+ * and toasts only when there is a non-zero offset to resume from.
+ */
+export async function applyResumeProgress(
+  setCurrentTime: (time: number) => void,
+  toast: (message: string, type?: ToastType, duration?: number) => void,
+  currentSiteKey: string,
+  vodId: string | number,
+  episode: Episode | null,
+  initialTime?: number,
+): Promise<number> {
+  let time: number;
+  if (initialTime && initialTime > 0) {
+    time = initialTime;
+  } else {
+    const record = await historyStore.getByContext(currentSiteKey, vodId, episode?.name);
+    time = record?.progress && record.progress > 0 ? record.progress : 0;
+  }
+  if (time > 0) {
+    setCurrentTime(time);
+    const minutes = Math.floor(time / 60);
+    const seconds = Math.floor(time % 60);
+    toast(`已从 ${minutes}:${seconds.toString().padStart(2, '0')} 继续播放`);
+  }
+  return time;
 }

@@ -10,6 +10,7 @@ export interface ThemeColors {
   muted: string;
   glass: string;
   glassBorder: string;
+  watched: string;
 }
 
 export interface ThemeVisual {
@@ -82,6 +83,7 @@ export function applyTheme(theme: Theme): void {
   root.style.setProperty('--color-muted', colors.muted);
   root.style.setProperty('--color-glass', colors.glass);
   root.style.setProperty('--color-glass-border', colors.glassBorder);
+  root.style.setProperty('--color-watched', colors.watched);
   
   // 视觉风格变量
   root.dataset.theme = theme.id;

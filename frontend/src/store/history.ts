@@ -61,7 +61,7 @@ export const historyStore = {
     const playbackKey = makePlaybackKey(siteKey, vodId, episode);
     const existing = await db.watchHistory.where('playback_key').equals(playbackKey).first();
     if (existing) {
-      await db.watchHistory.update(existing.id!, { progress, duration });
+      await db.watchHistory.update(existing.id!, { progress, duration, episode: episode ?? existing.episode });
     } else {
       // Fallback to vod_id lookup for backward compatibility
       const fallback = await db.watchHistory.where('vod_id').equals(vodId).first();
@@ -69,6 +69,7 @@ export const historyStore = {
         await db.watchHistory.update(fallback.id!, {
           progress,
           duration,
+          episode: episode ?? fallback.episode,
           playback_key: playbackKey,
         });
       }

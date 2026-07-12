@@ -21,11 +21,21 @@ const Play = () => {
   return (
     <div>
       <div className="flex flex-col gap-4 py-4 px-3 sm:px-5 lg:px-8">
-        <div className="py-1">
+        <div className="py-1 flex flex-wrap items-center gap-x-3 gap-y-2">
           <h1 className="text-xl font-semibold text-text">
             {controller.currentDetail.vod_name}
             {controller.currentEpisode && <span className="text-lg text-muted font-normal"> - {controller.currentEpisode.name}</span>}
           </h1>
+          {controller.currentEpisode && controller.hasNextEpisode && (
+            <button
+              type="button"
+              onClick={controller.handleNextEpisode}
+              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium bg-primary/90 text-white hover:bg-primary transition-colors"
+              aria-label="播放下一集"
+            >
+              下一集 ▶
+            </button>
+          )}
         </div>
 
         <div className="grid gap-4 lg:h-[500px] xl:h-[650px] grid-cols-1 md:grid-cols-4">
@@ -39,6 +49,9 @@ const Play = () => {
             sourceSwitching={controller.sourceSwitching}
             sources={controller.sources}
             onTimeUpdate={controller.handleTimeUpdate}
+            onNext={controller.handleNextEpisode}
+            onEnded={controller.handleNextEpisode}
+            hasNext={controller.hasNextEpisode}
           />
 
           <SourcePanel
@@ -52,6 +65,7 @@ const Play = () => {
             sourceListRef={controller.sourceListRef}
             sourceLoading={controller.sourceLoading}
             sources={controller.sources}
+            watchedEpisodes={controller.watchedEpisodes}
             onActiveTabChange={controller.setActiveTab}
             onEpisodeClick={controller.handleEpisodeClick}
             onEpisodePageChange={controller.setEpisodePage}

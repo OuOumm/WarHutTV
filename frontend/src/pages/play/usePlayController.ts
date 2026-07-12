@@ -1,5 +1,5 @@
-import { useRef, useEffect, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useRef, useEffect, useState, useCallback, useMemo } from 'react';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useToast } from '../../components/ToastProvider';
 import { usePlayReducer } from './usePlayReducer';
 import { useSourceSearch } from './useSourceSearch';
@@ -8,6 +8,7 @@ import { useEpisodeNav } from './useEpisodeNav';
 import { usePlaybackProgress } from './usePlaybackProgress';
 import { useFavoriteToggle } from './useFavoriteToggle';
 import { useDetailLoader } from './useDetailLoader';
+import { watchedStore } from '../../store/watchedEpisodes';
 import type { PlayControllerDeps } from './playContext';
 import type { VideoDetail } from './types';
 
@@ -24,6 +25,11 @@ const EPISODES_PER_PAGE = 50;
 export function usePlayController() {
   const { site, id } = useParams<{ site: string; id: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const initialEpisode = searchParams.get('ep') ?? undefined;
+  const initialTimeRaw = searchParams.get('t');
+  const initialTime =
+    initialTimeRaw && !Number.isNaN(Number(initialTimeRaw)) ? Number(initialTimeRaw) : undefined;
   const { toast } = useToast();
   const { state, dispatch } = usePlayReducer();
 
@@ -39,6 +45,9 @@ export function usePlayController() {
   const switchRequestId = useRef(0);
   const sourceListRef = useRef<HTMLDivElement>(null);
 
+  // 已观看集数列表（按剧集名 vod_name 聚合，换源天然同步）
+  const [watchedEpisodes, setWatchedEpisodes] = useState<string[]>([]);
+
   const setCurrentTime = useCallback(
     (time: number) => dispatch({ type: 'patch', payload: { currentTime: time } }),
     [dispatch],
@@ -52,6 +61,9 @@ export function usePlayController() {
     navigate,
     site,
     id,
+    initialEpisode,
+    initialTime,
+    episodesPerPage: EPISODES_PER_PAGE,
     setCurrentTime,
     searchAbortRef,
     playRequestId,
@@ -62,7 +74,7 @@ export function usePlayController() {
 
   const { streamSearch, startOptimize } = useSourceSearch(deps);
   const { handleSourceSwitch } = useSourceSwitch(deps, streamSearch);
-  const { handleEpisodeClick } = useEpisodeNav(deps);
+  const { handleEpisodeClick, handleNextEpisode } = useEpisodeNav(deps);
   const { handleTimeUpdate, clearInvalidHistory } = usePlaybackProgress(deps);
   const { toggleFavorite } = useFavoriteToggle(deps);
   const { loadDetail } = useDetailLoader(deps, startOptimize);
@@ -93,6 +105,36 @@ export function usePlayController() {
     };
   }, [site, id, loadDetail]);
 
+  // 已观看集数：按剧集名(vod_name)聚合，换源时 vod_name 不变 → 标记自动同步
+  const vodName = state.detail?.vod_name;
+  useEffect(() => {
+    if (!vodName) return;
+    let cancelled = false;
+    watchedStore.getWatched(vodName).then((list) => {
+      if (!cancelled) setWatchedEpisodes(list);
+    });
+    return () => { cancelled = true; };
+  }, [vodName]);
+
+  useEffect(() => {
+    const ep = state.currentEpisode;
+    if (!vodName || !ep) return;
+    let cancelled = false;
+    watchedStore.markWatched(vodName, ep.name).then((list) => {
+      if (!cancelled) setWatchedEpisodes(list);
+    });
+    return () => { cancelled = true; };
+  }, [vodName, state.currentEpisode]);
+
+  // 是否有下一集（供「下一集」按钮的禁用态使用）
+  const hasNextEpisode = useMemo(() => {
+    const eps = state.episodes;
+    const cur = state.currentEpisode;
+    if (!cur || eps.length === 0) return false;
+    const idx = eps.findIndex((e) => e.name === cur.name);
+    return idx !== -1 && idx + 1 < eps.length;
+  }, [state.episodes, state.currentEpisode]);
+
   return {
     activeTab: state.activeTab,
     clearInvalidHistory,
@@ -105,8 +147,10 @@ export function usePlayController() {
     episodes: state.episodes,
     episodesPerPage: EPISODES_PER_PAGE,
     handleEpisodeClick,
+    handleNextEpisode,
     handleSourceSwitch,
     handleTimeUpdate,
+    hasNextEpisode,
     historyVodId: state.historyVodId,
     isFavorite: state.isFavorite,
     isOptimizing: state.isOptimizing,
@@ -121,6 +165,7 @@ export function usePlayController() {
     sourceLoading: state.sourceLoading,
     sourceSwitching: state.sourceSwitching,
     sources: state.sources,
+    watchedEpisodes,
     currentSource: state.currentSource,
     site,
     toggleFavorite,

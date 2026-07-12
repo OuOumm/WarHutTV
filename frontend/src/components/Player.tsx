@@ -9,6 +9,9 @@ interface PlayerProps {
   title?: string;
   currentTime?: number;
   onTimeUpdate?: (time: number) => void;
+  onNext?: () => void;
+  onEnded?: () => void;
+  hasNext?: boolean;
 }
 
 interface HlsVideoElement extends HTMLVideoElement {
@@ -46,7 +49,7 @@ function isM3u8(url: string): boolean {
   return url.startsWith('blob:') || url.includes('.m3u8');
 }
 
-const Player = ({ url, title, currentTime, onTimeUpdate }: PlayerProps) => {
+const Player = ({ url, title, currentTime, onTimeUpdate, onNext, onEnded, hasNext }: PlayerProps) => {
   const artRef = useRef<HTMLDivElement>(null);
   const artInstance = useRef<Artplayer | null>(null);
   const prevBlobUrl = useRef<string | null>(null);
@@ -55,9 +58,25 @@ const Player = ({ url, title, currentTime, onTimeUpdate }: PlayerProps) => {
   const onTimeUpdateRef = useRef(onTimeUpdate);
   // 跳过 switch effect 的首帧（创建时已加载首个 url，无需再 switch）
   const skipFirstSwitch = useRef(true);
+  // 下一集回调 / 结束回调 / 是否有下一集（用 ref 持有最新值，避免重建播放器）
+  const onNextRef = useRef(onNext);
+  const onEndedRef = useRef(onEnded);
+  const hasNextRef = useRef(hasNext);
+  const nextControlRef = useRef<HTMLElement | null>(null);
 
   // Keep callback ref in sync without triggering effect re-runs
   useEffect(() => { onTimeUpdateRef.current = onTimeUpdate; });
+  useEffect(() => { onNextRef.current = onNext; });
+  useEffect(() => { onEndedRef.current = onEnded; });
+  useEffect(() => {
+    hasNextRef.current = hasNext;
+    if (nextControlRef.current) {
+      const disabled = !hasNext;
+      nextControlRef.current.style.opacity = disabled ? '0.4' : '1';
+      nextControlRef.current.style.pointerEvents = disabled ? 'none' : 'auto';
+      nextControlRef.current.style.cursor = disabled ? 'default' : 'pointer';
+    }
+  }, [hasNext]);
 
   // Move ref write from render to effect (fixes react-hooks/refs violation)
   useEffect(() => {
@@ -193,8 +212,33 @@ const Player = ({ url, title, currentTime, onTimeUpdate }: PlayerProps) => {
 
     artInstance.current = art;
 
+    // 「下一集」自定义控件：放在控制条右侧
+    nextControlRef.current =
+      art.controls.add({
+        name: 'nextEpisode',
+        position: 'right',
+        tooltip: '下一集',
+        html: '<span style="display:inline-flex;align-items:center;gap:4px;font-size:13px;line-height:1;">下一集 ▶</span>',
+        click: () => {
+          onNextRef.current?.();
+        },
+      }) || null;
+    // 初始根据是否有下一集设置禁用态
+    if (nextControlRef.current) {
+      const disabled = !hasNextRef.current;
+      nextControlRef.current.style.opacity = disabled ? '0.4' : '1';
+      nextControlRef.current.style.pointerEvents = disabled ? 'none' : 'auto';
+      nextControlRef.current.style.cursor = disabled ? 'default' : 'pointer';
+    }
+
+    // 自动连播：一集放完自动跳到下一集
+    art.on('video:ended', () => {
+      onEndedRef.current?.();
+    });
+
     return () => {
       clearInterval(saveInterval);
+      nextControlRef.current = null;
       destroyPlayer(art, artRef.current);
       if (artInstance.current === art) {
         artInstance.current = null;

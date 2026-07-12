@@ -22,10 +22,18 @@ export interface DetailCache {
   cachedAt: number;
 }
 
+export interface WatchedEpisode {
+  id?: number;
+  vod_name: string;
+  episodes: string[];
+  updatedAt: number;
+}
+
 class WarHutTVDatabase extends Dexie {
   favorites!: Table<Favorite>;
   watchHistory!: Table<WatchHistory>;
   detailCache!: Table<DetailCache>;
+  watchedEpisodes!: Table<WatchedEpisode>;
 
   constructor() {
     super('WarHutTV');
@@ -42,6 +50,12 @@ class WarHutTVDatabase extends Dexie {
       favorites: '++id, vod_id, vod_name, addedAt',
       watchHistory: '++id, vod_id, vod_name, watchedAt, playback_key',
       detailCache: '++id, cacheKey, cachedAt',
+    });
+    this.version(4).stores({
+      favorites: '++id, vod_id, vod_name, addedAt',
+      watchHistory: '++id, vod_id, vod_name, watchedAt, playback_key',
+      detailCache: '++id, cacheKey, cachedAt',
+      watchedEpisodes: '++id, vod_name',
     });
   }
 }

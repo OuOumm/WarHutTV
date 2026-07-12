@@ -14,7 +14,8 @@
       "text": "#f5f0f2",
       "muted": "#8a7580",
       "glass": "rgba(26, 15, 20, 0.65)",
-      "glassBorder": "rgba(225, 29, 72, 0.15)"
+      "glassBorder": "rgba(225, 29, 72, 0.15)",
+      "watched": "rgba(225, 29, 72, 0.22)"
     },
     "visual": {
       "texture": "fabric",
@@ -38,7 +39,8 @@
       "text": "#f0f0f0",
       "muted": "#8b95a5",
       "glass": "rgba(17, 24, 39, 0.65)",
-      "glassBorder": "rgba(230, 185, 30, 0.15)"
+      "glassBorder": "rgba(230, 185, 30, 0.15)",
+      "watched": "rgba(230, 185, 30, 0.20)"
     },
     "visual": {
       "texture": "grain",
@@ -62,7 +64,8 @@
       "text": "#e8e6f0",
       "muted": "#7a7590",
       "glass": "rgba(19, 16, 42, 0.65)",
-      "glassBorder": "rgba(0, 212, 255, 0.15)"
+      "glassBorder": "rgba(0, 212, 255, 0.15)",
+      "watched": "rgba(0, 212, 255, 0.18)"
     },
     "visual": {
       "texture": "noise",
@@ -86,7 +89,8 @@
       "text": "#ecfdf5",
       "muted": "#6b8a7a",
       "glass": "rgba(15, 31, 24, 0.65)",
-      "glassBorder": "rgba(245, 158, 11, 0.15)"
+      "glassBorder": "rgba(245, 158, 11, 0.15)",
+      "watched": "rgba(245, 158, 11, 0.20)"
     },
     "visual": {
       "texture": "bark",
@@ -110,7 +114,8 @@
       "text": "#f0f4f8",
       "muted": "#7a8ba5",
       "glass": "rgba(17, 27, 46, 0.65)",
-      "glassBorder": "rgba(96, 165, 250, 0.15)"
+      "glassBorder": "rgba(96, 165, 250, 0.15)",
+      "watched": "rgba(96, 165, 250, 0.20)"
     },
     "visual": {
       "texture": "crystal",
@@ -134,7 +139,8 @@
       "text": "#fdf2f8",
       "muted": "#a5789a",
       "glass": "rgba(37, 16, 32, 0.65)",
-      "glassBorder": "rgba(249, 168, 212, 0.15)"
+      "glassBorder": "rgba(249, 168, 212, 0.15)",
+      "watched": "rgba(249, 168, 212, 0.22)"
     },
     "visual": {
       "texture": "silk",
