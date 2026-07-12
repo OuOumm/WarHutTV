@@ -55,11 +55,11 @@ export function useSourceSwitch(
                 detail: newDetail as VideoDetail,
                 episodes: epList,
                 playUrl: url,
-                historyVodId: item.vod_id,
+                historyVodId: stateRef.current.historyVodId,
               },
               activeTab: 'episodes',
             });
-            await historyStore.updateSource(stateRef.current.historyVodId, sourceKey, item.vod_id);
+            await historyStore.updateSource(stateRef.current.historyVodId);
             await applyHistoryProgress(setCurrentTime, toast, sourceKey, item.vod_id, '');
           }
         }
