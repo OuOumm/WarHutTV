@@ -11,7 +11,7 @@ import type { PlayControllerDeps } from './playContext';
  * Loads the video detail for the current `:site/:id`, hydrates favorites +
  * resume progress + history, then kicks off source optimization exactly once.
  */
-export function useDetailLoader(deps: PlayControllerDeps, startOptimize: (title: string, episodes: Episode[], baseVodId: string | number) => Promise<void>) {
+export function useDetailLoader(deps: PlayControllerDeps, startOptimize: (title: string, episodes: Episode[]) => Promise<void>) {
   const { dispatch, site, id, toast, optimizeStarted } = deps;
 
   const loadDetail = useCallback(async () => {
@@ -69,12 +69,17 @@ export function useDetailLoader(deps: PlayControllerDeps, startOptimize: (title:
       const fav = await favoritesStore.isFavorite(id!);
       dispatch({ type: 'patch', payload: { isFavorite: fav } });
 
-      await historyStore.add({ ...videoDetail, vod_id: id!, site_key: site }, targetEp?.name);
-      dispatch({ type: 'patch', payload: { historyVodId: id! } });
+      await historyStore.record(site || 'default', id!, {
+        vod_name: videoDetail.vod_name,
+        vod_pic: videoDetail.vod_pic,
+        episode: targetEp?.name ?? null,
+        progress: 0,
+        duration: 0,
+      });
 
       if (!optimizeStarted.current) {
         optimizeStarted.current = true;
-        await startOptimize(videoDetail.vod_name, epList, id!);
+        await startOptimize(videoDetail.vod_name, epList);
       }
     } catch (err) {
       const error = err as { response?: { data?: { error?: string } }; message?: string };

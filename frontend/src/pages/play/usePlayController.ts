@@ -151,7 +151,6 @@ export function usePlayController() {
     handleSourceSwitch,
     handleTimeUpdate,
     hasNextEpisode,
-    historyVodId: state.historyVodId,
     isFavorite: state.isFavorite,
     isOptimizing: state.isOptimizing,
     loading: state.loading,

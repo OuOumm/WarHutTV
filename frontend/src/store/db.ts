@@ -6,13 +6,20 @@ export interface Favorite extends VideoItem {
   addedAt: number;
 }
 
-export interface WatchHistory extends VideoItem {
+/** Minimal "where I left off" record — one row per video, keyed by `site:vod_id`. */
+export interface WatchHistory {
   id?: number;
+  key: string;
+  vod_id: string | number;
+  site_key: string;
+  vod_name: string;
+  vod_pic: string;
+  /** Last watched episode name (or null for single-file videos). */
+  episode: string | null;
+  /** Seconds into `episode`. */
+  progress: number;
+  duration: number;
   watchedAt: number;
-  progress?: number;
-  duration?: number;
-  episode?: string;
-  playback_key?: string;
 }
 
 export interface DetailCache {
@@ -56,6 +63,17 @@ class WarHutTVDatabase extends Dexie {
       watchHistory: '++id, vod_id, vod_name, watchedAt, playback_key',
       detailCache: '++id, cacheKey, cachedAt',
       watchedEpisodes: '++id, vod_name',
+    });
+    // v5: simplified continue-watching — one record per video keyed by `site:vod_id`,
+    // storing only last episode + progress. Dropping the old `playback_key` schema.
+    this.version(5).stores({
+      favorites: '++id, vod_id, vod_name, addedAt',
+      watchHistory: '++id, &key, vod_id, vod_name, watchedAt',
+      detailCache: '++id, cacheKey, cachedAt',
+      watchedEpisodes: '++id, vod_name',
+    }).upgrade(async (tx) => {
+      // Dev version: discard legacy history rows (different key shape) on upgrade.
+      await tx.table('watchHistory').clear();
     });
   }
 }

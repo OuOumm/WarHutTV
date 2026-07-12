@@ -3,7 +3,6 @@ import { streamSearchResults } from '../../api/searchStream';
 import { getPlayableUrl, parseEpisodes, parseSpeed, resolveResumeEpisode, applyResumeProgress, episodePageIndex } from './playUtils';
 import { getCachedDetail } from './playApi';
 import { filterYellowItems, isExactMatch } from '../../utils/filter';
-import { historyStore } from '../../store/history';
 import type {
   Episode,
   SearchSiteData,
@@ -93,7 +92,7 @@ export function useSourceSearch(deps: PlayControllerDeps) {
   );
 
   const startOptimize = useCallback(
-    async (title: string, initialEpisodes: Episode[], baseVodId: string | number) => {
+    async (title: string, initialEpisodes: Episode[]) => {
       dispatch({
         type: 'patch',
         payload: { sourceLoading: true, searchProgress: { completed: 0, total: 0, currentSite: '' } },
@@ -116,7 +115,7 @@ export function useSourceSearch(deps: PlayControllerDeps) {
             const url = await getPlayableUrl(targetEp.url, site);
             dispatch({ type: 'patch', payload: { playUrl: url } });
           }
-          await applyResumeProgress(setCurrentTime, toast, site || '', baseVodId, targetEp, deps.initialTime);
+          await applyResumeProgress(setCurrentTime, toast, targetEp, deps.initialTime);
         };
 
         if (!data || !Array.isArray(data) || data.length === 0) {
@@ -174,12 +173,10 @@ export function useSourceSearch(deps: PlayControllerDeps) {
                   detail: onlyDetail,
                   episodes: epList,
                   playUrl: url,
-                  historyVodId: baseVodId,
                 },
               });
               dispatch({ type: 'patch', payload: { currentEpisode: targetEp, episodePage: episodePageIndex(epList, targetEp, deps.episodesPerPage) } });
-              await historyStore.updateSource(baseVodId);
-              await applyResumeProgress(setCurrentTime, toast, site || '', baseVodId, targetEp, deps.initialTime);
+              await applyResumeProgress(setCurrentTime, toast, targetEp, deps.initialTime);
             }
           }
           dispatch({ type: 'patch', payload: { optimizeComplete: true, searchProgress: null } });
@@ -229,12 +226,10 @@ export function useSourceSearch(deps: PlayControllerDeps) {
               detail: picked.detail,
               episodes: epList,
               playUrl: url,
-              historyVodId: baseVodId,
             },
           });
           dispatch({ type: 'patch', payload: { currentEpisode: targetEp, episodePage: episodePageIndex(epList, targetEp, deps.episodesPerPage) } });
-          await historyStore.updateSource(baseVodId);
-          await applyResumeProgress(setCurrentTime, toast, site || '', baseVodId, targetEp, deps.initialTime);
+          await applyResumeProgress(setCurrentTime, toast, targetEp, deps.initialTime);
         };
 
         if (validResults.length > 0) {
@@ -260,7 +255,7 @@ export function useSourceSearch(deps: PlayControllerDeps) {
         const url = await getPlayableUrl(targetEp.url, site);
         dispatch({ type: 'patch', payload: { playUrl: url } });
       }
-      await applyResumeProgress(setCurrentTime, toast, site || '', baseVodId, targetEp, deps.initialTime);
+      await applyResumeProgress(setCurrentTime, toast, targetEp, deps.initialTime);
     } finally {
         dispatch({
           type: 'patch',

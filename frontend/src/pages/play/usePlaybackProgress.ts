@@ -11,11 +11,19 @@ export function usePlaybackProgress(deps: PlayControllerDeps) {
   const handleTimeUpdate = useCallback(
     (time: number) => {
       dispatch({ type: 'patch', payload: { currentTime: time } });
+      const vodId = deps.id;
+      const siteKey = deps.site || 'default';
+      if (!vodId) return;
       const st = stateRef.current;
-      if (!st.historyVodId) return;
-      historyStore.updateProgressByContext(st.currentSource, st.historyVodId, st.currentEpisode?.name, time, 0);
+      historyStore.record(siteKey, vodId, {
+        vod_name: st.detail?.vod_name || '',
+        vod_pic: st.detail?.vod_pic || '',
+        episode: st.currentEpisode?.name ?? null,
+        progress: time,
+        duration: 0,
+      });
     },
-    [dispatch, stateRef],
+    [dispatch, stateRef, deps.id, deps.site],
   );
 
   const clearInvalidHistory = useCallback(async () => {

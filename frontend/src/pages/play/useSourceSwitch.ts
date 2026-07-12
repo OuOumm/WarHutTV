@@ -2,7 +2,6 @@ import { useCallback } from 'react';
 import { getPlayableUrl, parseEpisodes, applyHistoryProgress } from './playUtils';
 import { getCachedDetail } from './playApi';
 import { filterYellowItems } from '../../utils/filter';
-import { historyStore } from '../../store/history';
 import type { SearchSiteData, VideoDetail } from './types';
 import type { PlayControllerDeps } from './playContext';
 
@@ -55,12 +54,12 @@ export function useSourceSwitch(
                 detail: newDetail as VideoDetail,
                 episodes: epList,
                 playUrl: url,
-                historyVodId: stateRef.current.historyVodId,
               },
               activeTab: 'episodes',
             });
-            await historyStore.updateSource(stateRef.current.historyVodId);
-            await applyHistoryProgress(setCurrentTime, toast, sourceKey, item.vod_id, '');
+            if (deps.id != null) {
+              await applyHistoryProgress(setCurrentTime, toast, deps.site || 'default', deps.id);
+            }
           }
         }
       } catch (err) {

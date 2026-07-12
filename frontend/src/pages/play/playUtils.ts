@@ -50,10 +50,9 @@ export async function applyHistoryProgress(
   toast: (message: string) => void,
   currentSiteKey: string,
   vodId: string | number,
-  episodeName?: string,
 ) {
   try {
-    const record = await historyStore.getByContext(currentSiteKey, vodId, episodeName);
+    const record = await historyStore.get(currentSiteKey, vodId);
     if (!record?.progress || record.progress <= 0) return;
 
     setCurrentTime(record.progress);
@@ -87,26 +86,18 @@ export function episodePageIndex(episodes: Episode[], target: Episode | null, pe
 }
 
 /**
- * Resume playback time for the given episode.
- * Prefers an explicit `initialTime` (the deep-link's stored progress) and
- * otherwise reads the per-episode progress from history. Sets `currentTime`
- * and toasts only when there is a non-zero offset to resume from.
+ * Resume playback time — driven entirely by the deep-link params the
+ * continue-watching card writes (`?ep=&t=`). No history lookup: the card
+ * already carries the stored progress, so resume is source-agnostic.
  */
 export async function applyResumeProgress(
   setCurrentTime: (time: number) => void,
   toast: (message: string, type?: ToastType, duration?: number) => void,
-  currentSiteKey: string,
-  vodId: string | number,
   episode: Episode | null,
   initialTime?: number,
 ): Promise<number> {
-  let time: number;
-  if (initialTime && initialTime > 0) {
-    time = initialTime;
-  } else {
-    const record = await historyStore.getByContext(currentSiteKey, vodId, episode?.name);
-    time = record?.progress && record.progress > 0 ? record.progress : 0;
-  }
+  void episode;
+  const time = initialTime && initialTime > 0 ? initialTime : 0;
   if (time > 0) {
     setCurrentTime(time);
     const minutes = Math.floor(time / 60);

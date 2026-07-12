@@ -31,7 +31,6 @@ export interface PlayState {
   optimizeComplete: boolean;
   episodePage: number;
   searchProgress: SearchProgress | null;
-  historyVodId: string | number;
 }
 
 export type PlayAction =
@@ -49,7 +48,6 @@ export type PlayAction =
         detail: VideoDetail;
         episodes: Episode[];
         playUrl: string;
-        historyVodId: string | number;
       };
       activeTab?: 'episodes' | 'sources';
     };
@@ -72,7 +70,6 @@ const initialState: PlayState = {
   optimizeComplete: false,
   episodePage: 0,
   searchProgress: null,
-  historyVodId: '',
 };
 
 // Exported for unit testing; the hook is just `useReducer(reducer, initialState)`.
@@ -102,7 +99,6 @@ export function reducer(state: PlayState, action: PlayAction): PlayState {
         episodes,
         currentEpisode: episodes.length > 0 ? episodes[0] : null,
         playUrl: action.source.playUrl,
-        historyVodId: action.source.historyVodId,
         activeTab: action.activeTab ?? state.activeTab,
       };
     }

@@ -20,7 +20,6 @@ const initialState: PlayState = {
   optimizeComplete: false,
   episodePage: 0,
   searchProgress: null,
-  historyVodId: '',
 };
 
 describe('usePlayReducer', () => {
@@ -31,7 +30,7 @@ describe('usePlayReducer', () => {
     expect(next.isOptimizing).toBe(false);
   });
 
-  it('applySource sets detail/episodes/currentEpisode/playUrl/historyVodId', () => {
+  it('applySource sets detail/episodes/currentEpisode/playUrl', () => {
     const episodes: Episode[] = [
       { name: '第1集', url: 'a.m3u8' },
       { name: '第2集', url: 'b.m3u8' },
@@ -48,7 +47,6 @@ describe('usePlayReducer', () => {
         detail,
         episodes,
         playUrl: 'a.m3u8',
-        historyVodId: '42',
       },
       activeTab: 'sources',
     });
@@ -58,7 +56,6 @@ describe('usePlayReducer', () => {
     expect(next.episodes).toEqual(episodes);
     expect(next.currentEpisode).toBe(episodes[0]);
     expect(next.playUrl).toBe('a.m3u8');
-    expect(next.historyVodId).toBe('42');
     // activeTab honoured when provided
     expect(next.activeTab).toBe('sources');
   });
@@ -73,7 +70,6 @@ describe('usePlayReducer', () => {
           detail: { vod_id: '1', vod_name: 'x', vod_pic: '' },
           episodes: [],
           playUrl: '',
-          historyVodId: '1',
         },
       },
     );

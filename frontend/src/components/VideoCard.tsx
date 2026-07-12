@@ -195,7 +195,7 @@ const VideoCard = memo(({ video, douban, bangumi, from = 'vod', onDelete, showAc
       onDelete(video);
       return;
     }
-    historyStore.remove(video.vod_id);
+    historyStore.remove(video.site_key || 'default', video.vod_id);
   }, [video, onDelete]);
 
   // ── Douban variant ──
@@ -238,19 +238,16 @@ const VideoCard = memo(({ video, douban, bangumi, from = 'vod', onDelete, showAc
 
   // ── VOD variant ──
   if (from === 'vod' && video) {
-    // 续播参数：从 playback_key 解析出真实最后观看集数(比 episode 字段更可靠)，
-    // 再附上进度。继续观看卡片点进来即可直接跳到对应集数+进度。
-    const resume = video as { episode?: string; progress?: number; playback_key?: string };
-    let resumeEp = resume.episode;
-    if (resume.playback_key && resume.playback_key.includes(':')) {
-      const suffix = resume.playback_key.split(':').slice(2).join(':');
-      if (suffix) resumeEp = suffix;
-    }
+    // 续播：直接用记录里的"最后观看集数 + 进度"拼深链参数。点进来即跳到对应
+    // 集数 + 进度，与具体播放源无关（播放页会重新优选最佳源）。
+    const resume = video as { episode?: string | null; progress?: number };
+    const resumeEp = resume.episode ?? undefined;
+    const resumeProgress = typeof resume.progress === 'number' ? resume.progress : 0;
     let playUrl = `/play/${video.site_key || 'default'}/${video.vod_id}`;
-    if (resumeEp || (resume.progress && resume.progress > 0)) {
+    if (resumeEp || resumeProgress > 0) {
       const params = new URLSearchParams();
       if (resumeEp) params.set('ep', resumeEp);
-      if (resume.progress && resume.progress > 0) params.set('t', String(Math.floor(resume.progress)));
+      if (resumeProgress > 0) params.set('t', String(Math.floor(resumeProgress)));
       playUrl += `?${params.toString()}`;
     }
     const metaParts = [video.vod_year, video.type_name].filter(Boolean);
