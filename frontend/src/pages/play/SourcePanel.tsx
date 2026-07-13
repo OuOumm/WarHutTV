@@ -1,5 +1,6 @@
 import { processImageUrl, buildDoubanSrcSet } from '../../utils/image';
 import { SourceStatusBadge } from './SourceStatusBadge';
+import { sortSourcesBySpeed } from './playUtils';
 import type { Episode, SourcePanelState } from './types';
 
 interface SourcePanelProps extends SourcePanelState {
@@ -96,10 +97,14 @@ function SourceList({ currentDetailName, currentSource, sourceListRef, sourceLoa
     return <div className="text-center text-muted text-sm py-4">暂无其他播放源</div>;
   }
 
+  // 按速度排序：快源在上、测速失败（status==='error'）沉底。仅渲染期排序，
+  // 不改 reducer 中 sources 的原始顺序（setSourceStatus 仍按索引更新）。
+  const displaySources = sortSourcesBySpeed(sources);
+
   return (
     <div ref={sourceListRef} className="flex-1 min-h-0 max-h-full overflow-y-auto bg-deep">
       <div className="space-y-1.5">
-        {sources.map((source) => (
+        {displaySources.map((source) => (
           <button
             key={source.key}
             type="button"

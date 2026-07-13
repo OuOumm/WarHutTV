@@ -1,6 +1,6 @@
 import { historyStore } from '../../store/history';
 import type { ToastType } from '../../components/ToastProvider';
-import type { Episode } from './types';
+import type { Episode, SourceItem } from './types';
 
 export function parseEpisodes(playUrl: string): Episode[] {
   const episodeMap = new Map<string, Episode>();
@@ -31,6 +31,35 @@ export function parseSpeed(speedStr: string): number {
   if (unit === 'GB') return value * 1024;
   if (unit === 'MB') return value;
   return value / 1024;
+}
+
+/**
+ * Sort candidate sources for the 换源 list: fastest first, failed tests last.
+ *
+ * - `status === 'error'` (speed test failed) always sinks to the bottom,
+ *   regardless of any speed value.
+ * - Everything else sorts by measured `loadSpeed` descending via `parseSpeed`.
+ * - Untested / speed-less sources rank as 0 and sit above the failed block
+ *   but below measured ones.
+ * - Original index is the tiebreaker, so equal speeds keep a deterministic,
+ *   stable order.
+ *
+ * Pure: never mutates the input. The reducer keeps its own index-based order
+ * (used by `setSourceStatus`), so we only reorder here at render time.
+ */
+export function sortSourcesBySpeed(sources: SourceItem[]): SourceItem[] {
+  return sources
+    .map((source, index) => ({ source, index }))
+    .sort((a, b) => {
+      const aFailed = a.source.status === 'error';
+      const bFailed = b.source.status === 'error';
+      if (aFailed !== bFailed) return aFailed ? 1 : -1;
+      const aSpeed = parseSpeed(a.source.speed?.loadSpeed ?? '');
+      const bSpeed = parseSpeed(b.source.speed?.loadSpeed ?? '');
+      if (bSpeed !== aSpeed) return bSpeed - aSpeed;
+      return a.index - b.index;
+    })
+    .map((entry) => entry.source);
 }
 
 export async function getPlayableUrl(url: string, sourceKey?: string) {
