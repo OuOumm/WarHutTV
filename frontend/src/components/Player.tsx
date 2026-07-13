@@ -218,7 +218,7 @@ const Player = ({ url, title, currentTime, onTimeUpdate, onNext, onEnded, hasNex
         name: 'nextEpisode',
         position: 'right',
         tooltip: '下一集',
-        html: '<span style="display:inline-flex;align-items:center;gap:4px;font-size:13px;line-height:1;">下一集 ▶</span>',
+        html: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="22" height="22"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19"/></svg>',
         click: () => {
           onNextRef.current?.();
         },

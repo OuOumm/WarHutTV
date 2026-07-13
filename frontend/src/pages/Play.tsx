@@ -26,16 +26,6 @@ const Play = () => {
             {controller.currentDetail.vod_name}
             {controller.currentEpisode && <span className="text-lg text-muted font-normal"> - {controller.currentEpisode.name}</span>}
           </h1>
-          {controller.currentEpisode && controller.hasNextEpisode && (
-            <button
-              type="button"
-              onClick={controller.handleNextEpisode}
-              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium bg-primary/90 text-white hover:bg-primary transition-colors"
-              aria-label="播放下一集"
-            >
-              下一集 ▶
-            </button>
-          )}
         </div>
 
         <div className="grid gap-4 lg:h-[500px] xl:h-[650px] grid-cols-1 md:grid-cols-4">
