@@ -6,7 +6,8 @@ import type { PlayerViewportState } from './types';
 const Player = lazy(() => import('../../components/Player'));
 
 interface PlayerViewportProps extends PlayerViewportState {
-  onTimeUpdate: (time: number) => void;
+  onTimeUpdate: (time: number, duration?: number) => void;
+  onFlush?: () => void;
   onNext?: () => void;
   onEnded?: () => void;
   hasNext?: boolean;
@@ -22,6 +23,7 @@ export function PlayerViewport({
   sourceSwitching,
   sources,
   onTimeUpdate,
+  onFlush,
   onNext,
   onEnded,
   hasNext,
@@ -39,6 +41,7 @@ export function PlayerViewport({
               title={currentDetail.vod_name}
               currentTime={currentTime}
               onTimeUpdate={onTimeUpdate}
+              onFlush={onFlush}
               onNext={onNext}
               onEnded={onEnded}
               hasNext={hasNext}

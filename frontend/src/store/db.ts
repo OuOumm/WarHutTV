@@ -16,6 +16,12 @@ export interface WatchHistory {
   vod_pic: string;
   /** Last watched episode name (or null for single-file videos). */
   episode: string | null;
+  /**
+   * Position of the last watched episode within its source's episode list.
+   * Lets resume fall back to the correct index when episode names differ
+   * across sources (name-only matching can't always reconcile them).
+   */
+  episodeIndex?: number | null;
   /** Seconds into `episode`. */
   progress: number;
   duration: number;
@@ -65,15 +71,14 @@ class WarHutTVDatabase extends Dexie {
       watchedEpisodes: '++id, vod_name',
     });
     // v5: simplified continue-watching — one record per video keyed by `site:vod_id`,
-    // storing only last episode + progress. Dropping the old `playback_key` schema.
+    // storing only last episode + progress. `&key` unique index dedups by site:vod_id.
+    // Schema change only; existing history rows are preserved (rows missing `key`
+    // are indexed as unset, which Dexie's unique index does NOT treat as a conflict).
     this.version(5).stores({
       favorites: '++id, vod_id, vod_name, addedAt',
       watchHistory: '++id, &key, vod_id, vod_name, watchedAt',
       detailCache: '++id, cacheKey, cachedAt',
       watchedEpisodes: '++id, vod_name',
-    }).upgrade(async (tx) => {
-      // Dev version: discard legacy history rows (different key shape) on upgrade.
-      await tx.table('watchHistory').clear();
     });
   }
 }

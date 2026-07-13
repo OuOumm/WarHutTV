@@ -181,8 +181,13 @@ const Home = () => {
   // (video) => void) so the card's memo isn't broken by a fresh inline
   // closure on every parent render.
   const handleRemoveFromHistory = useCallback(async (video: VideoItem) => {
-    await historyStore.removeByName(video.vod_name);
-    setContinueWatching((prev) => prev.filter((i) => i.vod_name !== video.vod_name));
+    // VideoCard passes the underlying WatchHistory row at runtime; read the
+    // stable site:vod_id key fields so we delete exactly this record instead
+    // of every history row sharing the same vod_name (the old removeByName
+    // bug that cross-deleted same-named titles).
+    const wh = video as unknown as WatchHistory;
+    await historyStore.remove(wh.site_key, wh.vod_id);
+    setContinueWatching((prev) => prev.filter((i) => i.key !== wh.key));
   }, []);
 
   const handleRemoveFromFavoritesHome = useCallback(async (video: VideoItem) => {
@@ -227,7 +232,7 @@ const Home = () => {
                   <ScrollableRow>
                     {continueWatching.map((item, i) => (
                       <VideoCard
-                        key={item.vod_name}
+                        key={item.key}
                         video={item}
                         from="vod"
                         showActions

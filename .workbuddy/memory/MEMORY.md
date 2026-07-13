@@ -6,6 +6,7 @@
 - 状态：React Context（Auth/Config/theme 命令式注入）+ Dexie 本地缓存（apiCache/detailCache/favorites/history/db）。
 - 重型播放器 artplayer/hls.js 已独立 `player` chunk 且仅 `/play`、`/speed` 按需（PlayerViewport 内 `lazy()`）。
 - 路由级 `lazy()`+Suspense 已在 `App.tsx` 实施；标签页隐藏 `anim-paused` 已在 `main.tsx` 实施。
+- **构建产物 `dist` 无需手动删除**：直接 `pnpm build`（vite build）即可，Vite 会自动清空并替换 `dist` 输出目录，不要先 `rm -rf dist`。
 
 ## 已知 / 已修复事项（避免重复分析或重复上报）
 - **缓存串扰 bug 已于 2026-07-09 修复**：`detailCache.cleanExpired` 现在只清非 `api_cache:` 前缀行（`src/store/detailCache.ts`）。`apiCache` 与 `detailCache` 共用 `db.detailCache` 表，但 `api_cache:` 行 TTL 24h–7d，详情缓存 TTL 2h——修复前 detailCache 的 cleanExpired 会误删长效 api 缓存。

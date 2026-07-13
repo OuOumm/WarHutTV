@@ -68,9 +68,15 @@ export function usePlayController() {
   const { streamSearch, startOptimize } = useSourceSearch(deps);
   const { handleSourceSwitch } = useSourceSwitch(deps, streamSearch);
   const { handleEpisodeClick, handleNextEpisode } = useEpisodeNav(deps);
-  const { handleTimeUpdate, clearInvalidHistory } = usePlaybackProgress(deps);
+  const { tick, flush, clearInvalidHistory } = usePlaybackProgress(deps);
   const { toggleFavorite } = useFavoriteToggle(deps);
   const { loadDetail } = useDetailLoader(deps, startOptimize);
+
+  // Single-writer plumbing: let the source-switch hook flush the live playback
+  // position into history *before* it swaps sources, so cross-source resume
+  // (time + episode index) stays continuous. `flush` is only read at runtime,
+  // so assigning it after the deps object is built is safe.
+  deps.progressFlush = flush;
 
   // Scroll the active source into view when the selection or list changes.
   useEffect(() => {
@@ -142,7 +148,8 @@ export function usePlayController() {
     handleEpisodeClick,
     handleNextEpisode,
     handleSourceSwitch,
-    handleTimeUpdate,
+    handleTimeUpdate: tick,
+    handleFlush: flush,
     hasNextEpisode,
     isFavorite: state.isFavorite,
     isOptimizing: state.isOptimizing,

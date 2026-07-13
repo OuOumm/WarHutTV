@@ -17,6 +17,7 @@ const initialState: PlayState = {
   isOptimizing: false,
   searchDataCache: null,
   currentTime: 0,
+  duration: 0,
   optimizeComplete: false,
   episodePage: 0,
   searchProgress: null,

@@ -173,9 +173,11 @@ export function useSourceSearch(deps: PlayControllerDeps) {
                   detail: onlyDetail,
                   episodes: epList,
                   playUrl: url,
+                  currentEpisode: targetEp,
                 },
               });
-              dispatch({ type: 'patch', payload: { currentEpisode: targetEp, episodePage: episodePageIndex(epList, targetEp, deps.episodesPerPage) } });
+              // currentEpisode is now part of applySource; only the page needs a patch.
+              dispatch({ type: 'patch', payload: { episodePage: episodePageIndex(epList, targetEp, deps.episodesPerPage) } });
             }
           }
           dispatch({ type: 'patch', payload: { optimizeComplete: true, searchProgress: null } });
@@ -225,9 +227,11 @@ export function useSourceSearch(deps: PlayControllerDeps) {
               detail: picked.detail,
               episodes: epList,
               playUrl: url,
+              currentEpisode: targetEp,
             },
           });
-          dispatch({ type: 'patch', payload: { currentEpisode: targetEp, episodePage: episodePageIndex(epList, targetEp, deps.episodesPerPage) } });
+          // currentEpisode is now part of applySource; only the page needs a patch.
+          dispatch({ type: 'patch', payload: { episodePage: episodePageIndex(epList, targetEp, deps.episodesPerPage) } });
         };
 
         if (validResults.length > 0) {

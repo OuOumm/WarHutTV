@@ -27,4 +27,10 @@ export interface PlayControllerDeps {
   switchRequestId: MutableRefObject<number>;
   optimizeStarted: MutableRefObject<boolean>;
   sourceListRef: RefObject<HTMLDivElement | null>;
+  /**
+   * Injects the playback-progress writer's flush so the source-switch hook can
+   * persist the live playback position into history *before* swapping sources
+   * (single-writer model — keeps cross-source resume continuous). Optional.
+   */
+  progressFlush?: () => Promise<void>;
 }

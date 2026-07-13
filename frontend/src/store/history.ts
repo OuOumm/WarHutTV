@@ -9,6 +9,7 @@ export interface WatchHistoryInput {
   vod_name: string;
   vod_pic: string;
   episode: string | null;
+  episodeIndex?: number | null;
   progress: number;
   duration: number;
 }
@@ -34,6 +35,7 @@ export const historyStore = {
       vod_name: data.vod_name,
       vod_pic: data.vod_pic,
       episode: data.episode,
+      episodeIndex: data.episodeIndex ?? null,
       progress: data.progress,
       duration: data.duration,
       watchedAt: Date.now(),
@@ -56,10 +58,6 @@ export const historyStore = {
   async remove(siteKey: string, vodId: string | number): Promise<void> {
     const rec = await db.watchHistory.where('key').equals(makeKey(siteKey, vodId)).first();
     if (rec?.id != null) await db.watchHistory.delete(rec.id);
-  },
-
-  async removeByName(vodName: string): Promise<void> {
-    await db.watchHistory.where('vod_name').equals(vodName).delete();
   },
 
   async clear(): Promise<void> {

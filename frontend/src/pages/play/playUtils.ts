@@ -46,13 +46,25 @@ export async function getPlayableUrl(url: string, sourceKey?: string) {
 }
 
 /**
- * Resolve which episode to resume from by exact name match; fall back to the
- * first episode when the name isn't found in the current source's list.
+ * Resolve which episode to resume from.
+ *
+ * 1. Exact name match against the current source's episode list.
+ * 2. If the name is missing but a valid `resumeIndex` is stored, fall back to
+ *    that index — this reconciles sources whose episode names differ (e.g.
+ *    "第1集" vs "EP01") so cross-source resume stays on the right episode.
+ * 3. Otherwise fall back to the first episode (or null when the list is empty).
  */
-export function resolveResumeEpisode(episodes: Episode[], resumeEpisode?: string | null): Episode | null {
+export function resolveResumeEpisode(
+  episodes: Episode[],
+  resumeEpisode?: string | null,
+  resumeIndex?: number | null,
+): Episode | null {
   if (resumeEpisode) {
     const hit = episodes.find((e) => e.name === resumeEpisode);
     if (hit) return hit;
+  }
+  if (resumeIndex != null && resumeIndex >= 0 && resumeIndex < episodes.length) {
+    return episodes[resumeIndex];
   }
   return episodes.length > 0 ? episodes[0] : null;
 }
@@ -90,7 +102,7 @@ export async function applyResumeProgress(
         })
       : undefined;
 
-  const episode = resolveResumeEpisode(episodes, rec?.episode ?? null);
+  const episode = resolveResumeEpisode(episodes, rec?.episode ?? null, rec?.episodeIndex ?? null);
   const time = rec?.progress && rec.progress > 0 ? rec.progress : 0;
 
   if (time > 0 && episode) {

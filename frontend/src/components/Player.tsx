@@ -8,7 +8,10 @@ interface PlayerProps {
   url: string;
   title?: string;
   currentTime?: number;
-  onTimeUpdate?: (time: number) => void;
+  /** Player feeds the latest (time, duration) — the progress writer throttles. */
+  onTimeUpdate?: (time: number, duration?: number) => void;
+  /** Optional explicit flush hook (pause/ended) so progress is never lost. */
+  onFlush?: () => void;
   onNext?: () => void;
   onEnded?: () => void;
   hasNext?: boolean;
@@ -49,13 +52,35 @@ function isM3u8(url: string): boolean {
   return url.startsWith('blob:') || url.includes('.m3u8');
 }
 
-const Player = ({ url, title, currentTime, onTimeUpdate, onNext, onEnded, hasNext }: PlayerProps) => {
+/**
+ * Resolve the seek target used when switching playback sources in-place.
+ *
+ * Prefer the deterministic in-state live position (`seekTime`), which is fed
+ * from the `currentTime` prop. `applyResumeProgress` sets it to the real
+ * resume point right before the switch, and `tick` keeps it fresh every 500ms.
+ * Only fall back to the raw video element's currentTime when the state value is
+ * still 0 (e.g. the very first play before any tick).
+ *
+ * Reading `art.video.currentTime` directly during the switch effect races with
+ * React's commit timing and can read 0, which previously made the player start
+ * from 0:00 after a mid-play source switch even though the "继续播放" toast
+ * showed the correct timestamp. Using the state value eliminates that race.
+ */
+export function resolveSwitchSeekTarget(seekTime: number, videoCurrentTime: number): number {
+  if (seekTime > 0) return seekTime;
+  if (videoCurrentTime > 0) return videoCurrentTime;
+  return 0;
+}
+
+const Player = ({ url, title, currentTime, onTimeUpdate, onFlush, onNext, onEnded, hasNext }: PlayerProps) => {
   const artRef = useRef<HTMLDivElement>(null);
   const artInstance = useRef<Artplayer | null>(null);
   const prevBlobUrl = useRef<string | null>(null);
   const seekDoneRef = useRef(false);
   const seekTimeRef = useRef(0);
   const onTimeUpdateRef = useRef(onTimeUpdate);
+  // 持有最新 onFlush，避免为 flush 重建事件监听
+  const onFlushRef = useRef(onFlush);
   // 跳过 switch effect 的首帧（创建时已加载首个 url，无需再 switch）
   const skipFirstSwitch = useRef(true);
   // 下一集回调 / 结束回调 / 是否有下一集（用 ref 持有最新值，避免重建播放器）
@@ -66,9 +91,13 @@ const Player = ({ url, title, currentTime, onTimeUpdate, onNext, onEnded, hasNex
   // 换源进行中标记：换源到新视频 seek 完成之前为 true，期间暂停进度回写，
   // 避免新视频起始的 0 写入历史，导致续播点被清零。
   const seekingRef = useRef(false);
+  // 换源「时间守卫」监听句柄：seek 未真正落地前在 timeupdate 上反复重试，
+  // 换源/卸载时据此移除监听，避免泄漏。
+  const seekNetRef = useRef<(() => void) | null>(null);
 
   // Keep callback ref in sync without triggering effect re-runs
   useEffect(() => { onTimeUpdateRef.current = onTimeUpdate; });
+  useEffect(() => { onFlushRef.current = onFlush; });
   useEffect(() => { onNextRef.current = onNext; });
   useEffect(() => { onEndedRef.current = onEnded; });
   useEffect(() => {
@@ -192,17 +221,25 @@ const Player = ({ url, title, currentTime, onTimeUpdate, onNext, onEnded, hasNex
       ],
     });
 
-    // 只在播放开始后记录进度，避免加载失败的源将进度记为 0
+    // 只在「成功出帧」后才记录进度（video:playing 而非 play）——卡顿/失败的源
+    // 在真正播放前就可能触发 play，会污染历史；playing 才是有效播放门槛。
     let hasPlayed = false;
-    art.on('play', () => { hasPlayed = true; });
+    art.on('video:playing', () => { hasPlayed = true; });
 
     const saveInterval = setInterval(() => {
       // 换源 seek 完成前不回写进度：避免把新视频起始 0 写入 currentTime/历史，
       // 否则会覆盖续播定位（seekTimeRef 被置 0 导致 loadedmetadata 时不 seek）
       if (hasPlayed && !seekingRef.current && art.video && onTimeUpdateRef.current) {
-        onTimeUpdateRef.current(art.video.currentTime);
+        const dur = art.video.duration;
+        onTimeUpdateRef.current(
+          art.video.currentTime,
+          dur && Number.isFinite(dur) ? dur : undefined,
+        );
       }
     }, 500);
+
+    // 暂停时立即把当前进度落库（单写器的 flush），避免关页/切后台丢进度
+    art.on('video:pause', () => { onFlushRef.current?.(); });
 
     // 恢复播放进度 - seekTimeRef 确保始终使用最新的 currentTime
     seekDoneRef.current = false;
@@ -236,14 +273,20 @@ const Player = ({ url, title, currentTime, onTimeUpdate, onNext, onEnded, hasNex
       nextControlRef.current.style.cursor = disabled ? 'default' : 'pointer';
     }
 
-    // 自动连播：一集放完自动跳到下一集
+    // 自动连播：一集放完自动跳到下一集；同时立即落库最终进度
     art.on('video:ended', () => {
+      onFlushRef.current?.();
       onEndedRef.current?.();
     });
 
     return () => {
       clearInterval(saveInterval);
       nextControlRef.current = null;
+      // 移除可能残留的换源时间守卫监听
+      if (seekNetRef.current) {
+        try { art.off('video:timeupdate', seekNetRef.current); } catch { /* noop */ }
+        seekNetRef.current = null;
+      }
       destroyPlayer(art, artRef.current);
       if (artInstance.current === art) {
         artInstance.current = null;
@@ -267,6 +310,12 @@ const Player = ({ url, title, currentTime, onTimeUpdate, onNext, onEnded, hasNex
     const art = artInstance.current;
     if (!art || !url) return;
 
+    // 清理上一次换源残留的「时间守卫」监听，避免重复/泄漏
+    if (seekNetRef.current) {
+      art.off('video:timeupdate', seekNetRef.current);
+      seekNetRef.current = null;
+    }
+
     // 清理上一次的 Blob URL（m3u8 customType 分支不会自动 revoke）
     if (prevBlobUrl.current) {
       revokeBlobUrl(prevBlobUrl.current);
@@ -279,27 +328,70 @@ const Player = ({ url, title, currentTime, onTimeUpdate, onNext, onEnded, hasNex
     // 先更新 type，确保 switch 走正确的 customType（blob 无扩展名需显式 m3u8）
     art.option.type = isM3u8(url) ? 'm3u8' : '';
 
-    // 换源后的续播位置 = 当前正在播放的真实进度（已随播放前进），
-    // 而非挂载时记录、可能已过期的初始续播点。视频尚未开始时回退到 seekTimeRef。
-    const livePos = art.video ? art.video.currentTime : 0;
-    const target = livePos > 0 ? livePos : seekTimeRef.current;
+    // 换源续播位置以「状态里的实时进度」为准：applyResumeProgress 已把真实续播点写入
+    // state.currentTime（→ seekTimeRef），tick 每 500ms 刷新。直接读 art.video.currentTime
+    // 会在 React effect 提交时机下竞争到 0，导致换源后从 0 开始。
+    const target = resolveSwitchSeekTarget(
+      seekTimeRef.current,
+      art.video ? art.video.currentTime : 0,
+    );
 
-    // 重置进度恢复标记，新源 loadedmetadata 后再 seek 到目标位置
+    // 重置进度恢复标记。新源加载后恢复到 target；恢复期间 seekingRef 保持 true，
+    // 阻止进度回写（避免把新源起始 0 写入历史、续播点被清零）。只有「实际 seek 已
+    // 落地」（video.currentTime 真正到达 target）才解除 seekingRef，确保不会从 0 播放。
     seekDoneRef.current = false;
     seekingRef.current = true;
+
     if (target > 0) {
-      art.once('video:loadedmetadata', () => {
-        if (!seekDoneRef.current && target > 0) {
-          art.seek = target;
+      // 目标位置可能超过新源时长 → 钳制到时长，避免无意义超界 seek
+      const safeTarget = (): number => {
+        const dur = art.video?.duration;
+        if (dur && Number.isFinite(dur) && target > dur) return dur;
+        return target;
+      };
+      // 发起一次 seek；媒体暂不可 seek（可搜索区间未就绪 / autoplay 抢跑）时静默失败，
+      // 由下方 timeupdate 守卫重试，直到真正落地。
+      const attemptSeek = () => {
+        if (seekDoneRef.current) return;
+        try {
+          art.seek = safeTarget();
+        } catch {
+          /* 媒体尚未可 seek，等待下次事件重试 */
+        }
+      };
+      // seek 真正落地（实际位置到达目标）后才解除守卫：避免 canplay 抢跑把 seekingRef
+      // 提前清零、进度回写成 0 的经典 bug（即「显示上一源进度却从 0 播放」）。
+      const onSeeked = () => {
+        const t = safeTarget();
+        if (art.video && Math.abs(art.video.currentTime - t) <= 2) {
           seekDoneRef.current = true;
           seekingRef.current = false;
+          if (seekNetRef.current) {
+            art.off('video:timeupdate', seekNetRef.current);
+            seekNetRef.current = null;
+          }
         }
-      });
-    }
-    // 安全网：loadedmetadata 可能已错过，canplay 时无论如何解除换源锁
-    art.once('video:canplay', () => {
+      };
+
+      art.once('video:loadedmetadata', attemptSeek);
+      art.once('video:canplay', attemptSeek);
+      art.once('video:seeked', onSeeked);
+
+      // 时间守卫：无论 loadedmetadata/canplay/seeked 何种时序，只要实际位置仍明显
+      // 落后目标，就反复重试 seek，直到视频真正到达目标位置，覆盖首次 seek 未落地的竞态。
+      const net = () => {
+        if (seekDoneRef.current) return;
+        const t = safeTarget();
+        if (art.video && art.video.currentTime < t - 2) {
+          attemptSeek();
+        }
+      };
+      seekNetRef.current = net;
+      art.on('video:timeupdate', net);
+    } else {
+      // 无续播点，新源从头播放，直接解除守卫让进度正常回写
       seekingRef.current = false;
-    });
+    }
 
     // 原地换源（Artplayer 官方 API），保留播放器实例与所有状态
     art.switch = url;

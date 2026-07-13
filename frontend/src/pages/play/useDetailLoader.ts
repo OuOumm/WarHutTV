@@ -56,7 +56,7 @@ export function useDetailLoader(deps: PlayControllerDeps, startOptimize: (title:
       // Preserve any existing continue-watching record (episode + progress) so
       // re-entering the page never wipes the stored resume position.
       const existing = site && id ? await historyStore.get(site, id) : undefined;
-      const targetEp = resolveResumeEpisode(epList, existing?.episode ?? null);
+      const targetEp = resolveResumeEpisode(epList, existing?.episode ?? null, existing?.episodeIndex ?? null);
 
       dispatch({
         type: 'patch',
@@ -72,13 +72,13 @@ export function useDetailLoader(deps: PlayControllerDeps, startOptimize: (title:
       const fav = await favoritesStore.isFavorite(id!);
       dispatch({ type: 'patch', payload: { isFavorite: fav } });
 
-      await historyStore.record(site || 'default', id!, {
-        vod_name: videoDetail.vod_name,
-        vod_pic: videoDetail.vod_pic,
-        episode: existing?.episode ?? targetEp?.name ?? null,
-        progress: existing?.progress ?? 0,
-        duration: existing?.duration ?? 0,
-      });
+      // NOTE: We intentionally do NOT write a history record here. Recording on
+      // page open would push a progress-0 entry to the top of "继续观看" the
+      // moment a user taps a card and backs out. The resume record is created
+      // by a previous session (and persisted) and updated live by
+      // `usePlaybackProgress.tick` (with fresh watchedAt + episodeIndex,
+      // throttled to ~3s plus an immediate flush on pause/ended/hide) once real
+      // playback time accrues.
 
       if (!optimizeStarted.current) {
         optimizeStarted.current = true;

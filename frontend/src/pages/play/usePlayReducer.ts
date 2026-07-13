@@ -28,6 +28,8 @@ export interface PlayState {
   isOptimizing: boolean;
   searchDataCache: SearchSiteData[] | null;
   currentTime: number;
+  /** Real media duration (seconds) reported by the player; 0 until known. */
+  duration: number;
   optimizeComplete: boolean;
   episodePage: number;
   searchProgress: SearchProgress | null;
@@ -48,6 +50,8 @@ export type PlayAction =
         detail: VideoDetail;
         episodes: Episode[];
         playUrl: string;
+        /** Optional resume episode; falls back to `episodes[0]` when omitted. */
+        currentEpisode?: Episode | null;
       };
       activeTab?: 'episodes' | 'sources';
     };
@@ -67,6 +71,7 @@ const initialState: PlayState = {
   isOptimizing: false,
   searchDataCache: null,
   currentTime: 0,
+  duration: 0,
   optimizeComplete: false,
   episodePage: 0,
   searchProgress: null,
@@ -97,7 +102,7 @@ export function reducer(state: PlayState, action: PlayAction): PlayState {
         currentSource: action.source.key,
         detail: action.source.detail,
         episodes,
-        currentEpisode: episodes.length > 0 ? episodes[0] : null,
+        currentEpisode: action.source.currentEpisode ?? (episodes.length > 0 ? episodes[0] : null),
         playUrl: action.source.playUrl,
         activeTab: action.activeTab ?? state.activeTab,
       };

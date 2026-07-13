@@ -39,6 +39,7 @@ const Play = () => {
             sourceSwitching={controller.sourceSwitching}
             sources={controller.sources}
             onTimeUpdate={controller.handleTimeUpdate}
+            onFlush={controller.handleFlush}
             onNext={controller.handleNextEpisode}
             onEnded={controller.handleNextEpisode}
             hasNext={controller.hasNextEpisode}
