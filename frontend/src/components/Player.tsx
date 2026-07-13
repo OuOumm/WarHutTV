@@ -63,8 +63,8 @@ const Player = ({ url, title, currentTime, onTimeUpdate, onNext, onEnded, hasNex
   const onEndedRef = useRef(onEnded);
   const hasNextRef = useRef(hasNext);
   const nextControlRef = useRef<HTMLElement | null>(null);
-  // 换源进行中标记：换源到新视频 loadedmetadata 完成 seek 之前为 true，
-  // 期间暂停进度回写，避免新视频起始的 0 覆盖续播定位用的 seekTimeRef。
+  // 换源进行中标记：换源到新视频 seek 完成之前为 true，期间暂停进度回写，
+  // 避免新视频起始的 0 写入历史，导致续播点被清零。
   const seekingRef = useRef(false);
 
   // Keep callback ref in sync without triggering effect re-runs
@@ -279,13 +279,18 @@ const Player = ({ url, title, currentTime, onTimeUpdate, onNext, onEnded, hasNex
     // 先更新 type，确保 switch 走正确的 customType（blob 无扩展名需显式 m3u8）
     art.option.type = isM3u8(url) ? 'm3u8' : '';
 
-    // 重置进度恢复标记，新源 loadedmetadata 后再 seek
+    // 换源后的续播位置 = 当前正在播放的真实进度（已随播放前进），
+    // 而非挂载时记录、可能已过期的初始续播点。视频尚未开始时回退到 seekTimeRef。
+    const livePos = art.video ? art.video.currentTime : 0;
+    const target = livePos > 0 ? livePos : seekTimeRef.current;
+
+    // 重置进度恢复标记，新源 loadedmetadata 后再 seek 到目标位置
     seekDoneRef.current = false;
     seekingRef.current = true;
-    if (seekTimeRef.current > 0) {
+    if (target > 0) {
       art.once('video:loadedmetadata', () => {
-        if (!seekDoneRef.current && seekTimeRef.current > 0) {
-          art.seek = seekTimeRef.current;
+        if (!seekDoneRef.current && target > 0) {
+          art.seek = target;
           seekDoneRef.current = true;
           seekingRef.current = false;
         }
