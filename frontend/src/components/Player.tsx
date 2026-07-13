@@ -3,6 +3,7 @@ import Artplayer from 'artplayer';
 import Hls from 'hls.js';
 import { getCurrentTheme } from '../store/theme';
 import { revokeBlobUrl } from '../utils/adblock';
+import './Player.css';
 
 interface PlayerProps {
   url: string;

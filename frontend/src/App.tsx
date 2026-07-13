@@ -6,6 +6,7 @@ import Layout from './components/Layout';
 import Login from './pages/Login';
 import Home from './pages/Home';
 import { getCurrentTheme, applyTheme } from './store/theme';
+import { apiCacheStore } from './store/apiCache';
 import { ToastProvider } from './components/ToastProvider';
 import ErrorBoundary from './components/ErrorBoundary';
 import Announcement from './components/Announcement';
@@ -28,12 +29,16 @@ const SpeedTest = lazy(() => import('./pages/SpeedTest'));
 document.documentElement.classList.add('dark');
 applyTheme(getCurrentTheme());
 
-// 清理过期缓存（模块级动态 import：让 storage/Dexie chunk 不进入首屏包，
-// 在应用启动时异步拉取并执行，进一步压低首屏 JS 体积，且无需 React effect）。
-void Promise.all([
-  import('./store/detailCache').then((m) => m.detailCacheStore.cleanExpired()),
-  import('./store/apiCache').then((m) => m.apiCacheStore.cleanExpired()),
-]).catch(() => {});
+// 清理过期缓存（模块级执行，无需 React effect）：
+// - detailCache 仅被懒加载的 Play 路由静态引用，动态 import 可独立成 chunk，
+//   在应用启动时异步拉取并执行，压低首屏 JS 体积；
+// - apiCache 已被首页(Home/Douban)经 bangumi 静态引用、随首屏加载，无法拆出
+//   独立 chunk（此前动态 import 被 Rollup 判定为 INEFFECTIVE_DYNAMIC_IMPORT），
+//   故改为静态调用，行为不变、告警消除。
+void import('./store/detailCache')
+  .then((m) => m.detailCacheStore.cleanExpired())
+  .catch(() => {});
+apiCacheStore.cleanExpired();
 
 interface PrivateRouteProps {
   isAuthenticated: boolean;

@@ -1,0 +1,23 @@
+/* ==================================================================
+   Player (Artplayer) — Mobile-only fixes
+   仅做移动端控件布局修复，不做任何播放器外观重定义。
+   - 桌面端：宽屏(网页全屏)按钮正常保留（Artplayer option fullscreenWeb:true）
+   - 移动端：仅隐藏「网页全屏/宽屏」按钮（用户要求），时间信息保留显示
+   - 画中画在手机上冗余，隐藏以腾出空间，确保末项「下一集」(.art-control-nextEpisode) 不被裁掉
+   ================================================================== */
+
+@media (max-width: 767px) {
+  /* 仅移动端隐藏「网页全屏/宽屏」按钮（宽屏控件 class = .art-control-fullscreenWeb） */
+  .art-video-player .art-control-fullscreenWeb {
+    display: none !important;
+  }
+
+  /* 画中画在手机上冗余，隐藏以腾出空间；next 按钮本身禁止收缩，优先保留 */
+  .art-video-player .art-control-pip {
+    display: none !important;
+  }
+
+  .art-video-player .art-control-nextEpisode {
+    flex-shrink: 0;
+  }
+}
