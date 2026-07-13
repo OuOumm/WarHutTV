@@ -53,7 +53,10 @@ export function useDetailLoader(deps: PlayControllerDeps, startOptimize: (title:
       const videoDetail = detailList[0];
       const epList: Episode[] = videoDetail.vod_play_url ? parseEpisodes(videoDetail.vod_play_url) : [];
 
-      const targetEp = resolveResumeEpisode(epList, deps.initialEpisode);
+      // Preserve any existing continue-watching record (episode + progress) so
+      // re-entering the page never wipes the stored resume position.
+      const existing = site && id ? await historyStore.get(site, id) : undefined;
+      const targetEp = resolveResumeEpisode(epList, existing?.episode ?? null);
 
       dispatch({
         type: 'patch',
@@ -72,9 +75,9 @@ export function useDetailLoader(deps: PlayControllerDeps, startOptimize: (title:
       await historyStore.record(site || 'default', id!, {
         vod_name: videoDetail.vod_name,
         vod_pic: videoDetail.vod_pic,
-        episode: targetEp?.name ?? null,
-        progress: 0,
-        duration: 0,
+        episode: existing?.episode ?? targetEp?.name ?? null,
+        progress: existing?.progress ?? 0,
+        duration: existing?.duration ?? 0,
       });
 
       if (!optimizeStarted.current) {
@@ -90,7 +93,7 @@ export function useDetailLoader(deps: PlayControllerDeps, startOptimize: (title:
     } finally {
       dispatch({ type: 'patch', payload: { loading: false } });
     }
-  }, [site, id, startOptimize, toast, dispatch, optimizeStarted, deps.initialEpisode, deps.episodesPerPage]);
+  }, [site, id, startOptimize, toast, dispatch, optimizeStarted, deps.episodesPerPage]);
 
   return { loadDetail };
 }

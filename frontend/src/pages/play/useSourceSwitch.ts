@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { getPlayableUrl, parseEpisodes, applyHistoryProgress } from './playUtils';
+import { getPlayableUrl, parseEpisodes, applyResumeProgress, episodePageIndex } from './playUtils';
 import { getCachedDetail } from './playApi';
 import { filterYellowItems } from '../../utils/filter';
 import type { SearchSiteData, VideoDetail } from './types';
@@ -45,7 +45,8 @@ export function useSourceSwitch(
           if (requestId !== deps.switchRequestId.current) return;
           if (newDetail) {
             const epList = newDetail.vod_play_url ? parseEpisodes(newDetail.vod_play_url) : [];
-            const url = epList.length > 0 ? await getPlayableUrl(epList[0].url, sourceKey) : '';
+            const resumeEp = await applyResumeProgress(setCurrentTime, toast, deps.site, deps.id, epList);
+            const url = epList.length > 0 ? await getPlayableUrl(resumeEp?.url || epList[0].url, sourceKey) : '';
             if (requestId !== deps.switchRequestId.current) return;
             dispatch({
               type: 'applySource',
@@ -57,9 +58,7 @@ export function useSourceSwitch(
               },
               activeTab: 'episodes',
             });
-            if (deps.id != null) {
-              await applyHistoryProgress(setCurrentTime, toast, deps.site || 'default', deps.id);
-            }
+            dispatch({ type: 'patch', payload: { currentEpisode: resumeEp, episodePage: episodePageIndex(epList, resumeEp, deps.episodesPerPage) } });
           }
         }
       } catch (err) {

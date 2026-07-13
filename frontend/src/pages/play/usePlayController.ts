@@ -1,5 +1,5 @@
 import { useRef, useEffect, useState, useCallback, useMemo } from 'react';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useToast } from '../../components/ToastProvider';
 import { usePlayReducer } from './usePlayReducer';
 import { useSourceSearch } from './useSourceSearch';
@@ -25,11 +25,6 @@ const EPISODES_PER_PAGE = 50;
 export function usePlayController() {
   const { site, id } = useParams<{ site: string; id: string }>();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const initialEpisode = searchParams.get('ep') ?? undefined;
-  const initialTimeRaw = searchParams.get('t');
-  const initialTime =
-    initialTimeRaw && !Number.isNaN(Number(initialTimeRaw)) ? Number(initialTimeRaw) : undefined;
   const { toast } = useToast();
   const { state, dispatch } = usePlayReducer();
 
@@ -61,8 +56,6 @@ export function usePlayController() {
     navigate,
     site,
     id,
-    initialEpisode,
-    initialTime,
     episodesPerPage: EPISODES_PER_PAGE,
     setCurrentTime,
     searchAbortRef,

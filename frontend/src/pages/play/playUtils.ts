@@ -45,34 +45,13 @@ export async function getPlayableUrl(url: string, sourceKey?: string) {
   return fetchAndFilterM3U8(url);
 }
 
-export async function applyHistoryProgress(
-  setCurrentTime: (time: number) => void,
-  toast: (message: string) => void,
-  currentSiteKey: string,
-  vodId: string | number,
-) {
-  try {
-    const record = await historyStore.get(currentSiteKey, vodId);
-    if (!record?.progress || record.progress <= 0) return;
-
-    setCurrentTime(record.progress);
-    const minutes = Math.floor(record.progress / 60);
-    const seconds = Math.floor(record.progress % 60);
-    toast(`已从 ${minutes}:${seconds.toString().padStart(2, '0')} 继续播放`);
-  } catch (err) {
-    console.warn('Play: failed to apply history progress', err);
-  }
-}
-
 /**
- * Resolve which episode to resume from. When `initialEpisode` is supplied
- * (e.g. from a "继续观看" deep-link) we match it by exact name; otherwise we
- * fall back to the first episode — preserving the previous default behaviour
- * for normal (search / favorite) entry points.
+ * Resolve which episode to resume from by exact name match; fall back to the
+ * first episode when the name isn't found in the current source's list.
  */
-export function resolveResumeEpisode(episodes: Episode[], initialEpisode?: string): Episode | null {
-  if (initialEpisode) {
-    const hit = episodes.find((e) => e.name === initialEpisode);
+export function resolveResumeEpisode(episodes: Episode[], resumeEpisode?: string | null): Episode | null {
+  if (resumeEpisode) {
+    const hit = episodes.find((e) => e.name === resumeEpisode);
     if (hit) return hit;
   }
   return episodes.length > 0 ? episodes[0] : null;
@@ -86,23 +65,39 @@ export function episodePageIndex(episodes: Episode[], target: Episode | null, pe
 }
 
 /**
- * Resume playback time — driven entirely by the deep-link params the
- * continue-watching card writes (`?ep=&t=`). No history lookup: the card
- * already carries the stored progress, so resume is source-agnostic.
+ * Resume from the local continue-watching record — no URL involvement.
+ *
+ * Reads the last watched episode + progress from `historyStore` for the given
+ * `site`/`id`, seeks the player to the stored progress, and returns the
+ * Episode to resume (matched by name against the *current source's* episode
+ * list, so resume works regardless of which source ends up playing).
+ *
+ * The continue-watching card simply links to `/play/site/id`; the page
+ * hydrates resume state from history on load, keeping the URL clean.
  */
 export async function applyResumeProgress(
   setCurrentTime: (time: number) => void,
   toast: (message: string, type?: ToastType, duration?: number) => void,
-  episode: Episode | null,
-  initialTime?: number,
-): Promise<number> {
-  void episode;
-  const time = initialTime && initialTime > 0 ? initialTime : 0;
-  if (time > 0) {
+  site: string | undefined,
+  id: string | undefined,
+  episodes: Episode[],
+): Promise<Episode | null> {
+  const rec =
+    site && id
+      ? await historyStore.get(site, id).catch((err) => {
+          console.warn('Play: failed to read resume record', err);
+          return undefined;
+        })
+      : undefined;
+
+  const episode = resolveResumeEpisode(episodes, rec?.episode ?? null);
+  const time = rec?.progress && rec.progress > 0 ? rec.progress : 0;
+
+  if (time > 0 && episode) {
     setCurrentTime(time);
     const minutes = Math.floor(time / 60);
     const seconds = Math.floor(time % 60);
     toast(`已从 ${minutes}:${seconds.toString().padStart(2, '0')} 继续播放`);
   }
-  return time;
+  return episode;
 }

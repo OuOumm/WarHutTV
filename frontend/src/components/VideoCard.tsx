@@ -238,18 +238,10 @@ const VideoCard = memo(({ video, douban, bangumi, from = 'vod', onDelete, showAc
 
   // ── VOD variant ──
   if (from === 'vod' && video) {
-    // 续播：直接用记录里的"最后观看集数 + 进度"拼深链参数。点进来即跳到对应
-    // 集数 + 进度，与具体播放源无关（播放页会重新优选最佳源）。
-    const resume = video as { episode?: string | null; progress?: number };
-    const resumeEp = resume.episode ?? undefined;
-    const resumeProgress = typeof resume.progress === 'number' ? resume.progress : 0;
-    let playUrl = `/play/${video.site_key || 'default'}/${video.vod_id}`;
-    if (resumeEp || resumeProgress > 0) {
-      const params = new URLSearchParams();
-      if (resumeEp) params.set('ep', resumeEp);
-      if (resumeProgress > 0) params.set('t', String(Math.floor(resumeProgress)));
-      playUrl += `?${params.toString()}`;
-    }
+    // 续播数据存在本地历史记录里（episode + progress）。链接保持干净的
+    // /play/site/id，播放页加载后自动从历史记录跳到上次集数 + 进度，与具体
+    // 播放源无关。
+    const playUrl = `/play/${video.site_key || 'default'}/${video.vod_id}`;
     const metaParts = [video.vod_year, video.type_name].filter(Boolean);
     const remarks = video.vod_remarks;
 
