@@ -35,6 +35,7 @@ function makeState(over: Partial<PlayState> = {}): PlayState {
     searchDataCache: null,
     currentTime: 0,
     duration: 0,
+    switchStartsFromZero: false,
     optimizeComplete: false,
     episodePage: 0,
     searchProgress: null,
@@ -128,7 +129,7 @@ describe('useSourceSwitch.handleSourceSwitch (P0-1 failure paths)', () => {
     });
 
     // sourceSwitching is flipped on, then cleared by the guarded finally.
-    expect(dispatch).toHaveBeenCalledWith({ type: 'patch', payload: { sourceSwitching: true } });
+    expect(dispatch).toHaveBeenCalledWith({ type: 'patch', payload: { sourceSwitching: true, switchStartsFromZero: false } });
     expect(dispatch).toHaveBeenLastCalledWith({ type: 'patch', payload: { sourceSwitching: false } });
     // currentSource must NOT be rewritten to the failed source.
     expect(dispatchSetNewSource(dispatch, 'siteB')).toBe(false);
@@ -147,7 +148,7 @@ describe('useSourceSwitch.handleSourceSwitch (P0-1 failure paths)', () => {
       await result.current.handleSourceSwitch('siteB');
     });
 
-    expect(dispatch).toHaveBeenCalledWith({ type: 'patch', payload: { sourceSwitching: true } });
+    expect(dispatch).toHaveBeenCalledWith({ type: 'patch', payload: { sourceSwitching: true, switchStartsFromZero: false } });
     expect(dispatch).toHaveBeenLastCalledWith({ type: 'patch', payload: { sourceSwitching: false } });
     expect(dispatchSetNewSource(dispatch, 'siteB')).toBe(false);
     expect(toast).toHaveBeenCalledWith('该播放源暂无可用数据', 'error');
@@ -169,7 +170,7 @@ describe('useSourceSwitch.handleSourceSwitch (P0-1 failure paths)', () => {
       await result.current.handleSourceSwitch('siteB');
     });
 
-    expect(dispatch).toHaveBeenCalledWith({ type: 'patch', payload: { sourceSwitching: true } });
+    expect(dispatch).toHaveBeenCalledWith({ type: 'patch', payload: { sourceSwitching: true, switchStartsFromZero: false } });
     expect(dispatch).toHaveBeenLastCalledWith({ type: 'patch', payload: { sourceSwitching: false } });
     expect(dispatchSetNewSource(dispatch, 'siteB')).toBe(false);
     expect(toast).toHaveBeenCalledWith('该播放源内容不可用', 'error');

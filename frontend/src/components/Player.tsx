@@ -8,6 +8,15 @@ interface PlayerProps {
   url: string;
   title?: string;
   currentTime?: number;
+  /**
+   * True when the incoming `url` is a deliberate **episode switch** (next /
+   * manual episode click) that must start from 0:00. When true the switch
+   * effect forces the seek target to 0 instead of falling back to the previous
+   * episode's `video.currentTime`, and suppresses progress writes until the new
+   * video's metadata loads — so the old episode's progress is never inherited
+   * nor written as the new episode's resume point. False for source switches.
+   */
+  startFromZero?: boolean;
   /** Player feeds the latest (time, duration) — the progress writer throttles. */
   onTimeUpdate?: (time: number, duration?: number) => void;
   /** Optional explicit flush hook (pause/ended) so progress is never lost. */
@@ -72,7 +81,7 @@ export function resolveSwitchSeekTarget(seekTime: number, videoCurrentTime: numb
   return 0;
 }
 
-const Player = ({ url, title, currentTime, onTimeUpdate, onFlush, onNext, onEnded, hasNext }: PlayerProps) => {
+const Player = ({ url, title, currentTime, startFromZero, onTimeUpdate, onFlush, onNext, onEnded, hasNext }: PlayerProps) => {
   const artRef = useRef<HTMLDivElement>(null);
   const artInstance = useRef<Artplayer | null>(null);
   const prevBlobUrl = useRef<string | null>(null);
@@ -94,6 +103,9 @@ const Player = ({ url, title, currentTime, onTimeUpdate, onFlush, onNext, onEnde
   // 换源「时间守卫」监听句柄：seek 未真正落地前在 timeupdate 上反复重试，
   // 换源/卸载时据此移除监听，避免泄漏。
   const seekNetRef = useRef<(() => void) | null>(null);
+  // 切集过渡期间的安全定时器：新视频元数据就绪/出错后解除 write 守卫，
+  // 源加载失败时也不至于永久阻断进度回写。换源/卸载时清理。
+  const seekGuardTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Keep callback ref in sync without triggering effect re-runs
   useEffect(() => { onTimeUpdateRef.current = onTimeUpdate; });
@@ -287,6 +299,11 @@ const Player = ({ url, title, currentTime, onTimeUpdate, onFlush, onNext, onEnde
         try { art.off('video:timeupdate', seekNetRef.current); } catch { /* noop */ }
         seekNetRef.current = null;
       }
+      // 清理切集过渡安全定时器
+      if (seekGuardTimerRef.current) {
+        clearTimeout(seekGuardTimerRef.current);
+        seekGuardTimerRef.current = null;
+      }
       destroyPlayer(art, artRef.current);
       if (artInstance.current === art) {
         artInstance.current = null;
@@ -315,6 +332,11 @@ const Player = ({ url, title, currentTime, onTimeUpdate, onFlush, onNext, onEnde
       art.off('video:timeupdate', seekNetRef.current);
       seekNetRef.current = null;
     }
+    // 清理上一次切集残留的安全定时器
+    if (seekGuardTimerRef.current) {
+      clearTimeout(seekGuardTimerRef.current);
+      seekGuardTimerRef.current = null;
+    }
 
     // 清理上一次的 Blob URL（m3u8 customType 分支不会自动 revoke）
     if (prevBlobUrl.current) {
@@ -328,21 +350,37 @@ const Player = ({ url, title, currentTime, onTimeUpdate, onFlush, onNext, onEnde
     // 先更新 type，确保 switch 走正确的 customType（blob 无扩展名需显式 m3u8）
     art.option.type = isM3u8(url) ? 'm3u8' : '';
 
-    // 换源续播位置以「状态里的实时进度」为准：applyResumeProgress 已把真实续播点写入
-    // state.currentTime（→ seekTimeRef），tick 每 500ms 刷新。直接读 art.video.currentTime
-    // 会在 React effect 提交时机下竞争到 0，导致换源后从 0 开始。
-    const target = resolveSwitchSeekTarget(
-      seekTimeRef.current,
-      art.video ? art.video.currentTime : 0,
-    );
+    // 切集（startFromZero）：本次 url 变化是「点集/下一集」而非换源，必须从头播放。
+    // 不能回退到 art.video.currentTime（此刻视频仍停在上一集进度），否则下一集会从
+    // 上一集进度开始。故目标强制为 0。
+    // 换源（!startFromZero）：续播位置以状态内实时进度为准（applyResumeProgress 已写入
+    // state.currentTime → seekTimeRef，tick 每 500ms 刷新）。仅当 seekTime 为 0 才回退
+    // 读 art.video.currentTime（同集换源时即上一源真实位置，正确）。
+    const isEpisodeSwitch = !!startFromZero;
+    const target = isEpisodeSwitch
+      ? 0
+      : resolveSwitchSeekTarget(seekTimeRef.current, art.video ? art.video.currentTime : 0);
 
-    // 重置进度恢复标记。新源加载后恢复到 target；恢复期间 seekingRef 保持 true，
-    // 阻止进度回写（避免把新源起始 0 写入历史、续播点被清零）。只有「实际 seek 已
-    // 落地」（video.currentTime 真正到达 target）才解除 seekingRef，确保不会从 0 播放。
+    // 重置进度恢复标记。
     seekDoneRef.current = false;
-    seekingRef.current = true;
 
-    if (target > 0) {
+    if (isEpisodeSwitch) {
+      // 切集：新集从 0 开始。过渡期间旧视频仍停在上一集进度 T，若此刻回写会把 T 误写成
+      // 新集的续播点（二次 resume bug）。故保持 seekingRef=true 阻止回写，待新视频元数据
+      // 就绪（currentTime 归 0）或出错后再解除；附 15s 安全定时器兜底（源加载失败时也不
+      // 至于永久阻断进度回写）。无需挂 seek 重试（目标本就是 0）。
+      seekingRef.current = true;
+      const clearGuard = () => {
+        seekingRef.current = false;
+        if (seekGuardTimerRef.current) {
+          clearTimeout(seekGuardTimerRef.current);
+          seekGuardTimerRef.current = null;
+        }
+      };
+      art.once('video:loadedmetadata', clearGuard);
+      art.once('video:error', clearGuard);
+      seekGuardTimerRef.current = setTimeout(clearGuard, 15000);
+    } else if (target > 0) {
       // 目标位置可能超过新源时长 → 钳制到时长，避免无意义超界 seek
       const safeTarget = (): number => {
         const dur = art.video?.duration;
@@ -386,10 +424,11 @@ const Player = ({ url, title, currentTime, onTimeUpdate, onFlush, onNext, onEnde
           attemptSeek();
         }
       };
+      seekingRef.current = true;
       seekNetRef.current = net;
       art.on('video:timeupdate', net);
     } else {
-      // 无续播点，新源从头播放，直接解除守卫让进度正常回写
+      // 无续播点（换源且处于视频开头），新源从头播放，直接解除守卫让进度正常回写
       seekingRef.current = false;
     }
 

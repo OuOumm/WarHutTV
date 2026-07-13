@@ -29,6 +29,7 @@ function makeState(over: Partial<PlayState> = {}): PlayState {
     searchDataCache: null,
     currentTime: 0,
     duration: 0,
+    switchStartsFromZero: false,
     optimizeComplete: false,
     episodePage: 0,
     searchProgress: null,

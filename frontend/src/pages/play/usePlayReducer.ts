@@ -30,6 +30,15 @@ export interface PlayState {
   currentTime: number;
   /** Real media duration (seconds) reported by the player; 0 until known. */
   duration: number;
+  /**
+   * True when the pending `playUrl` change is a deliberate **episode switch**
+   * (clicking an episode / next-episode button) that must start from 0:00.
+   * False for source switches / optimization, which should resume the same
+   * episode at its stored progress. The Player reads this to avoid falling
+   * back to the *previous* episode's `video.currentTime` (which would make the
+   * next episode inherit the old progress).
+   */
+  switchStartsFromZero: boolean;
   optimizeComplete: boolean;
   episodePage: number;
   searchProgress: SearchProgress | null;
@@ -72,6 +81,7 @@ const initialState: PlayState = {
   searchDataCache: null,
   currentTime: 0,
   duration: 0,
+  switchStartsFromZero: false,
   optimizeComplete: false,
   episodePage: 0,
   searchProgress: null,
@@ -104,6 +114,8 @@ export function reducer(state: PlayState, action: PlayAction): PlayState {
         episodes,
         currentEpisode: action.source.currentEpisode ?? (episodes.length > 0 ? episodes[0] : null),
         playUrl: action.source.playUrl,
+        // 换源必从续播点恢复，绝不从 0 开始（与切集区分）
+        switchStartsFromZero: false,
         activeTab: action.activeTab ?? state.activeTab,
       };
     }

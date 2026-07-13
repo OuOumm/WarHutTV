@@ -18,6 +18,7 @@ const initialState: PlayState = {
   searchDataCache: null,
   currentTime: 0,
   duration: 0,
+  switchStartsFromZero: false,
   optimizeComplete: false,
   episodePage: 0,
   searchProgress: null,
@@ -75,6 +76,32 @@ describe('usePlayReducer', () => {
       },
     );
     expect(next.activeTab).toBe('sources');
+  });
+
+  it('applySource always resets switchStartsFromZero to false (source switch resumes)', () => {
+    // 即使此前是切集（true），换源也必须回到续播，不能从 0 开始
+    const next = reducer(
+      { ...initialState, switchStartsFromZero: true },
+      {
+        type: 'applySource',
+        source: {
+          key: 'siteA',
+          detail: { vod_id: '1', vod_name: 'x', vod_pic: '' },
+          episodes: [],
+          playUrl: 'a.m3u8',
+        },
+      },
+    );
+    expect(next.switchStartsFromZero).toBe(false);
+  });
+
+  it('patch can set switchStartsFromZero true for an episode switch', () => {
+    const next = reducer(initialState, {
+      type: 'patch',
+      payload: { currentEpisode: { name: '第2集', url: 'b.m3u8' }, currentTime: 0, playUrl: 'b.m3u8', switchStartsFromZero: true },
+    });
+    expect(next.switchStartsFromZero).toBe(true);
+    expect(next.currentEpisode?.name).toBe('第2集');
   });
 
   it('setSourceStatus updates only the targeted source (concurrent-safe)', () => {

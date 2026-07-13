@@ -14,13 +14,21 @@ export function useEpisodeNav(deps: PlayControllerDeps) {
   const handleEpisodeClick = useCallback(
     (ep: Episode) => {
       const currentSource = stateRef.current.currentSource;
-      dispatch({ type: 'patch', payload: { currentEpisode: ep, currentTime: 0 } });
       const requestId = ++deps.playRequestId.current;
-      if (ep.url) {
-        getPlayableUrl(ep.url, currentSource).then((url) => {
-          if (requestId !== deps.playRequestId.current) return;
-          dispatch({ type: 'patch', payload: { playUrl: url } });
+      // 切集：新集从 0:00 开始。把 currentEpisode + currentTime + playUrl +
+      // switchStartsFromZero 合并到**同一次** dispatch，避免在 playUrl 就绪前
+      // currentEpisode 已变成新集、而视频仍停在上一集进度时，进度回写把旧集进度
+      // 误写成新集的续播点。switchStartsFromZero=true 告知 Player 本次换源是「切集」，
+      // 不要回退到上一集的 video.currentTime。
+      const apply = (url: string) => {
+        if (requestId !== deps.playRequestId.current) return;
+        dispatch({
+          type: 'patch',
+          payload: { currentEpisode: ep, currentTime: 0, playUrl: url, switchStartsFromZero: true },
         });
+      };
+      if (ep.url) {
+        getPlayableUrl(ep.url, currentSource).then(apply);
         return;
       }
 
@@ -28,10 +36,7 @@ export function useEpisodeNav(deps: PlayControllerDeps) {
         .get('/play', { params: { site: currentSource, ids: id, episode: ep.name } })
         .then((res) => {
           if (res.data?.url) {
-            getPlayableUrl(res.data.url, currentSource).then((url) => {
-              if (requestId !== deps.playRequestId.current) return;
-              dispatch({ type: 'patch', payload: { playUrl: url } });
-            });
+            getPlayableUrl(res.data.url, currentSource).then(apply);
           }
         })
         .catch(console.error);

@@ -164,6 +164,7 @@ export function usePlayController() {
     sourceLoading: state.sourceLoading,
     sourceSwitching: state.sourceSwitching,
     sources: state.sources,
+    switchStartsFromZero: state.switchStartsFromZero,
     watchedEpisodes,
     currentSource: state.currentSource,
     site,

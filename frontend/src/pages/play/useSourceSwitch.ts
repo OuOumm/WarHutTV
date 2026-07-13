@@ -29,7 +29,7 @@ export function useSourceSwitch(
       // `applySource` and must NOT be rewritten until the new source is
       // actually loaded — otherwise a failed switch would desync the UI
       // (shown source ≠ actually playing source).
-      dispatch({ type: 'patch', payload: { sourceSwitching: true } });
+      dispatch({ type: 'patch', payload: { sourceSwitching: true, switchStartsFromZero: false } });
       try {
         let siteData: SearchSiteData | undefined;
         const searchDataCache = stateRef.current.searchDataCache;

@@ -113,7 +113,7 @@ export function useSourceSearch(deps: PlayControllerDeps) {
           const targetEp = await applyResumeProgress(setCurrentTime, toast, site, id, initialEpisodes);
           if (targetEp?.url) {
             const url = await getPlayableUrl(targetEp.url, site);
-            dispatch({ type: 'patch', payload: { playUrl: url } });
+            dispatch({ type: 'patch', payload: { playUrl: url, switchStartsFromZero: false } });
           }
           dispatch({ type: 'patch', payload: { currentEpisode: targetEp, episodePage: episodePageIndex(initialEpisodes, targetEp, deps.episodesPerPage) } });
         };
@@ -255,7 +255,7 @@ export function useSourceSearch(deps: PlayControllerDeps) {
       const targetEp = await applyResumeProgress(setCurrentTime, toast, site, id, initialEpisodes);
       if (targetEp?.url) {
         const url = await getPlayableUrl(targetEp.url, site);
-        dispatch({ type: 'patch', payload: { playUrl: url } });
+        dispatch({ type: 'patch', payload: { playUrl: url, switchStartsFromZero: false } });
       }
       dispatch({ type: 'patch', payload: { currentEpisode: targetEp, episodePage: episodePageIndex(initialEpisodes, targetEp, deps.episodesPerPage) } });
     } finally {

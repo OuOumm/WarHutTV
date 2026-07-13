@@ -11,6 +11,8 @@ interface PlayerViewportProps extends PlayerViewportState {
   onNext?: () => void;
   onEnded?: () => void;
   hasNext?: boolean;
+  /** True when the current playUrl is a deliberate episode switch (start from 0). */
+  startFromZero?: boolean;
 }
 
 export function PlayerViewport({
@@ -27,6 +29,7 @@ export function PlayerViewport({
   onNext,
   onEnded,
   hasNext,
+  startFromZero,
 }: PlayerViewportProps) {
   return (
     <div className="md:col-span-3 h-full">
@@ -40,6 +43,7 @@ export function PlayerViewport({
               url={playUrl}
               title={currentDetail.vod_name}
               currentTime={currentTime}
+              startFromZero={startFromZero}
               onTimeUpdate={onTimeUpdate}
               onFlush={onFlush}
               onNext={onNext}

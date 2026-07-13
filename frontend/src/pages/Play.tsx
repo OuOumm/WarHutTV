@@ -38,6 +38,7 @@ const Play = () => {
             searchProgress={controller.searchProgress}
             sourceSwitching={controller.sourceSwitching}
             sources={controller.sources}
+            startFromZero={controller.switchStartsFromZero}
             onTimeUpdate={controller.handleTimeUpdate}
             onFlush={controller.handleFlush}
             onNext={controller.handleNextEpisode}
