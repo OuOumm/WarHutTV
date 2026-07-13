@@ -63,6 +63,9 @@ const Player = ({ url, title, currentTime, onTimeUpdate, onNext, onEnded, hasNex
   const onEndedRef = useRef(onEnded);
   const hasNextRef = useRef(hasNext);
   const nextControlRef = useRef<HTMLElement | null>(null);
+  // 换源进行中标记：换源到新视频 loadedmetadata 完成 seek 之前为 true，
+  // 期间暂停进度回写，避免新视频起始的 0 覆盖续播定位用的 seekTimeRef。
+  const seekingRef = useRef(false);
 
   // Keep callback ref in sync without triggering effect re-runs
   useEffect(() => { onTimeUpdateRef.current = onTimeUpdate; });
@@ -194,7 +197,9 @@ const Player = ({ url, title, currentTime, onTimeUpdate, onNext, onEnded, hasNex
     art.on('play', () => { hasPlayed = true; });
 
     const saveInterval = setInterval(() => {
-      if (hasPlayed && art.video && onTimeUpdateRef.current) {
+      // 换源 seek 完成前不回写进度：避免把新视频起始 0 写入 currentTime/历史，
+      // 否则会覆盖续播定位（seekTimeRef 被置 0 导致 loadedmetadata 时不 seek）
+      if (hasPlayed && !seekingRef.current && art.video && onTimeUpdateRef.current) {
         onTimeUpdateRef.current(art.video.currentTime);
       }
     }, 500);
@@ -276,14 +281,20 @@ const Player = ({ url, title, currentTime, onTimeUpdate, onNext, onEnded, hasNex
 
     // 重置进度恢复标记，新源 loadedmetadata 后再 seek
     seekDoneRef.current = false;
+    seekingRef.current = true;
     if (seekTimeRef.current > 0) {
       art.once('video:loadedmetadata', () => {
         if (!seekDoneRef.current && seekTimeRef.current > 0) {
           art.seek = seekTimeRef.current;
           seekDoneRef.current = true;
+          seekingRef.current = false;
         }
       });
     }
+    // 安全网：loadedmetadata 可能已错过，canplay 时无论如何解除换源锁
+    art.once('video:canplay', () => {
+      seekingRef.current = false;
+    });
 
     // 原地换源（Artplayer 官方 API），保留播放器实例与所有状态
     art.switch = url;
