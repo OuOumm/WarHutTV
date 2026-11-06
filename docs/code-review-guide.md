@@ -1,20 +1,20 @@
 # WarHutTV 代码审查标准与流程（Code Review Guide）
 
 > 统一团队的代码审查基线，让"质量参差不齐"变成"可控、可教、可度量"。
-> 本指南是**总标准**；`docs/code-review-*.md` 是模块级审查记录，`docs/fix-plan.md` 是已知技术债务清单，三者配套使用。
+> 本指南是 **PR 审查的总标准**；当前有效的配套文档见 `docs/CODE_REVIEW_OVERVIEW.md` 的交付物表（速查清单 + 全项目复审基线）。历史模块审查记录与债务清单已清理，见 `docs/project-review-2026-11-03.md` 10.9。
 
 ---
 
 ## 0. 为什么要有这份标准
 
-项目当前状态（详见 `docs/fix-plan.md`）：
+项目当前状态（以 `docs/project-review-2026-11-03.md` 第十节为基线）：
 
-- 后端因 `//go:embed frontend/dist/*` 在干净 checkout 下无法运行 `go test ./...`；
-- 前端 `npm run lint` 当前有 **54 个问题（51 error / 3 warning）** 未收敛；
-- CI 仅做"构建"，**没有 lint / vet / test 门禁**；
-- 一批真实风险已记录但未系统性拦截：默认弱密码、JWT 出现在 URL query、代理 SSRF、配置并发 map、第三方请求无大小/状态码检查、Bangumi 错误返回 200 空数组等。
+- 后端 `go build` / `go vet` / `go test -race ./...` / `gofmt -l` 全绿；`static_embed.go` / `static_dev.go` 已用 build tag 分离，干净 checkout 也能跑测试；
+- 前端 `pnpm run lint`（0 error）、`pnpm test`、`pnpm exec tsc -b`、`pnpm run build` 全绿；
+- CI 已含 lint / vet / gofmt / test / build 门禁；
+- 历史债务（默认弱密码、JWT 进 URL、代理 SSRF TOCTOU、配置并发、第三方请求无边界、Bangumi 假成功等）已在 `project-review-2026-11-03.md` 第十节逐项修复。
 
-目标：**新增代码不再制造同类问题**，存量问题按 `fix-plan.md` 优先级逐步还清。
+目标：**新增代码不再制造同类问题**；标准条款的出处以本指南自身与当前代码为准，不再引用已归档的历史债务清单。
 
 ### 0.1 审查原则（请默念三遍）
 
@@ -96,7 +96,7 @@
 
 **正确性（Correctness）**
 - 是否真正实现了需求？边界条件（空、超长、负数、并发）是否处理？
-- 并发安全：共享 map/slice 是否有锁？`config.Snapshot()` 是否深拷贝？（参考 `fix-plan.md` P1-配置并发）
+- 并发安全：共享 map/slice 是否有锁？`config.Snapshot()` 是否深拷贝？（见 `backend/config/config.go` 的 `snapshotLocked`/`cloneAPISite`）
 - 错误是否被吞掉？`err != nil` 后是否真的处理或返回？
 
 **安全（Security）** —— 见 §2.5 专项
@@ -120,27 +120,27 @@
 
 | 关注点 | 检查项 | 参考 |
 |--------|--------|------|
-| **并发安全** | 不在 handler 中直接遍历全局 `cfg.APISite`；用 `config.Snapshot()` 取深拷贝快照；`append` 到共享 slice 要加锁 | `search.go:64,185` `fix-plan` P1 |
-| **错误处理** | 不返回"假成功"：第三方失败应返 `502` 而非 `200 []`；`err` 要带上下文（`fmt.Errorf("...: %w", err)`） | `fix-plan` P2-Bangumi |
-| **第三方请求** | 检查 `resp.StatusCode` ∈ 200–299；用 `io.LimitReader` 限制响应体（如 10MB）；错误含状态码 | `fix-plan` P1 |
-| **鉴权** | JWT 用 `Authorization: Bearer` 头校验；**不要把 token 放进 URL query**（会进日志/历史） | `fix-plan` P1-SSE token |
-| **SSRF（代理）** | `/api/proxy/*` 只允许 http/https；禁止 localhost/内网/链路本地/云元数据地址；限大小 | `fix-plan` P0-m3u8 代理 |
-| **SSE 流** | 检测客户端断开（`c.Request.Context().Done()`）；校验 `http.Flusher`；设总超时（如 20s）；写竞争用 mutex | `search.go:113,144` |
-| **默认配置** | 禁止默认弱密码 / 固定 `JWTSecret`；启动时拒绝默认值或自动生成强随机 | `fix-plan` P0 |
-| **CORS** | 不共存 `Access-Control-Allow-Origin: *` 与 `Allow-Credentials: true`；用 Origin 白名单 | `fix-plan` P1 |
+| **并发安全** | 不在 handler 中直接遍历全局 `cfg.APISite`；用 `config.Snapshot()` 取深拷贝快照；`append` 到共享 slice 要加锁 | `backend/config/config.go` `cloneAPISite`/`snapshotLocked`；`backend/handlers/search.go` |
+| **错误处理** | 不返回"假成功"：第三方失败应返 `502` 而非 `200 []`；`err` 要带上下文（`fmt.Errorf("...: %w", err)`） | `backend/handlers/bangumi.go` `fetchBangumiCalendar` |
+| **第三方请求** | 检查 `resp.StatusCode` ∈ 200–299；用 `io.LimitReader` 限制响应体（如 10MB）；错误含状态码 | `backend/services/proxy.go` `doRequest`/`ReadLimited` |
+| **鉴权** | JWT 用 `Authorization: Bearer` 头校验；**不要把 token 放进 URL query**（会进日志/历史） | `backend/middleware/auth.go`；`backend/handlers/auth.go` |
+| **SSRF（代理）** | 只允许 http/https；禁止 localhost/内网/链路本地/CGNAT/云元数据地址；在 `DialContext` 连接时校验解析后的 IP | `backend/services/proxy.go` `guardedDialContext`/`isPrivateIP` |
+| **SSE 流** | 检测客户端断开（`c.Request.Context().Done()`）；校验 `http.Flusher`；设总超时（如 20s）+ 每源短超时；写竞争用 mutex | `backend/handlers/search.go` `SearchStream` |
+| **默认配置** | 禁止默认弱密码 / 固定 `JWTSecret`；启动时拒绝默认值或自动生成强随机 | `backend/config/config.go` `validateConfig`/`generateJWTSecret`；`backend/main.go` |
+| **CORS** | 不共存 `Access-Control-Allow-Origin: *` 与 `Allow-Credentials: true`；用 Origin 白名单 | `backend/middleware/cors.go` |
 | **Go 习惯** | handler 内不 `panic`；用 `errors` 包；`context` 正确传递与取消；`defer` 释放资源 | — |
 
 ### 2.4 前端 TS / React 专项
 
 | 关注点 | 检查项 | 参考 |
 |--------|--------|------|
-| **类型安全** | 禁止 `any` / `(x as any)`（除非合理且注释原因）；为 API 响应声明接口 | `code-review-search.md` P1 |
-| **Hook 规则** | 不 `set-state-in-effect`；状态更新保持不可变；导出组件的文件不混出非组件 | `eslint.config.js` |
-| **渲染安全** | `{cond && <C/>}` 中 `cond` 不可为数字 `0`；`key` 用稳定 id 而非 index | `code-review-search.md` §5 |
-| **组件/Hook 提取** | 单文件 > 250 行、单组件含多个自洽逻辑块时拆分（如 `useSearchStream`） | `code-review-search.md` P2 |
-| **性能** | 避免每次渲染重复计算（提取 `useMemo`）；长列表 `> 50` 考虑虚拟化；稳定 `onChange` 后用 `React.memo` | `code-review-search.md` P0/P4 |
-| **安全** | 禁止 `dangerouslySetInnerHTML` 拼接未转义内容；token 存内存而非 `localStorage` 明文 | — |
-| **构建** | `tsc -b` 应通过（无类型错误）；不提交 `dist/` | `package.json` build |
+| **类型安全** | 禁止 `any` / `(x as any)`（除非合理且注释原因）；为 API 响应声明接口 | `frontend/src/types/index.ts`；`frontend/src/api/*.ts` |
+| **Hook 规则** | 不 `set-state-in-effect`；状态更新保持不可变；导出组件的文件不混出非组件 | `frontend/eslint.config.js` |
+| **渲染安全** | `{cond && <C/>}` 中 `cond` 不可为数字 `0`；`key` 用稳定 id 而非 index | `frontend/src/pages/Search.tsx` |
+| **组件/Hook 提取** | 单文件 > 250 行、单组件含多个自洽逻辑块时拆分（如 `frontend/src/pages/play/` 下的拆分 Hook） | `frontend/src/pages/play/usePlayController.ts` |
+| **性能** | 避免每次渲染重复计算（提取 `useMemo`）；长列表 `> 50` 考虑虚拟化；稳定 `onChange` 后用 `React.memo` | `frontend/src/components/ScrollableRow.tsx` |
+| **安全** | 禁止 `dangerouslySetInnerHTML` 拼接未转义内容；token 存内存而非 `localStorage` 明文 | `frontend/src/store/auth.tsx` |
+| **构建** | `tsc -b` 应通过（无类型错误）；不提交 `dist/` | `frontend/package.json` `build` |
 
 ### 2.5 安全专项（贯穿所有代码）
 
@@ -158,7 +158,7 @@
 
 ## 3. 评审注释规范（Comment Format）
 
-与现有 `docs/code-review-*.md` 风格对齐，让模块记录和总标准一致。
+统一采用本节的「优先级 + 分类 + 文件:行 + 为什么 + 建议」格式，让所有评审意见风格一致。
 
 ```
 🔴 P0 安全：JWT 出现在 URL query
@@ -188,8 +188,8 @@
 
 ## 5. 作者提交前自检（Pre-flight）
 
-- [ ] 本地 `go build` / `npm run build` 通过
-- [ ] `go vet ./...` / `npm run lint` 无新增问题
+- [ ] 本地 `go build` / `pnpm run build` 通过
+- [ ] `go vet ./...` / `pnpm run lint` 无新增问题
 - [ ] 关键路径自测过（含边界：空输入、断网、第三方 500）
 - [ ] 无调试残留（`fmt.Println`、注释代码、`console.log`）
 - [ ] PR 描述按模板填写，含自测步骤
@@ -209,33 +209,37 @@
   ```yaml
   - name: Lint Frontend
     working-directory: frontend
-    run: npm run lint
+    run: pnpm run lint
   - name: Vet Backend
     working-directory: backend
     run: go vet ./...
   ```
-- 因存量 54 个问题，先用 `"lint": "eslint ."` 并以**新代码准入**方式推进（见 `fix-plan.md` P2 的修复顺序），或临时加 `--max-warnings` 阈值逐步收紧。
+- lint 已收敛到 0 error；后续以**新代码准入**方式推进，可临时加 `--max-warnings` 阈值逐步收紧。
 
 **阶段 3 — 打通测试门禁**
-- 先解决 `embed` 导致 `go test ./...` 跑不起来的问题（拆 `static_embed.go` / `static_dev.go`，参考 `fix-plan.md` P0）。
+- `static_embed.go` / `static_dev.go` 已用 build tag 分离，`go test ./...` 可直接运行。
 - CI 加 `go test ./...` 与前端测试脚本（需先补 `test` script）。
 - 对 auth / proxy / config / 聚合去重 优先补单测。
 
 **阶段 4 — 质量度量（可选）**
 - 引入覆盖率门槛（如后端 ≥ 60%、前端关键路径 ≥ 50%），随成熟度提升。
-- 每季度回顾 `fix-plan.md`，将已修复项归档。
+- 每季度回顾 `docs/project-review-2026-11-03.md` 第十节，将新修复项补入修复说明书。
 
 ---
 
 ## 7. 与现有文档的关系
 
+`docs/` 只保留「当前有效」与「历史归档」两类，完整清单见 `docs/CODE_REVIEW_OVERVIEW.md`。
+
 | 文档 | 角色 |
 |------|------|
 | `docs/code-review-guide.md`（本文件） | **总标准与流程**，所有 PR 的统一依据 |
-| `docs/code-review-{search,speedtest,play}.md` | 模块级审查记录，遵循本标准的 P0–P3 注释格式 |
-| `docs/fix-plan.md` | 已知技术债务（P0–P3），新 PR 不得新增同类问题 |
+| `docs/code-review-checklist.md` | 审查者一页纸速查清单，逐条对照本指南 |
+| `docs/CODE_REVIEW_OVERVIEW.md` | 交付物索引与优先级/合并门槛速记 |
+| `docs/project-review-2026-11-03.md` | 全项目复审与修复说明书（第十节为当前基线） |
+| `docs/archive/` | 2026-07 及更早的一次性报告，已不再维护 |
 
-> 新建模块审查记录时，直接复用 §3 的注释格式，并回链到本指南对应章节。
+> 历史模块审查记录与债务清单（`fix-plan.md`、`code-review-{search,speedtest,play}.md` 等）已按 10.9 删除；其中已被修复的结论以 `project-review-2026-11-03.md` 为准，不再作为评审依据。
 
 ---
 

@@ -90,9 +90,9 @@ WarHutTV 是一个自托管的媒体聚合播放器，从多个第三方视频�
 │                   前端 (React + Vite)             │
 │  ┌────────┐ ┌──────────┐ ┌───────────────────┐   │
 │  │ 页面层  │ │  组件层   │ │  状态层            │   │
-│  │ 10 页   │ │ Layout   │ │ AuthContext       │   │
-│  │ 路由    │ │ Player   │ │ ConfigContext     │   │
-│  │ 鉴权    │ │ VideoCard│ │ IndexedDB(Dexie)  │   │
+│  │ 6 路由   │ │ Layout   │ │ AuthContext       │   │
+│  │ 鉴权    │ │ Player   │ │ ConfigContext     │   │
+│  │ 懒加载   │ │ VideoCard│ │ IndexedDB(Dexie)  │   │
 │  └────┬───┘ └────┬─────┘ └────────┬──────────┘   │
 │       └──────────┼────────────────┘              │
 │                  ▼                                │
@@ -106,11 +106,12 @@ WarHutTV 是一个自托管的媒体聚合播放器，从多个第三方视频�
 │         后端 (Go + Gin)                            │
 │  ┌────────┐ ┌──────────┐ ┌────────────────────┐  │
 │  │ 中间件  │ │ 处理器    │ │  服务层             │  │
-│  │ CORS   │ │ search   │ │  代理转发           │  │
-│  │ JWT    │ │ detail   │ │  文件缓存           │  │
-│  │ 限流   │ │ play     │ │                    │  │
-│  │        │ │ douban   │ │                    │  │
+│  │ CORS   │ │ search   │ │  源站代理 + SSRF 防护│  │
+│  │ JWT    │ │ detail   │ │  磁盘缓存 + 清理    │  │
+│  │ 限流   │ │ play     │ │  m3u8 解析          │  │
+│  │ 日志   │ │ douban   │ │                    │  │
 │  │        │ │ bangumi  │ │                    │  │
+│  │        │ │ sites    │ │                    │  │
 │  └────────┘ └──────────┘ └────────────────────┘  │
 │                                                   │
 │  ┌──────────────┐  ┌─────────────────────┐        │
@@ -148,12 +149,14 @@ WarHutTV 是一个自托管的媒体聚合播放器，从多个第三方视频�
 git clone https://github.com/OuOumm/WarHutTV.git
 cd WarHutTV
 
-# 1. 配置密码
-# 创建或编辑 data/config.json，至少设置 password
-# 详见下方配置章节
+# 1. 配置密码（二选一）
+#    a) 环境变量：PASSWORD=dev-pass JWT_SECRET=$(openssl rand -hex 32) make run
+#    b) 复制示例并修改：cp data/config.example.json data/config.json
+#       至少把 password 改掉（程序拒绝以 admin123 启动）
 
-# 2. 启动后端（默认 :3000）
-cd backend && go run .
+# 2. 启动后端（默认 :3000，读取仓库根目录的 data/config.json）
+make run
+# 等价于：cd backend && go run . -config ../data/config.json
 
 # 3. 新终端，启动前端（Vite dev server :5173）
 cd frontend && pnpm install && pnpm run dev
@@ -202,15 +205,20 @@ docker run -d \
   -p 3000:3000 \
   -e PASSWORD=your_password \
   -e JWT_SECRET=your_secret \
-  -v ./data:/root/data \
+  -v warhutv-data:/app/data \
   ghcr.io/OuOumm/warhutv:latest
 ```
+
+- `PASSWORD` 必填；未设置 `JWT_SECRET` 时程序会自动生成并保存到 `/app/data/config.json`。
+- 配置与缓存都写在 `/app/data`，挂载该目录即可持久化；也可以直接把宿主机配置挂进去：
+  `-v "$PWD/data:/app/data"`。
+- 镜像以非 root 用户（uid 10001）运行，自带 `HEALTHCHECK`（探测 `/api/healthz`，跟随 `PORT` 变化）。
 
 ### 本地构建运行
 
 ```bash
 docker build -t warhutv .
-docker run -d --name warhutv -p 3000:3000 -e PASSWORD=your_password warhutv
+docker run -d --name warhutv -p 3000:3000 -e PASSWORD=your_password -v warhutv-data:/app/data warhutv
 ```
 
 ### Docker Compose
@@ -225,8 +233,11 @@ services:
       - PASSWORD=your_password
       - JWT_SECRET=your_secret
     volumes:
-      - ./data:/root/data
+      - warhutv-data:/app/data
     restart: unless-stopped
+
+volumes:
+  warhutv-data:
 ```
 
 ---
@@ -235,17 +246,33 @@ services:
 
 ### 配置优先级
 
-**环境变量 > `data/config.json`**
+**环境变量 > `data/config.json` > 内置默认值**
+
+`PASSWORD` / `JWT_SECRET` 来自环境变量时只存在于内存中，不会被写入 `data/config.json`（首次启动自动生成的 `jwt_secret` 例外）。
 
 ### 环境变量
 
 | 变量 | 说明 | 默认值 |
 |------|------|--------|
 | `PORT` | HTTP 监听端口 | `3000` |
-| `PASSWORD` | 登录密码（必填） | — |
-| `JWT_SECRET` | JWT 签名密钥（必填） | — |
+| `PASSWORD` | 登录密码（必填，或写在 config.json） | — |
+| `JWT_SECRET` | JWT 签名密钥（留空自动生成并持久化） | — |
+| `SITE_NAME` | 站点名称，覆盖 `site_name` | — |
+| `WARHUTV_CONFIG` | 配置文件路径 | `data/config.json` |
+| `TRUSTED_PROXIES` | 信任的反向代理 IP/CIDR（逗号分隔），用于正确解析客户端 IP | `127.0.0.1,::1` |
+| `SEARCH_SITE_TIMEOUT` | 单个搜索源的超时预算（秒数或 Go 时长，如 `10`、`2500ms`）；超时或失败的源被丢弃并计入进度，避免卡在 `24/27`。范围 `0.5s`–`20s`。默认 10s 兼顾慢但可用的源（部分源需 4–6s） | `10s` |
+| `CONFIG_WATCH_INTERVAL` | 配置文件热重载的轮询间隔（秒数或 Go 时长，如 `2`、`500ms`）；范围 `200ms`–`5m`。设为 `0`/`off`/`false` 关闭轮询（仅保留 SIGHUP） | `2s` |
 
-> ⚠️ 生产环境请务必设置 `PASSWORD` 和 `JWT_SECRET`，并使用强随机字符串。
+> ⚠️ 生产环境请务必设置 `PASSWORD`，并使用强随机 `JWT_SECRET`。程序拒绝以 `admin123` 或默认 secret 启动。
+
+### 热重载
+
+编辑 `data/config.json`（`api_site`、`site_name`、`announcement`、`password`、`jwt_secret`）后**无需重启**：
+
+- **轮询**：后台默认每 2s 检测文件内容变化（按内容 hash，不是 mtime），变化即重新加载；用 `CONFIG_WATCH_INTERVAL` 调整频率，`0`/`off`/`false` 可关闭。
+- **信号**：Linux / macOS 上发送 `SIGHUP` 立即重载：`kill -HUP $(pgrep warhutv)`（Windows 无 SIGHUP，走轮询即可）。
+
+安全约束：坏文件（JSON 解析失败、缺文件、`password`/`jwt_secret` 为空或仍是默认值）会被**拒绝并保持旧配置**，日志记一条错误；重载**不会**重新生成 `jwt_secret`（避免让所有在线会话失效），也不会写回文件。环境变量优先级仍高于文件，因此 `PASSWORD`/`JWT_SECRET` 若在环境变量里设置，改文件不会生效——这类改动仍需重启。
 
 ### data/config.json
 
@@ -286,24 +313,28 @@ services:
 WarHutTV/
 ├── backend/                  # Go 后端
 │   ├── main.go               # 入口 + 路由注册
+│   ├── static_*.go           # 前端静态资源（embed / 本地目录两种构建）
 │   ├── config/               # 配置加载（环境变量 + JSON）
 │   ├── handlers/             # HTTP 处理器
-│   │   ├── auth.go           #   登录认证
+│   │   ├── auth.go           #   登录 / 登出
 │   │   ├── search.go         #   跨源搜索（SSE）
 │   │   ├── detail.go         #   视频详情
-│   │   ├── play.go           #   播放地址解析
-│   │   ├── proxy.go          #   代理转发
-│   │   ├── douban.go         #   豆瓣分类/推荐
+│   │   ├── play.go           #   按集解析播放地址
+│   │   ├── douban.go         #   豆瓣代理（服务端转发）
 │   │   ├── bangumi.go        #   Bangumi 番组日历
+│   │   ├── sites.go          #   播放源可用性探测
 │   │   ├── config.go         #   站点配置
+│   │   ├── health.go         #   健康检查
 │   │   └── version.go        #   版本信息
 │   ├── middleware/            # Gin 中间件
 │   │   ├── auth.go           #   JWT 认证
 │   │   ├── cors.go           #   跨域
+│   │   ├── logging.go        #   请求 ID + 结构化访问日志
+│   │   ├── security.go       #   安全响应头 / CSP
 │   │   └── ratelimit.go      #   速率限制
 │   ├── services/              # 业务逻辑层
-│   │   ├── proxy.go          #   代理请求转发
-│   │   └── cache.go          #   文件缓存
+│   │   ├── proxy.go          #   源站代理（含 SSRF 防护、m3u8 解析）
+│   │   └── cache.go          #   磁盘缓存 + 定期清理
 │   └── utils/                 # 工具
 │       └── jwt.go            #   JWT 令牌
 │
@@ -312,14 +343,16 @@ WarHutTV/
 │   │   ├── api/              # API 客户端
 │   │   │   ├── client.ts     #   Axios 实例 + 拦截器
 │   │   │   ├── auth.ts       #   登录登出
-│   │   │   ├── config.ts     #   站点配置
-│   │   │   ├── douban.ts     #   豆瓣
+│   │   │   ├── config.ts     #   站点配置读取
+│   │   │   ├── searchStream.ts #  搜索结果 SSE 解析
+│   │   │   ├── douban.ts     #   豆瓣（经后端代理）
 │   │   │   └── bangumi.ts    #   Bangumi
 │   │   ├── components/        # 可复用组件
-│   │   ├── pages/             # 页面组件（9 页）
+│   │   ├── pages/             # 页面组件（6 条路由）
 │   │   ├── store/             # 状态管理
 │   │   │   ├── auth.tsx      #   AuthContext
 │   │   │   ├── config.tsx    #   ConfigContext
+│   │   │   ├── configCache.ts#   配置模块级缓存
 │   │   │   ├── theme.ts      #   6 套主题定义
 │   │   │   ├── db.ts         #   Dexie.js 数据库
 │   │   │   ├── favorites.ts  #   收藏 CRUD
@@ -333,16 +366,16 @@ WarHutTV/
 │   │   │   ├── adblock.ts    #   广告过滤规则
 │   │   │   └── image.ts      #   图片代理
 │   │   └── types/             # TypeScript 类型
-│   ├── public/                # PWA 资源（sw.js、图标）
+│   ├── public/                # PWA 资源（sw.js、图标、占位图）
 │   └── ...config files
 │
 ├── data/
-│   └── config.json            # 运行时配置
+│   └── config.json            # 运行时配置（gitignored）
 ├── bin/                        # 编译产物
 ├── docs/                       # 设计/评审文档
 ├── .github/workflows/          # CI/CD
 ├── Dockerfile                  # 开发镜像
-├── Dockerfile.release          # 多阶段发布镜像
+├── Dockerfile.release          # 发布镜像
 ├── Makefile
 ├── build.sh / build.ps1
 └── version                     # 版本文件
@@ -353,10 +386,31 @@ WarHutTV/
 ```bash
 make dev              # 启动前端开发服务器
 make build            # 完整构建（前端 + 后端）
-make run              # 运行后端
+make run              # 运行后端（默认读 ./data/config.json）
+make test             # 全部检查：lint + 单测 + tsc + gofmt + go vet + go test
+make lint             # 仅静态检查
 make clean            # 清理产物
-make docker           # 构建 Docker 镜像
+make docker           # 构建 Docker 镜像（自动注入版本号）
 ```
+
+### 接口一览
+
+| 方法 | 路径 | 鉴权 | 说明 |
+|------|------|------|------|
+| GET | `/api/version` | 否 | 版本号（来自 `version` 文件或构建注入） |
+| GET | `/api/healthz` | 否 | 健康检查，容器 `HEALTHCHECK` 使用 |
+| POST | `/api/auth/login` | 否 | 登录；失败计入限流，成功重置计数 |
+| POST | `/api/auth/logout` | 否 | 清除认证 Cookie |
+| GET | `/api/config` | 视情况 | 未登录只返回站点名/公告；登录后附带 `api_site` |
+| GET | `/api/search/stream` | 是 | SSE 跨源搜索（`wd`、`pg`），含 15s 心跳 |
+| GET | `/api/detail` | 是 | 详情（`site`、`ids`），附带解析好的 `episodes` |
+| GET | `/api/play` | 是 | 按集取播放地址（`site`、`ids`、`episode`） |
+| GET | `/api/sites/ping` | 是 | 播放源可用性探测（真实 RTT + 结果条数） |
+| GET | `/api/bangumi/calendar` | 是 | 番组日历，直连失败自动回退镜像 |
+| GET | `/api/douban/*path` | 是 | 豆瓣数据代理（路径白名单） |
+| GET | `/api/auth/verify` | 是 | 校验当前 Cookie 是否有效 |
+
+> 未匹配的 `/api/*` 一律返回 `404 {"error":"接口不存在"}`，不会被 SPA 兜底成 HTML。
 
 ### 添加新页面 / API
 
@@ -371,7 +425,7 @@ make docker           # 构建 Docker 镜像
 
 | Workflow | 触发条件 | 功能 |
 |----------|----------|------|
-| **ci.yml** | Push / PR 到 `main` | 构建前端 + 编译后端，上传制品 |
+| **ci.yml** | Push / PR 到 `master` | 前端 lint + 单测 + 打包，后端 gofmt / vet / test / 编译，上传制品 |
 | **release.yml** | 推送 `v*` 标签 | 多平台构建（5 平台）+ UPX 压缩 → GitHub Release + Docker 镜像推送 GHCR |
 
 ### 发布新版本
@@ -397,15 +451,19 @@ git push origin v1.1.0
 
 ### 登录密码是什么？
 
-首次使用需要在 `data/config.json` 中设置 `password` 字段，或者通过环境变量 `PASSWORD` 设置。默认无密码，请务必设置。
+必须在 `data/config.json` 的 `password` 字段设置密码，或者通过环境变量 `PASSWORD` 设置；两者都没有（或仍是示例文件里的 `admin123`）时程序**拒绝启动**并提示需要先完成配置。应用不提供在线改密入口，改密码请直接修改 `data/config.json` 的 `password` 字段（保存后 2s 内自动热重载生效，见「热重载」）；若密码来自 `PASSWORD` 环境变量，则需要重启服务才能变更。
 
 ### 如何添加视频源？
 
-编辑 `data/config.json` 的 `api_site` 字段，添加资源站的 API 地址。格式要求兼容通用资源站 API（`/api.php/provide/vod` 接口）。
+直接编辑 `data/config.json` 的 `api_site` 字段（应用不提供在线源管理入口）。格式要求兼容通用资源站 API（`/api.php/provide/vod` 接口），修改后自动热重载生效（默认 2s 内），无需重启。
 
 ### 支持哪些播放格式？
 
-主要支持 `.m3u8`（HLS）流媒体格式。通过后端代理转发，绕过跨域限制。
+主要支持 `.m3u8`（HLS）流媒体格式，以及资源站直接返回的 mp4 直链。HLS 主播放列表会选最高码率变体，分片请求可由浏览器直连（上游禁止跨域时由前端 `adblock` 逻辑回退）。
+
+### 豆瓣/Bangumi 数据是怎么请求的？
+
+全部经后端代理（`/api/douban/*path`、`/api/bangumi/calendar`）：服务端设置 `User-Agent`/`Referer`、按白名单回退多个镜像、结果缓存 2h/12h。浏览器不再直连任何第三方镜像，也不需要为它们配置代理。
 
 ### 移动端体验如何？
 

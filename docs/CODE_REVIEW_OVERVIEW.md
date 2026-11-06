@@ -9,14 +9,24 @@
 | `docs/code-review-guide.md` | **总标准与流程**：角色职责、PR 生命周期、CI 门禁、合并门槛、P0–P3 优先级、后端 Go / 前端 TS 专项、安全专项、注释规范、4 阶段落地路线 |
 | `.github/PULL_REQUEST_TEMPLATE.md` | PR 提交模板：统一类型、自测步骤、审查重点、作者自检、影响范围 |
 | `docs/code-review-checklist.md` | 审查者一页纸速查卡，逐条对照 |
+| `docs/project-review-2026-11-03.md` | **全项目复审（2026-11-03）**：P0×4 / P1×16 / P2×16 + 架构改进与修复路线图；第十节为当前修复说明书与运行期追加记录（10.1–10.9） |
+| `docs/archive/README.md` | 历史一次性报告归档索引（2026-07 及更早，已不再维护） |
 
 ## 核心规则速记
 - 优先级：🔴 P0 阻塞（必须清零）/ 🟠 P1 重要 / 🟡 P2 建议 / 🔵 P3 优化
 - 合并门槛：CI 全绿 + ≥1 批准（核心/安全 ≥2）+ 所有 P0 清零
 - 注释格式：`优先级 + 分类 + 文件:行 + 为什么 + 建议`
-- 与现有 `docs/code-review-*.md`（模块记录）和 `docs/fix-plan.md`（已知债务）配套，新 PR 不得新增同类问题
+- 当前基线以 `docs/project-review-2026-11-03.md` 第十节为准；历史债务清单已清理，新 PR 不得新增同类问题
 
 ## 下一步建议
-1. 团队评审通过本指南，采用 PR 模板。
-2. 在 `ci.yml` 增加 `npm run lint` 与 `go vet ./...`（新代码准入，逐步收紧）。
-3. 解决后端 embed 导致 `go test` 不可跑的问题后，开启测试门禁。
+
+> 2026-11-05 更新：以下 1–3 项已完成，保留原文以便追溯。
+
+1. ✅ 团队评审通过本指南，采用 PR 模板。
+2. ✅ `ci.yml` 已加入 `pnpm run lint`、`go vet ./...`、`gofmt -l` 与 `go test -race ./...`。
+3. ✅ 后端 embed 问题已解决：`static_embed.go` / `static_dev.go` 用 build tag 分离，`go test ./...` 在无 `frontend/dist` 时也能跑。
+
+### 仍需跟进
+
+4. 按 `docs/project-review-2026-11-03.md` 第十节的验证记录，把接口级冒烟（`/api/nonexistent` 404、登录限流、豆瓣白名单）固化为自动化测试，而不是一次性手测。
+5. 定期（每季度）复审一次；复审时先读 `docs/project-review-2026-11-03.md` 第十节确认基线状态，把新修复项补入修复说明书（10.1–10.9）。
