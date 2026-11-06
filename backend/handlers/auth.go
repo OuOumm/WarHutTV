@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"warhutv/config"
+	"warhutv/middleware"
 	"warhutv/utils"
 )
 
@@ -36,10 +37,19 @@ func Login(c *gin.Context) {
 		return
 	}
 
+	ip := c.ClientIP()
+	if !middleware.LoginLimiterInstance().Allow(ip) {
+		c.JSON(http.StatusTooManyRequests, gin.H{"error": "登录尝试过多，请30分钟后再试"})
+		return
+	}
+
 	if subtle.ConstantTimeCompare([]byte(req.Password), []byte(config.Password())) != 1 {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "密码错误"})
 		return
 	}
+
+	// Successful logins should not eat into the failure budget.
+	middleware.LoginLimiterInstance().Reset(ip)
 
 	token, err := utils.GenerateToken(config.JWTSecret(), 7*24*time.Hour)
 	if err != nil {
@@ -57,6 +67,8 @@ func Logout(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "已退出登录"})
 }
 
+// Verify just confirms the caller holds a valid token; the route itself is
+// behind AuthMiddleware.
 func Verify(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"valid": true,

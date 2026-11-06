@@ -11,7 +11,6 @@ func SecurityHeaders() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Header("X-Content-Type-Options", "nosniff")
 		c.Header("X-Frame-Options", "DENY")
-		c.Header("X-XSS-Protection", "1; mode=block")
 		c.Header("Referrer-Policy", "strict-origin-when-cross-origin")
 		c.Header("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()")
 		c.Header("Content-Security-Policy", csp())
@@ -24,9 +23,9 @@ func SecurityHeaders() gin.HandlerFunc {
 	}
 }
 
-// csp 当前为全通配模式（所有者决策）：放开所有源、'unsafe-inline'/'unsafe-eval'
-// 以及 data:/blob:/filesystem:/mediastream:，所有指令（含 manifest-src、media-src
-// 等）均允许任意加载。后续如需收紧，再按业务白名单收敛。
+// csp 其余指令保持全通配（所有者决策：视频源、豆瓣/Bangumi 图床、Artplayer
+// 的 eval 都无法预先枚举）。但 frame-ancestors 必须收紧：浏览器里 CSP 优先于
+// X-Frame-Options，写 * 会让上面的 DENY 完全失效，点击劫持防护形同虚设。
 func csp() string {
 	return "default-src * 'unsafe-inline' 'unsafe-eval' data: blob: filesystem: mediastream:; " +
 		"script-src * 'unsafe-inline' 'unsafe-eval' data: blob:; " +
@@ -38,7 +37,7 @@ func csp() string {
 		"worker-src * 'unsafe-inline' data: blob:; " +
 		"manifest-src * data: blob:; " +
 		"object-src *; " +
-		"frame-ancestors *; " +
+		"frame-ancestors 'self'; " +
 		"base-uri *; " +
 		"form-action *"
 }
