@@ -1,11 +1,28 @@
-FROM alpine:latest AS certs
-RUN apk --no-cache add ca-certificates
+# Release image: uses the prebuilt binary + embedded frontend assets produced by
+# .github/workflows/release.yml (built with `-tags embed`).
+#
+# The config is NOT baked into the image. Either pass PASSWORD / JWT_SECRET:
+#   docker run -e PASSWORD=... -e JWT_SECRET=... -p 3000:3000 <image>
+# or mount a config file at /app/data/config.json:
+#   docker run -v "$PWD/data:/app/data" -p 3000:3000 <image>
+FROM alpine:3.21
+RUN apk add --no-cache ca-certificates tzdata \
+    && addgroup -S -g 10001 warhutv \
+    && adduser -S -D -H -u 10001 -G warhutv warhutv \
+    && mkdir -p /app/data \
+    && chown -R warhutv:warhutv /app
 
-FROM scratch
-COPY --from=certs /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-COPY warhutv /warhutv
-COPY frontend/dist /frontend/dist
-COPY data/config.example.json /data/config.json
+WORKDIR /app
+COPY warhutv /usr/local/bin/warhutv
+COPY version /app/version
+
+USER warhutv
+ENV PORT=3000 \
+    WARHUTV_CONFIG=/app/data/config.json
 
 EXPOSE 3000
-CMD ["/warhutv"]
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD wget -q -O /dev/null "http://127.0.0.1:${PORT:-3000}/api/healthz" || exit 1
+
+ENTRYPOINT ["/usr/local/bin/warhutv"]
+CMD ["-config", "/app/data/config.json"]

@@ -84,12 +84,38 @@ jobs:
           go-version: '1.26'
           cache-dependency-path: backend/go.sum
 
+      # Backend quality gates. These were missing entirely: `go build` alone
+      # accepts unformatted and vet-dirty code, so `handlers/search.go` shipped
+      # unformatted for a while without CI noticing.
+      - name: Check Go formatting
+        working-directory: backend
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then
+            echo "The following files are not gofmt-formatted:"
+            echo "$unformatted"
+            exit 1
+          fi
+
+      - name: Vet Backend
+        working-directory: backend
+        run: go vet ./...
+
+      - name: Test Backend
+        working-directory: backend
+        run: go test -race ./...
+
       - name: Build Backend
         working-directory: backend
         run: |
-          mkdir -p frontend/dist
+          # `mkdir frontend` (not `frontend/dist`): `cp -r src dst/dst2` nests the
+          # tree as `dst/dst2/dst2` when `dst/dst2` already exists, which leaves
+          # the go:embed glob without index.html.
+          rm -rf frontend
+          mkdir -p frontend
           cp -r ../frontend/dist frontend/dist
-          go build -tags embed -ldflags="-s -w" -o ../bin/warhutv .
+          VERSION="$(tr -d '[:space:]' < ../version)"
+          go build -tags embed -trimpath -ldflags="-s -w -X main.version=${VERSION}" -o ../bin/warhutv .
           rm -rf frontend
 
       - name: Upload artifact

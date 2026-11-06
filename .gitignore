@@ -27,8 +27,16 @@ Thumbs.db
 # Data (except config.example.json)
 data/*
 !data/config.example.json
+# Runtime config written by `cd backend && go run .` must never be committed
+backend/data/
+# Temporary dir created by `make build-backend` for embedded assets
+backend/frontend/
 search_result.json
 test.json
 test_response.json
 nul
 frontend/nul
+
+# Python bytecode from scripts/
+__pycache__/
+*.py[cod]

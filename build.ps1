@@ -35,26 +35,39 @@ Write-Host "`n[3/5] Building backend..." -ForegroundColor Yellow
 Push-Location "backend"
 Copy-Item -Path "..\frontend\dist" -Destination "frontend\dist" -Recurse -Force
 
-Write-Host "  Building Windows amd64..." -ForegroundColor Gray
-$env:GOOS = "windows"
-$env:GOARCH = "amd64"
-go build -tags embed -o "..\bin\warhutv-windows-amd64.exe" -ldflags="-s -w" .
-$winOk = $LASTEXITCODE -eq 0
-Remove-Item Env:GOOS -ErrorAction SilentlyContinue
-Remove-Item Env:GOARCH -ErrorAction SilentlyContinue
+# Version is injected so /api/version works even when the `version` file is not
+# shipped next to the binary; -trimpath keeps local absolute paths out.
+$Version = (Get-Content "..\version" -ErrorAction SilentlyContinue | Select-Object -First 1)
+if (-not $Version) { $Version = "dev" }
+$Version = $Version.Trim()
+$LdFlags = "-s -w -X main.version=$Version"
 
-Write-Host "  Building Linux amd64..." -ForegroundColor Gray
-$env:GOOS = "linux"
-$env:GOARCH = "amd64"
-go build -tags embed -o "..\bin\warhutv-linux-amd64" -ldflags="-s -w" .
-$linOk = $LASTEXITCODE -eq 0
-Remove-Item Env:GOOS -ErrorAction SilentlyContinue
-Remove-Item Env:GOARCH -ErrorAction SilentlyContinue
+# Platform list is kept in sync with build.sh and the README table.
+$Targets = @(
+    @{ GOOS = "windows"; GOARCH = "amd64"; Out = "warhutv-windows-amd64.exe" },
+    @{ GOOS = "linux";   GOARCH = "amd64"; Out = "warhutv-linux-amd64" },
+    @{ GOOS = "linux";   GOARCH = "arm64"; Out = "warhutv-linux-arm64" },
+    @{ GOOS = "darwin";  GOARCH = "amd64"; Out = "warhutv-darwin-amd64" },
+    @{ GOOS = "darwin";  GOARCH = "arm64"; Out = "warhutv-darwin-arm64" }
+)
+
+$failures = 0
+foreach ($target in $Targets) {
+    Write-Host ("  Building {0}/{1}..." -f $target.GOOS, $target.GOARCH) -ForegroundColor Gray
+    $env:GOOS = $target.GOOS
+    $env:GOARCH = $target.GOARCH
+    $env:CGO_ENABLED = "0"
+    go build -tags embed -trimpath -ldflags="$LdFlags" -o ("..\bin\" + $target.Out) .
+    if ($LASTEXITCODE -ne 0) { $failures++ }
+    Remove-Item Env:GOOS -ErrorAction SilentlyContinue
+    Remove-Item Env:GOARCH -ErrorAction SilentlyContinue
+    Remove-Item Env:CGO_ENABLED -ErrorAction SilentlyContinue
+}
 
 Remove-Item -Recurse -Force "frontend" -ErrorAction SilentlyContinue
 Pop-Location
 
-if (-not $winOk -or -not $linOk) {
+if ($failures -gt 0) {
     Write-Host "  Backend build failed!" -ForegroundColor Red
     exit 1
 }
@@ -64,12 +77,12 @@ Write-Host "  Done" -ForegroundColor Green
 Write-Host "`n[4/5] Compressing with UPX..." -ForegroundColor Yellow
 $upxAvailable = Get-Command upx -ErrorAction SilentlyContinue
 if ($upxAvailable) {
-    Write-Host "  Compressing Windows binary..." -ForegroundColor Gray
-    upx --best --lzma "bin\warhutv-windows-amd64.exe" 2>&1 | Out-Null
-    
-    Write-Host "  Compressing Linux binary..." -ForegroundColor Gray
-    upx --best --lzma "bin\warhutv-linux-amd64" 2>&1 | Out-Null
-    
+    # UPX only handles the binaries it understands; failures (e.g. darwin
+    # Mach-O with --lzma) are non-fatal, so keep going and report at the end.
+    foreach ($file in Get-ChildItem "bin" -File) {
+        Write-Host ("  Compressing {0}..." -f $file.Name) -ForegroundColor Gray
+        upx --best --lzma $file.FullName 2>&1 | Out-Null
+    }
     Write-Host "  Done" -ForegroundColor Green
 } else {
     Write-Host "  UPX not found, skipping compression" -ForegroundColor Yellow
