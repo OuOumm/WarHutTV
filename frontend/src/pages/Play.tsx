@@ -1,10 +1,21 @@
+import { useCallback } from 'react';
 import { PlayerViewport } from './play/PlayerViewport';
 import { SourcePanel } from './play/SourcePanel';
 import { usePlayController } from './play/usePlayController';
 import { VideoInfo } from './play/VideoInfo';
+import { useToast } from '../components/ToastProvider';
 
 const Play = () => {
   const controller = usePlayController();
+  const { toast } = useToast();
+
+  // The player only reports unrecoverable stream failures; surfacing them as a
+  // toast is what tells the user to switch sources instead of staring at a
+  // spinner forever.
+  const handlePlayerError = useCallback(
+    (message: string) => toast(message, 'error', 5000),
+    [toast],
+  );
 
   if (controller.loading && !controller.isOptimizing) {
     return (
@@ -43,6 +54,7 @@ const Play = () => {
             onFlush={controller.handleFlush}
             onNext={controller.handleNextEpisode}
             onEnded={controller.handleNextEpisode}
+            onError={handlePlayerError}
             hasNext={controller.hasNextEpisode}
           />
 

@@ -1,7 +1,26 @@
 import { describe, it, expect } from 'vitest';
-import { filterYellowItems, isExactMatch, isYellowContent, normalizeString } from './filter';
+import { filterYellowItems, isExactMatch, isExactMatchEnabled, isYellowContent, normalizeString } from './filter';
 
 describe('filter utils', () => {
+  describe('isExactMatchEnabled', () => {
+    it('defaults to off when nothing is stored', () => {
+      expect(isExactMatchEnabled(null)).toBe(false);
+    });
+    it('is on only when the user explicitly enabled it', () => {
+      expect(isExactMatchEnabled('true')).toBe(true);
+    });
+    it('treats the legacy "false" value and junk as off', () => {
+      expect(isExactMatchEnabled('false')).toBe(false);
+      expect(isExactMatchEnabled('')).toBe(false);
+      expect(isExactMatchEnabled('yes')).toBe(false);
+    });
+    it('keeps the product default off (guards against regression)', () => {
+      // If someone flips the initializer back to "!== 'false'" this fails.
+      expect(isExactMatchEnabled(null)).toBe(false);
+    });
+  });
+
+
   describe('isYellowContent', () => {
     it('detects yellow-list words case-insensitively', () => {
       expect(isYellowContent('伦理片')).toBe(true);

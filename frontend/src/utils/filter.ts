@@ -30,6 +30,15 @@ export function normalizeString(str: string): string {
   return str.replace(/[\s_[\]【】（）()《》<>·.、，,。：:；;！!？?"'-]/g, '').toLowerCase();
 }
 
+/**
+ * 「精确匹配」默认关闭。开启时 isExactMatch 会把「凡人修仙传」这类片名全部
+ * 滤掉，进度条写着"已找到 338 个"而标题却是"0 个结果"。只有用户显式开启过
+ * （存储值为 'true'）才打开；老版本写入的 'false' 以及任意其它值都视为关闭。
+ */
+export function isExactMatchEnabled(stored: string | null): boolean {
+  return stored === 'true';
+}
+
 // 检查是否精确匹配
 export function isExactMatch(name: string, keyword: string): boolean {
   const normalizedName = normalizeString(name);

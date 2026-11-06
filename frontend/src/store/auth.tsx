@@ -1,7 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import type { ReactNode } from 'react';
 import { authApi } from '../api/auth';
-import { refreshConfig } from './config';
 
 interface AuthContextType {
   isAuthenticated: boolean;
@@ -29,8 +28,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(async (password: string) => {
     await authApi.login({ password });
+    // Refreshing the site config (now including `api_site`) happens in
+    // AppContent, which reacts to `isAuthenticated` turning true.
     setIsAuthenticated(true);
-    refreshConfig();
   }, [setIsAuthenticated]);
 
   const logout = useCallback(() => {

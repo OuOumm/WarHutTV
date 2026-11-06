@@ -2,16 +2,17 @@ import { useState, useMemo } from 'react';
 import apiClient from '../api/client';
 import PageContainer from '../components/PageContainer';
 
-interface SpeedResult {
+interface PingResult {
   site: string;
   name: string;
-  speed: number;
-  status: 'testing' | 'success' | 'error';
-  time: number;
+  ok: boolean;
+  ms: number;
+  count: number;
+  error?: string;
 }
 
-interface ApiSiteConfig {
-  name: string;
+interface SpeedResult extends PingResult {
+  status: 'success' | 'error';
 }
 
 /* ---------- shared UI fragments ---------- */
@@ -51,12 +52,6 @@ const STATUS_CONFIG: Record<
     className: 'text-red-400',
   },
 } as const;
-
-const TIME_RENDER = {
-  testing: () => <span className="text-muted">-</span>,
-  success: (r: SpeedResult) => <span className="text-text">{r.time}ms</span>,
-  error: () => <span className="text-muted">超时</span>,
-};
 
 /* ---------- sub-components ---------- */
 
@@ -116,72 +111,44 @@ const SummaryBar = ({
 const SpeedTest = () => {
   const [results, setResults] = useState<SpeedResult[]>([]);
   const [testing, setTesting] = useState(false);
+  const [error, setError] = useState('');
 
-  /* P1: single reduce + useMemo instead of two filter passes */
-  const counts = useMemo(() => {
-    return results.reduce(
-      (acc, r) => {
-        if (r.status === 'success') acc.success++;
-        else if (r.status === 'error') acc.error++;
-        return acc;
-      },
-      { success: 0, error: 0 }
-    );
-  }, [results]);
+  const counts = useMemo(
+    () =>
+      results.reduce(
+        (acc, r) => {
+          if (r.ok) acc.success++;
+          else acc.error++;
+          return acc;
+        },
+        { success: 0, error: 0 }
+      ),
+    [results]
+  );
 
-  const showSummary =
-    !testing && results.some((r) => r.status === 'success' || r.status === 'error');
+  const showSummary = !testing && results.length > 0;
 
   const testAllSites = async () => {
     setTesting(true);
     setResults([]);
+    setError('');
 
     try {
-      const configRes = await apiClient.get<{ api_site?: Record<string, ApiSiteConfig> }>('/config');
-      const sites = configRes.data.api_site || {};
-
-      const siteList = Object.entries(sites).map(([key, site]) => ({
-        site: key,
-        name: site.name,
-      }));
-
-      const testResults: SpeedResult[] = siteList.map((s) => ({
-        ...s,
-        speed: 0,
-        status: 'testing' as const,
-        time: 0,
-      }));
-
-      setResults(testResults);
-
-      const promises = siteList.map(async (s, index) => {
-        const start = Date.now();
-        try {
-          await apiClient.get('/search', {
-            params: { site: s.site, wd: 'test' },
-            timeout: 10000,
-          });
-          const time = Date.now() - start;
-          setResults((prev) =>
-            prev.map((r, i) =>
-              i === index
-                ? { ...r, speed: Math.round(10000 / time), status: 'success', time }
-                : r
-            )
-          );
-        } catch {
-          const time = Date.now() - start;
-          setResults((prev) =>
-            prev.map((r, i) =>
-              i === index ? { ...r, speed: 0, status: 'error', time } : r
-            )
-          );
-        }
+      // The backend probes every configured source in parallel (bounded) and
+      // returns measured latency, so the numbers shown are real round-trips
+      // instead of the HTML-download time the old /api/search call produced.
+      const res = await apiClient.get<{ results: PingResult[] }>('/sites/ping', {
+        timeout: 60000,
       });
-
-      await Promise.allSettled(promises);
-    } catch (error) {
-      console.error('测速失败:', error);
+      const rows = res.data.results ?? [];
+      setResults(rows.map((r) => ({ ...r, status: r.ok ? 'success' : 'error' })));
+    } catch (err) {
+      // 401 is handled globally by the api client; anything else is worth
+      // showing instead of silently leaving an empty table.
+      const message =
+        err instanceof Error ? err.message : '测速请求失败，请稍后重试';
+      setError(message);
+      console.error('测速失败:', err);
     } finally {
       setTesting(false);
     }
@@ -197,7 +164,17 @@ const SpeedTest = () => {
         <TestButton testing={testing} onClick={testAllSites} />
       </div>
 
-      {results.length > 0 && (
+      {error && (
+        <div className="mb-4 rounded-xl border border-red-400/30 bg-red-400/10 px-4 py-3 text-sm text-red-300">
+          {error}
+        </div>
+      )}
+
+      {testing && (
+        <p className="text-sm text-muted mb-3">正在探测所有源…</p>
+      )}
+
+      {(results.length > 0 || testing) && (
         <div className="glass-panel rounded-xl overflow-hidden border border-glass-border shadow-sm">
           <table className="w-full text-sm">
             <thead>
@@ -210,7 +187,14 @@ const SpeedTest = () => {
             <tbody>
               {results.map((r) => (
                 <tr key={r.site} className="border-b border-glass-border/20 hover:bg-white/[0.02] transition-colors">
-                  <td className="px-4 py-3.5 text-text font-medium">{r.name}</td>
+                  <td className="px-4 py-3.5 text-text font-medium">
+                    {r.name || r.site}
+                    {!r.ok && r.error && (
+                      <span className="block text-xs font-normal text-muted truncate max-w-xs" title={r.error}>
+                        {r.error}
+                      </span>
+                    )}
+                  </td>
                   <td className="px-4 py-3.5">
                     <span className={`inline-flex items-center gap-1.5 ${STATUS_CONFIG[r.status].className}`}>
                       {STATUS_CONFIG[r.status].icon}
@@ -218,10 +202,27 @@ const SpeedTest = () => {
                     </span>
                   </td>
                   <td className="px-4 py-3.5 text-right tabular-nums">
-                    {TIME_RENDER[r.status](r)}
+                    {r.ok ? (
+                      <span className="text-text">
+                        {r.ms}ms
+                        <span className="block text-xs text-muted">{r.count} 条</span>
+                      </span>
+                    ) : (
+                      <span className="text-muted">{r.ms}ms</span>
+                    )}
                   </td>
                 </tr>
               ))}
+              {testing && results.length === 0 && (
+                <tr>
+                  <td colSpan={3} className="px-4 py-10 text-center text-muted">
+                    <span className="inline-flex items-center gap-2">
+                      <SpinnerIcon />
+                      正在探测所有源…
+                    </span>
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
 
@@ -235,7 +236,7 @@ const SpeedTest = () => {
         </div>
       )}
 
-      {results.length === 0 && !testing && <EmptyState />}
+      {results.length === 0 && !testing && !error && <EmptyState />}
     </PageContainer>
   );
 };

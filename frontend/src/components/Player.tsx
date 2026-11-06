@@ -25,6 +25,8 @@ interface PlayerProps {
   onNext?: () => void;
   onEnded?: () => void;
   hasNext?: boolean;
+  /** Reported when playback fails unrecoverably (e.g. the manifest is gone). */
+  onError?: (message: string) => void;
 }
 
 interface HlsVideoElement extends HTMLVideoElement {
@@ -82,7 +84,7 @@ export function resolveSwitchSeekTarget(seekTime: number, videoCurrentTime: numb
   return 0;
 }
 
-const Player = ({ url, title, currentTime, startFromZero, onTimeUpdate, onFlush, onNext, onEnded, hasNext }: PlayerProps) => {
+const Player = ({ url, title, currentTime, startFromZero, onTimeUpdate, onFlush, onNext, onEnded, hasNext, onError }: PlayerProps) => {
   const artRef = useRef<HTMLDivElement>(null);
   const artInstance = useRef<Artplayer | null>(null);
   const prevBlobUrl = useRef<string | null>(null);
@@ -91,6 +93,8 @@ const Player = ({ url, title, currentTime, startFromZero, onTimeUpdate, onFlush,
   const onTimeUpdateRef = useRef(onTimeUpdate);
   // 持有最新 onFlush，避免为 flush 重建事件监听
   const onFlushRef = useRef(onFlush);
+  // 持有最新 onError：致命错误回调在播放器创建时绑定，用 ref 读取最新实现
+  const onErrorRef = useRef(onError);
   // 跳过 switch effect 的首帧（创建时已加载首个 url，无需再 switch）
   const skipFirstSwitch = useRef(true);
   // 下一集回调 / 结束回调 / 是否有下一集（用 ref 持有最新值，避免重建播放器）
@@ -111,6 +115,7 @@ const Player = ({ url, title, currentTime, startFromZero, onTimeUpdate, onFlush,
   // Keep callback ref in sync without triggering effect re-runs
   useEffect(() => { onTimeUpdateRef.current = onTimeUpdate; });
   useEffect(() => { onFlushRef.current = onFlush; });
+  useEffect(() => { onErrorRef.current = onError; });
   useEffect(() => { onNextRef.current = onNext; });
   useEffect(() => { onEndedRef.current = onEnded; });
   useEffect(() => {
@@ -132,7 +137,11 @@ const Player = ({ url, title, currentTime, startFromZero, onTimeUpdate, onFlush,
 
   // 创建播放器实例（仅挂载时一次）。换源/换主题均不重建，避免闪烁与状态丢失。
   useEffect(() => {
-    if (!artRef.current || !url) return;
+    // Capture the container node now: reading `artRef.current` inside the
+    // cleanup would see whatever the ref points to *then*, not the node this
+    // effect mounted into.
+    const container = artRef.current;
+    if (!container || !url) return;
 
     // 清理上一次的 Blob URL
     if (prevBlobUrl.current) {
@@ -151,7 +160,7 @@ const Player = ({ url, title, currentTime, startFromZero, onTimeUpdate, onFlush,
     const theme = getCurrentTheme();
 
     const art = new Artplayer({
-      container: artRef.current,
+      container,
       url: url,
       // Explicitly set type for blob: URLs that contain m3u8 content
       // (Artplayer auto-detects from URL extension, but blob: has none)
@@ -183,9 +192,11 @@ const Player = ({ url, title, currentTime, startFromZero, onTimeUpdate, onFlush,
       fastForward: true,
       autoOrientation: true,
       lock: true,
-      moreVideoAttr: {
-        crossOrigin: 'anonymous',
-      },
+      // No `crossOrigin` here on purpose. Setting it switches every media
+      // request to CORS mode, and most upstream CDNs that serve these m3u8/mp4
+      // files do not send Access-Control-Allow-Origin — playback would fail
+      // with a network error even though the stream itself is fine. Captions
+      // and canvas features that need a tainted-safe video are not used here.
       customType: {
         m3u8: function (video: HTMLVideoElement, videoUrl: string) {
           if (!Hls) return;
@@ -205,13 +216,31 @@ const Player = ({ url, title, currentTime, startFromZero, onTimeUpdate, onFlush,
           hls.attachMedia(video);
           hlsVideo.hls = hls;
 
+          // Recover a limited number of times. Calling `startLoad()` on every
+          // fatal network error used to loop forever against a dead manifest
+          // (endless requests, never-ending spinner); after the budget is spent
+          // we destroy the instance and surface an error instead.
+          let networkRetries = 0;
+          const MAX_NETWORK_RETRIES = 3;
+
           hls.on(Hls.Events.ERROR, (_event, data) => {
-            if (data.fatal) {
-              switch (data.type) {
-                case Hls.ErrorTypes.NETWORK_ERROR: hls.startLoad(); break;
-                case Hls.ErrorTypes.MEDIA_ERROR: hls.recoverMediaError(); break;
-                default: hls.destroy(); break;
-              }
+            if (!data.fatal) return;
+            switch (data.type) {
+              case Hls.ErrorTypes.NETWORK_ERROR:
+                if (networkRetries < MAX_NETWORK_RETRIES) {
+                  networkRetries += 1;
+                  hls.startLoad();
+                  break;
+                }
+                onErrorRef.current?.('视频加载失败，请尝试切换播放源');
+                hls.destroy();
+                break;
+              case Hls.ErrorTypes.MEDIA_ERROR:
+                hls.recoverMediaError();
+                break;
+              default:
+                hls.destroy();
+                break;
             }
           });
         },
@@ -305,7 +334,7 @@ const Player = ({ url, title, currentTime, startFromZero, onTimeUpdate, onFlush,
         clearTimeout(seekGuardTimerRef.current);
         seekGuardTimerRef.current = null;
       }
-      destroyPlayer(art, artRef.current);
+      destroyPlayer(art, container);
       if (artInstance.current === art) {
         artInstance.current = null;
       }
@@ -435,7 +464,10 @@ const Player = ({ url, title, currentTime, startFromZero, onTimeUpdate, onFlush,
 
     // 原地换源（Artplayer 官方 API），保留播放器实例与所有状态
     art.switch = url;
-  }, [url]);
+    // startFromZero decides whether this switch is an episode change (seek to 0,
+    // guard progress writes) or a source change (resume at the live position),
+    // so it is part of the effect's inputs, not a stale closure read.
+  }, [url, startFromZero]);
 
   // 换主题：原地更新播放器主题色，无需重建
   useEffect(() => {

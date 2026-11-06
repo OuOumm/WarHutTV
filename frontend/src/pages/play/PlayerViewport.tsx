@@ -13,6 +13,8 @@ interface PlayerViewportProps extends PlayerViewportState {
   hasNext?: boolean;
   /** True when the current playUrl is a deliberate episode switch (start from 0). */
   startFromZero?: boolean;
+  /** Reported when the current stream fails unrecoverably. */
+  onError?: (message: string) => void;
 }
 
 export function PlayerViewport({
@@ -30,6 +32,7 @@ export function PlayerViewport({
   onEnded,
   hasNext,
   startFromZero,
+  onError,
 }: PlayerViewportProps) {
   return (
     <div className="md:col-span-3 h-full">
@@ -48,6 +51,7 @@ export function PlayerViewport({
               onFlush={onFlush}
               onNext={onNext}
               onEnded={onEnded}
+              onError={onError}
               hasNext={hasNext}
             />
           </Suspense>

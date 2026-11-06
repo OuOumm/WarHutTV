@@ -27,7 +27,6 @@ export const historyStore = {
   /** Upsert the "where I left off" record for a video. */
   async record(siteKey: string, vodId: string | number, data: WatchHistoryInput): Promise<void> {
     const key = makeKey(siteKey, vodId);
-    const existing = await db.watchHistory.where('key').equals(key).first();
     const row: WatchHistory = {
       key,
       vod_id: vodId,
@@ -40,11 +39,18 @@ export const historyStore = {
       duration: data.duration,
       watchedAt: Date.now(),
     };
-    if (existing?.id != null) {
-      await db.watchHistory.update(existing.id, row);
-    } else {
-      await db.watchHistory.add(row);
-    }
+
+    // Single-transaction upsert. The old read-then-write could interleave two
+    // flushes (visibility + unload fire back to back) and either throw a
+    // ConstraintError on the unique `key` index or lose the newer position.
+    await db.transaction('rw', db.watchHistory, async () => {
+      const existing = await db.watchHistory.where('key').equals(key).first();
+      if (existing?.id != null) {
+        await db.watchHistory.put({ ...row, id: existing.id });
+      } else {
+        await db.watchHistory.add(row);
+      }
+    });
   },
 
   async get(siteKey: string, vodId: string | number): Promise<WatchHistory | undefined> {

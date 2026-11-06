@@ -62,8 +62,18 @@ export function sortSourcesBySpeed(sources: SourceItem[]): SourceItem[] {
     .map((entry) => entry.source);
 }
 
-export async function getPlayableUrl(url: string, sourceKey?: string) {
-  void sourceKey;
+/**
+ * Resolve the URL the player should actually load.
+ *
+ * Non-HLS URLs are returned as-is. HLS manifests go through the ad filter when
+ * it's enabled (`enable_blockad`), which needs CORS-enabled upstreams; failures
+ * fall back to the original URL so a blocked filter never breaks playback.
+ *
+ * Takes no source key: an earlier signature accepted one and immediately
+ * discarded it (`void sourceKey`), which made every call site look like it was
+ * passing meaningful context.
+ */
+export async function getPlayableUrl(url: string) {
   if (!url) return url;
   if (!url.includes('.m3u8')) return url;
 
@@ -71,7 +81,28 @@ export async function getPlayableUrl(url: string, sourceKey?: string) {
   if (!adEnabled) return url;
 
   const { fetchAndFilterM3U8 } = await import('../../utils/adblock');
-  return fetchAndFilterM3U8(url);
+  try {
+    return await fetchAndFilterM3U8(url);
+  } catch (err) {
+    console.warn('[play] ad filter failed, falling back to the raw manifest', err);
+    return url;
+  }
+}
+
+/**
+ * Pick a URL to probe for the speed test.
+ *
+ * The old code looked at `vod_play_url.split('#')[0].split('$')[1]` — the first
+ * entry of the first line only — and skipped the source whenever it wasn't an
+ * `.m3u8`, so direct-mp4 sources were never measured and a source whose first
+ * line was broken was reported as untested even with a good second line.
+ */
+export function pickProbeUrl(vodPlayURL: string | undefined): string | null {
+  if (!vodPlayURL) return null;
+  for (const episode of parseEpisodes(vodPlayURL)) {
+    if (episode.url) return episode.url;
+  }
+  return null;
 }
 
 /**

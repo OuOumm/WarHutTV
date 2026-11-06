@@ -91,4 +91,15 @@ export function applyTheme(theme: Theme): void {
   root.dataset.glowAnim = visual.glowAnimation;
   root.dataset.cardStyle = visual.cardStyle;
   root.dataset.accentEffect = visual.accentEffect;
+
+  // theme-color 决定移动端浏览器地址栏 / 任务切换器的配色。它原本只在
+  // useDynamicManifest 里随 site_name 更新一次，切换主题后不会跟着变，
+  // 导致浏览器 UI 与页面主体配色不一致。这里在应用主题时同步更新。
+  let meta = document.querySelector('meta[name="theme-color"]');
+  if (!meta) {
+    meta = document.createElement('meta');
+    meta.setAttribute('name', 'theme-color');
+    document.head.appendChild(meta);
+  }
+  meta.setAttribute('content', colors.deep);
 }

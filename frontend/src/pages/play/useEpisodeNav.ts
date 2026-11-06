@@ -28,7 +28,7 @@ export function useEpisodeNav(deps: PlayControllerDeps) {
         });
       };
       if (ep.url) {
-        getPlayableUrl(ep.url, currentSource).then(apply);
+        getPlayableUrl(ep.url).then(apply);
         return;
       }
 
@@ -36,7 +36,7 @@ export function useEpisodeNav(deps: PlayControllerDeps) {
         .get('/play', { params: { site: currentSource, ids: id, episode: ep.name } })
         .then((res) => {
           if (res.data?.url) {
-            getPlayableUrl(res.data.url, currentSource).then(apply);
+            getPlayableUrl(res.data.url).then(apply);
           }
         })
         .catch(console.error);

@@ -28,9 +28,12 @@ export interface PlayControllerDeps {
   optimizeStarted: MutableRefObject<boolean>;
   sourceListRef: RefObject<HTMLDivElement | null>;
   /**
-   * Injects the playback-progress writer's flush so the source-switch hook can
-   * persist the live playback position into history *before* swapping sources
-   * (single-writer model — keeps cross-source resume continuous). Optional.
+   * Ref holding the playback-progress writer's flush so the source-switch hook
+   * can persist the live playback position into history *before* swapping
+   * sources (single-writer model — keeps cross-source resume continuous).
+   * A ref (not a plain field) is required: `usePlaybackProgress` is declared
+   * after `deps`, and mutating the deps object during render is a `react-hooks`
+   * violation. `usePlayController` keeps `current` in sync in an effect.
    */
-  progressFlush?: () => Promise<void>;
+  progressFlushRef: MutableRefObject<(() => Promise<void>) | null>;
 }

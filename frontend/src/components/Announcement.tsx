@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { getCurrentTheme } from '../store/theme';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 
@@ -8,14 +8,19 @@ interface AnnouncementProps {
   onDismiss: () => void;
 }
 
+const EXIT_ANIMATION_MS = 400;
+
 const Announcement = ({ content, siteName, onDismiss }: AnnouncementProps) => {
   const [isVisible, setIsVisible] = useState(false);
   const [isExiting, setIsExiting] = useState(false);
   const theme = getCurrentTheme();
+  const exitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleDismiss = useCallback(() => {
     setIsExiting(true);
-    setTimeout(onDismiss, 400);
+    // Keep a handle so an unmount (route change, logout) can cancel the timer —
+    // otherwise it fires after the component is gone and calls a stale onDismiss.
+    exitTimerRef.current = setTimeout(onDismiss, EXIT_ANIMATION_MS);
   }, [onDismiss]);
 
   // Dialog semantics: trap focus, close on Esc, restore focus on close.
@@ -24,6 +29,22 @@ const Announcement = ({ content, siteName, onDismiss }: AnnouncementProps) => {
   useEffect(() => {
     const timer = setTimeout(() => setIsVisible(true), 300);
     return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(
+    () => () => {
+      if (exitTimerRef.current) clearTimeout(exitTimerRef.current);
+    },
+    [],
+  );
+
+  // A modal dialog must not scroll the page behind it.
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
   }, []);
 
   const getThemeDecoration = () => {
@@ -69,7 +90,13 @@ const Announcement = ({ content, siteName, onDismiss }: AnnouncementProps) => {
         isVisible && !isExiting ? 'opacity-100' : 'opacity-0 pointer-events-none'
       }`}
       style={{ background: 'rgba(0, 0, 0, 0.6)' }}
-      onClick={handleDismiss}
+      onClick={(e) => {
+        // Only a click that both starts and ends on the backdrop dismisses the
+        // dialog. A drag that begins inside the card (e.g. selecting the
+        // announcement text) and ends on the backdrop must not close it — the
+        // old code closed on any click reaching the overlay.
+        if (e.target === e.currentTarget) handleDismiss();
+      }}
     >
       <div
         ref={dialogRef}

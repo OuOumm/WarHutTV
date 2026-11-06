@@ -29,7 +29,7 @@ export function VideoInfo({
       <div className="hidden md:block md:col-span-1 md:order-first">
         <div className="pr-6">
           <div className="relative aspect-[2/3] rounded-xl overflow-hidden shadow-lg">
-            <img src={currentDetail.vod_pic || '/placeholder.jpg'} alt={currentDetail.vod_name} className="w-full h-full object-cover" />
+            <img src={currentDetail.vod_pic || '/placeholder.svg'} alt={currentDetail.vod_name} className="w-full h-full object-cover" />
           </div>
         </div>
       </div>

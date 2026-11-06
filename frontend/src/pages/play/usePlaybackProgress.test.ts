@@ -53,6 +53,7 @@ function buildDeps(state: PlayState): { deps: PlayControllerDeps } {
     switchRequestId: { current: 0 },
     optimizeStarted: { current: false },
     sourceListRef: { current: null },
+    progressFlushRef: { current: null },
   };
   return { deps };
 }

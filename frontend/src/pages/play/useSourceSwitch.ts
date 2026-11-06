@@ -23,7 +23,7 @@ export function useSourceSwitch(
       // Persist the old source's live position before resume lookup reads it.
       // This await is the write-before-read barrier that prevents a source switch
       // from observing stale history and incorrectly resuming at 0:00.
-      await deps.progressFlush?.();
+      await deps.progressFlushRef.current?.();
       const requestId = ++deps.switchRequestId.current;
       // Only flip the switching flag here. `currentSource` is owned by
       // `applySource` and must NOT be rewritten until the new source is
@@ -63,7 +63,7 @@ export function useSourceSwitch(
         }
         const epList = newDetail.vod_play_url ? parseEpisodes(newDetail.vod_play_url) : [];
         const resumeEp = await applyResumeProgress(setCurrentTime, toast, deps.site, deps.id, epList);
-        const url = epList.length > 0 ? await getPlayableUrl(resumeEp?.url || epList[0].url, sourceKey) : '';
+        const url = epList.length > 0 ? await getPlayableUrl(resumeEp?.url || epList[0].url) : '';
         if (requestId !== deps.switchRequestId.current) return;
         dispatch({
           type: 'applySource',

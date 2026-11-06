@@ -1,89 +1,83 @@
-const CACHE_NAME = 'warhuttv-v2'; // 版本号更新，强制清理旧缓存
-const MAX_CACHE_SIZE = 50 * 1024 * 1024; // 50MB 最大缓存
+// Bump this whenever the caching strategy or the precache list changes: the
+// activate handler deletes every cache whose name differs from this one.
+const CACHE_NAME = 'warhuttv-v3';
+const MAX_CACHE_ENTRIES = 120;
 
+// Only files that are guaranteed to exist in dist/. The old list included
+// `/manifest.json`, which is generated at runtime as a Blob URL — cache.addAll
+// rejects the whole install if a single URL 404s, so the service worker never
+// finished installing and offline mode silently never worked.
 const STATIC_ASSETS = [
   '/',
   '/index.html',
   '/favicon.svg',
-  '/manifest.json',
 ];
 
-// 需要缓存的静态资源扩展名（白名单）
 const CACHEABLE_EXTENSIONS = [
   '.js', '.css', '.html', '.json',
   '.svg', '.png', '.jpg', '.jpeg', '.gif', '.webp', '.ico',
-  '.woff', '.woff2', '.ttf', '.eot',
+  '.woff', '.woff2', '.ttf', '.otf',
 ];
 
 function isCacheable(url) {
-  // 只缓存 http/https 请求
   if (!url.startsWith('http')) return false;
-  
+
   const pathname = new URL(url).pathname;
-  
-  // 排除 API 请求
-  if (pathname.includes('/api/')) return false;
-  
-  // 排除视频相关文件（.ts 片段, .m3u8 播放列表）
+
+  // Never cache API responses: they are user-specific and must stay fresh.
+  if (pathname === '/api' || pathname.startsWith('/api/')) return false;
+
+  // HLS segments and playlists are streamed through the player, not the SW.
   if (pathname.endsWith('.ts') || pathname.endsWith('.m3u8')) return false;
-  if (pathname.includes('.ts?') || pathname.includes('.m3u8?')) return false;
-  
-  // 只缓存白名单中的扩展名
-  return CACHEABLE_EXTENSIONS.some(ext => pathname.endsWith(ext)) || pathname === '/';
+
+  return CACHEABLE_EXTENSIONS.some((ext) => pathname.endsWith(ext)) || pathname === '/';
 }
 
-// 清理缓存，确保不超过最大大小
+// Bound the cache by entry count. The previous version summed `content-length`
+// (usually absent) and ordered by `Date.now()` captured in the same loop tick,
+// so it never evicted anything.
 async function trimCache(cacheName) {
   const cache = await caches.open(cacheName);
   const keys = await cache.keys();
-  let totalSize = 0;
-  const entries = [];
-  
-  for (const request of keys) {
-    const response = await cache.match(request);
-    if (response) {
-      const size = parseInt(response.headers.get('content-length') || '0');
-      totalSize += size;
-      entries.push({ request, size, timestamp: Date.now() });
-    }
-  }
-  
-  // 如果超过最大大小，删除最旧的条目
-  if (totalSize > MAX_CACHE_SIZE) {
-    entries.sort((a, b) => a.timestamp - b.timestamp);
-    for (const entry of entries) {
-      if (totalSize <= MAX_CACHE_SIZE) break;
-      await cache.delete(entry.request);
-      totalSize -= entry.size;
-    }
-  }
+  if (keys.length <= MAX_CACHE_ENTRIES) return;
+  // keys() returns requests in insertion order, so the oldest entries are first.
+  const excess = keys.slice(0, keys.length - MAX_CACHE_ENTRIES);
+  await Promise.all(excess.map((request) => cache.delete(request)));
 }
 
-// Install - cache static assets
-self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(STATIC_ASSETS);
+async function precache() {
+  const cache = await caches.open(CACHE_NAME);
+  // Add one by one and tolerate individual failures: a single 404 must not
+  // abort the whole install (that was the old addAll behaviour).
+  await Promise.all(
+    STATIC_ASSETS.map(async (asset) => {
+      try {
+        await cache.add(new Request(asset, { cache: 'reload' }));
+      } catch (error) {
+        console.warn('[sw] failed to precache', asset, error);
+      }
     })
   );
+}
+
+self.addEventListener('install', (event) => {
+  event.waitUntil(precache());
   self.skipWaiting();
 });
 
-// Activate - clean all old caches
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames
-          .filter((name) => name !== CACHE_NAME)
-          .map((name) => caches.delete(name))
-      );
-    })
+    caches.keys().then((cacheNames) =>
+      Promise.all(
+        cacheNames.filter((name) => name !== CACHE_NAME).map((name) => caches.delete(name))
+      )
+    )
   );
   self.clients.claim();
 });
 
-// Fetch - network first, fallback to cache
+// Network-first for navigations (always try to pick up a new deployment), with
+// the cached shell as the offline fallback.
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
   if (!isCacheable(event.request.url)) return;
@@ -91,23 +85,35 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     fetch(event.request)
       .then((response) => {
-        // 检查响应是否有效
-        if (!response || response.status !== 200) {
+        if (!response || response.status !== 200 || response.type === 'opaque') {
           return response;
         }
-        
-        // 只缓存成功的响应
+
         const responseClone = response.clone();
-        caches.open(CACHE_NAME).then((cache) => {
-          cache.put(event.request, responseClone);
-          // 定期清理缓存
-          trimCache(CACHE_NAME).catch(() => {});
-        });
-        
+        caches
+          .open(CACHE_NAME)
+          .then((cache) => cache.put(event.request, responseClone))
+          .then(() => trimCache(CACHE_NAME))
+          .catch(() => {});
+
         return response;
       })
-      .catch(() => {
-        return caches.match(event.request);
+      .catch(async () => {
+        const cached = await caches.match(event.request);
+        if (cached) return cached;
+
+        // Fall back to the app shell so a hard navigation while offline still
+        // renders the SPA instead of the browser's error page. The old code
+        // returned `caches.match(...)` directly, which could resolve to
+        // undefined and make respondWith throw.
+        if (event.request.mode === 'navigate') {
+          const shell = await caches.match('/index.html');
+          if (shell) return shell;
+        }
+        return new Response('离线且无缓存', {
+          status: 503,
+          headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+        });
       })
   );
 });

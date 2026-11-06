@@ -6,6 +6,7 @@ const CACHE_TTL = {
   config: 24 * 60 * 60 * 1000,       // 24小时
   logo: 7 * 24 * 60 * 60 * 1000,     // 7天
   search: 2 * 60 * 60 * 1000,        // 2小时
+  douban: 2 * 60 * 60 * 1000,        // 2小时
 } as const;
 
 type CacheType = keyof typeof CACHE_TTL;

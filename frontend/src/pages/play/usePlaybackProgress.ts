@@ -60,6 +60,12 @@ export function usePlaybackProgress(deps: PlayControllerDeps) {
       });
       dirtyRef.current = false;
       lastWriteRef.current = Date.now();
+    } catch (error) {
+      // Dexie failures (quota exceeded, private-mode storage, blocked upgrade)
+      // are not fatal to playback. Swallowing them here keeps every caller
+      // (`void flush()` in tick/lifecycle handlers) from producing an
+      // unhandled rejection; dirty stays true so the next tick retries.
+      console.warn('[history] failed to persist playback progress', error);
     } finally {
       flushingRef.current = false;
     }

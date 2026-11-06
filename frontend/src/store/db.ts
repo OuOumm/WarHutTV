@@ -80,6 +80,43 @@ class WarHutTVDatabase extends Dexie {
       detailCache: '++id, cacheKey, cachedAt',
       watchedEpisodes: '++id, vod_name',
     });
+    // v6: backfill `key` on the rows v5 left unindexed. Without this they are
+    // invisible to `where('key')` lookups (resume) yet still occupy the table,
+    // so the old history silently never came back. Rows that cannot produce a
+    // key (no vod_id) are dropped — they were already unreachable.
+    this.version(6)
+      .stores({
+        favorites: '++id, vod_id, vod_name, addedAt',
+        watchHistory: '++id, &key, vod_id, vod_name, watchedAt',
+        detailCache: '++id, cacheKey, cachedAt',
+        watchedEpisodes: '++id, vod_name',
+      })
+      .upgrade(async (tx) => {
+        const table = tx.table<WatchHistory>('watchHistory');
+        const rows = await table.toArray();
+        const orphans: number[] = [];
+        const repaired: WatchHistory[] = [];
+
+        for (const row of rows) {
+          if (row.key) continue;
+          const vodId = row.vod_id;
+          if (vodId === undefined || vodId === null || vodId === '') {
+            if (row.id != null) orphans.push(row.id);
+            continue;
+          }
+          repaired.push({
+            ...row,
+            key: `${row.site_key || 'default'}:${vodId}`,
+            watchedAt: row.watchedAt ?? Date.now(),
+            episode: row.episode ?? null,
+            progress: row.progress ?? 0,
+            duration: row.duration ?? 0,
+          });
+        }
+
+        if (repaired.length > 0) await table.bulkPut(repaired);
+        if (orphans.length > 0) await table.bulkDelete(orphans);
+      });
   }
 }
 

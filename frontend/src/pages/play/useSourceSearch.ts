@@ -1,6 +1,6 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { streamSearchResults } from '../../api/searchStream';
-import { getPlayableUrl, parseEpisodes, parseSpeed, applyResumeProgress, episodePageIndex } from './playUtils';
+import { getPlayableUrl, parseEpisodes, parseSpeed, pickProbeUrl, applyResumeProgress, episodePageIndex } from './playUtils';
 import { getCachedDetail } from './playApi';
 import { filterYellowItems, isExactMatch } from '../../utils/filter';
 import type {
@@ -23,6 +23,28 @@ import type { PlayControllerDeps } from './playContext';
 export function useSourceSearch(deps: PlayControllerDeps) {
   const { dispatch, toast, site, id, setCurrentTime } = deps;
 
+  // Optimization finishes with a couple of cosmetic delays so the UI can show
+  // the "done" state before the spinner disappears. They used to be bare
+  // `setTimeout`s: navigating away mid-optimization then dispatched into an
+  // unmounted component and leaked the timers, so every one is tracked here and
+  // cleared on unmount.
+  const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const later = useCallback((fn: () => void, ms: number) => {
+    const timer = setTimeout(() => {
+      timersRef.current = timersRef.current.filter((entry) => entry !== timer);
+      fn();
+    }, ms);
+    timersRef.current.push(timer);
+  }, []);
+
+  useEffect(
+    () => () => {
+      timersRef.current.forEach(clearTimeout);
+      timersRef.current = [];
+    },
+    [],
+  );
+
   // SSE search with abort + 30s timeout, caching results in sessionStorage.
   const streamSearch = useCallback(
     (wd: string): Promise<SearchSiteData[]> => {
@@ -42,6 +64,8 @@ export function useSourceSearch(deps: PlayControllerDeps) {
         };
 
         const timeoutId = setTimeout(() => {
+          // The socket may still be open after the backend finishes; abort it
+          // so we don't keep a dead stream around for the rest of the session.
           console.warn('Play: search timeout, resolving with partial results');
           controller.abort();
           finish();
@@ -69,6 +93,19 @@ export function useSourceSearch(deps: PlayControllerDeps) {
                 },
               });
             },
+            // Discarded/timed-out sources still count toward the total so the
+            // overlay never stalls on a dead source.
+            onErrorEvent: (data) =>
+              dispatch({
+                type: 'patch',
+                payload: {
+                  searchProgress: {
+                    completed: data.completed ?? 0,
+                    total: data.total ?? 0,
+                    currentSite: data.discarded ? `${data.name} 超时丢弃` : (data.name || '失败'),
+                  },
+                },
+              }),
             onDone: () => {
               try {
                 sessionStorage.setItem(`search_results:${wd}`, JSON.stringify(allResults));
@@ -112,7 +149,7 @@ export function useSourceSearch(deps: PlayControllerDeps) {
         const playFallback = async () => {
           const targetEp = await applyResumeProgress(setCurrentTime, toast, site, id, initialEpisodes);
           if (targetEp?.url) {
-            const url = await getPlayableUrl(targetEp.url, site);
+            const url = await getPlayableUrl(targetEp.url);
             dispatch({ type: 'patch', payload: { playUrl: url, switchStartsFromZero: false } });
           }
           dispatch({ type: 'patch', payload: { currentEpisode: targetEp, episodePage: episodePageIndex(initialEpisodes, targetEp, deps.episodesPerPage) } });
@@ -121,7 +158,7 @@ export function useSourceSearch(deps: PlayControllerDeps) {
         if (!data || !Array.isArray(data) || data.length === 0) {
           await playFallback();
           dispatch({ type: 'patch', payload: { optimizeComplete: true, searchProgress: null } });
-          setTimeout(() => dispatch({ type: 'patch', payload: { isOptimizing: false } }), 500);
+          later(() => dispatch({ type: 'patch', payload: { isOptimizing: false } }), 500);
           return;
         }
 
@@ -148,7 +185,7 @@ export function useSourceSearch(deps: PlayControllerDeps) {
         if (sourceList.length === 0) {
           await playFallback();
           dispatch({ type: 'patch', payload: { optimizeComplete: true, searchProgress: null } });
-          setTimeout(() => dispatch({ type: 'patch', payload: { isOptimizing: false } }), 500);
+          later(() => dispatch({ type: 'patch', payload: { isOptimizing: false } }), 500);
           return;
         }
 
@@ -165,7 +202,7 @@ export function useSourceSearch(deps: PlayControllerDeps) {
             if (onlyDetail) {
               const epList = onlyDetail.vod_play_url ? parseEpisodes(onlyDetail.vod_play_url) : [];
               const targetEp = await applyResumeProgress(setCurrentTime, toast, site, id, epList);
-              const url = targetEp ? await getPlayableUrl(targetEp.url, onlySource.key) : '';
+              const url = targetEp ? await getPlayableUrl(targetEp.url) : '';
               dispatch({
                 type: 'applySource',
                 source: {
@@ -181,7 +218,7 @@ export function useSourceSearch(deps: PlayControllerDeps) {
             }
           }
           dispatch({ type: 'patch', payload: { optimizeComplete: true, searchProgress: null } });
-          setTimeout(() => dispatch({ type: 'patch', payload: { isOptimizing: false } }), 500);
+          later(() => dispatch({ type: 'patch', payload: { isOptimizing: false } }), 500);
           return;
         }
 
@@ -192,8 +229,12 @@ export function useSourceSearch(deps: PlayControllerDeps) {
             const siteData = data!.find((item) => item.site_key === source.key);
             if (siteData?.list && siteData.list.length > 0) {
               const vodDetail = await getCachedDetail(source.key, source.vodId);
-              const epUrl = vodDetail?.vod_play_url?.split('#')[0]?.split('$')[1];
-              if (epUrl && epUrl.includes('.m3u8')) {
+              // Pick the first playable URL across *all* lines (线路) instead of
+              // only the first entry of the first line, and don't require
+              // `.m3u8`: HLS is the common case but direct mp4 sources exist and
+              // used to be skipped entirely, so their source showed no speed.
+              const epUrl = pickProbeUrl(vodDetail?.vod_play_url);
+              if (epUrl) {
                 const { testVideoSpeed } = await import('../../utils/speedtest');
                 const result = await testVideoSpeed(epUrl);
                 dispatch({ type: 'setSourceStatus', index, status: 'done', speed: result });
@@ -219,7 +260,7 @@ export function useSourceSearch(deps: PlayControllerDeps) {
         const applyPicked = async (picked: { key: string; detail: VideoDetail }) => {
           const epList = picked.detail.vod_play_url ? parseEpisodes(picked.detail.vod_play_url) : [];
           const targetEp = await applyResumeProgress(setCurrentTime, toast, site, id, epList);
-          const url = targetEp ? await getPlayableUrl(targetEp.url, picked.key) : '';
+          const url = targetEp ? await getPlayableUrl(targetEp.url) : '';
           dispatch({
             type: 'applySource',
             source: {
@@ -254,7 +295,7 @@ export function useSourceSearch(deps: PlayControllerDeps) {
       console.error('优选失败:', err);
       const targetEp = await applyResumeProgress(setCurrentTime, toast, site, id, initialEpisodes);
       if (targetEp?.url) {
-        const url = await getPlayableUrl(targetEp.url, site);
+        const url = await getPlayableUrl(targetEp.url);
         dispatch({ type: 'patch', payload: { playUrl: url, switchStartsFromZero: false } });
       }
       dispatch({ type: 'patch', payload: { currentEpisode: targetEp, episodePage: episodePageIndex(initialEpisodes, targetEp, deps.episodesPerPage) } });
@@ -266,7 +307,7 @@ export function useSourceSearch(deps: PlayControllerDeps) {
         setTimeout(() => dispatch({ type: 'patch', payload: { isOptimizing: false } }), 800);
       }
     },
-    [site, id, toast, setCurrentTime, streamSearch, dispatch, deps.episodesPerPage],
+    [site, id, toast, setCurrentTime, streamSearch, dispatch, deps.episodesPerPage, later],
   );
 
   return { streamSearch, startOptimize };

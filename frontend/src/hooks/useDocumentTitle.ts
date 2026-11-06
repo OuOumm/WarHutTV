@@ -116,14 +116,8 @@ export function useDynamicManifest() {
     link.href = manifestUrl;
     document.head.appendChild(link);
 
-    // 同时更新 theme-color
-    let themeColor = document.querySelector('meta[name="theme-color"]');
-    if (!themeColor) {
-      themeColor = document.createElement('meta');
-      themeColor.setAttribute('name', 'theme-color');
-      document.head.appendChild(themeColor);
-    }
-    themeColor.setAttribute('content', theme.colors.primary);
+    // theme-color 由 `applyTheme` 维护（随主题切换更新），这里不再写入，
+    // 否则首次加载会把浏览器 UI 配色固定为 primary，与页面深色背景不一致。
 
     // 清理函数
     return () => {

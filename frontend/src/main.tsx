@@ -10,6 +10,18 @@ document.addEventListener('visibilitychange', () => {
   document.documentElement.classList.toggle('anim-paused', document.hidden)
 })
 
+// Register the service worker only in production builds. In dev the SW served
+// by Vite is a stale copy of public/sw.js and its network-first handler caches
+// HTML for hashed asset URLs, which is a classic source of "why is my change
+// not showing up" during development.
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker
+      .register('/sw.js')
+      .catch((error) => console.warn('[sw] registration failed', error))
+  })
+}
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <App />

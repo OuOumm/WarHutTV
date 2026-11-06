@@ -17,6 +17,8 @@ export interface SearchStreamErrorEvent {
   site: string;
   name: string;
   error: string;
+  /** True when the backend discarded the source (e.g. per-site timeout). */
+  discarded?: boolean;
   completed?: number;
   total?: number;
 }
@@ -55,6 +57,7 @@ export async function streamSearchResults<T>(
   const response = await fetch(`/api/search/stream?${params.toString()}`, {
     credentials: 'include',
     signal: options.signal,
+    headers: { Accept: 'text/event-stream' },
   });
 
   if (!response.ok) {
@@ -65,6 +68,13 @@ export async function streamSearchResults<T>(
   if (!response.body) {
     throw new Error('搜索连接不支持流式响应');
   }
+  // A proxy or SPA fallback can answer 200 with HTML. Without this check the
+  // parser would silently consume zero events and the UI would say "no
+  // results" instead of surfacing a broken response.
+  const contentType = response.headers.get('Content-Type') ?? '';
+  if (!contentType.includes('text/event-stream')) {
+    throw new Error(`搜索连接返回了非流式响应: ${contentType || 'unknown'}`);
+  }
 
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
@@ -74,8 +84,7 @@ export async function streamSearchResults<T>(
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      buffer = processSseBuffer(buffer, handlers);
+      buffer = processSseBuffer(buffer + decoder.decode(value, { stream: true }), handlers);
     }
 
     buffer += decoder.decode();
@@ -118,7 +127,23 @@ function parseSseMessage(chunk: string): SseMessage | null {
 }
 
 function dispatchSseMessage<T>(message: SseMessage, handlers: SearchStreamHandlers<T>) {
-  const data = JSON.parse(message.data) as unknown;
+  // Unknown events (e.g. the `ping` heartbeat) are ignored on purpose: the
+  // parser must never throw because a newer backend sent something new.
+  if (message.event !== 'start' && message.event !== 'result' &&
+      message.event !== 'error' && message.event !== 'timeout' &&
+      message.event !== 'done') {
+    return;
+  }
+
+  let data: unknown;
+  try {
+    data = JSON.parse(message.data);
+  } catch {
+    // A truncated frame (connection cut mid-write) must not abort the whole
+    // stream — the remaining sites can still deliver results.
+    console.warn('[search] skipped malformed SSE frame', message.event, message.data);
+    return;
+  }
 
   switch (message.event) {
     case 'start':

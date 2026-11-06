@@ -1,9 +1,20 @@
 import apiClient from './client';
-import type { SiteConfig } from '../types';
+
+export interface ApiSiteEntry {
+  api: string;
+  name: string;
+  detail?: string;
+}
+
+export interface ApiSiteConfigResponse {
+  site_name: string;
+  announcement: string;
+  api_site?: Record<string, ApiSiteEntry>;
+}
 
 export const configApi = {
-  getConfig: async (): Promise<SiteConfig> => {
-    const response = await apiClient.get('/config');
+  getConfig: async (): Promise<ApiSiteConfigResponse> => {
+    const response = await apiClient.get<ApiSiteConfigResponse>('/config');
     return response.data;
   },
 };

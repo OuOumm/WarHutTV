@@ -1,5 +1,20 @@
 @import "tailwindcss";
 
+/* ==================== FONTS ==================== */
+/*
+ * No webfont is bundled or fetched: the design used to request Inter/Anton in
+ * CSS without ever loading them, so every browser silently fell back to the
+ * default sans-serif while the CSS implied a specific typographic look.
+ * We instead declare honest, local-first stacks — the preferred families are
+ * used when the OS has them, and the display stack emulates Anton's condensed
+ * uppercase titles with narrow system faces. This keeps the PWA fully offline
+ * and avoids a third-party font request.
+ */
+@theme {
+  --font-sans: 'Inter', 'Segoe UI', system-ui, -apple-system, 'Noto Sans SC', 'Microsoft YaHei', sans-serif;
+  --font-display: 'Anton', 'Oswald', 'Arial Narrow', 'Haettenschweiler', 'Segoe UI Semibold', system-ui, sans-serif;
+}
+
 /* ==================== THEME DEFINITION ==================== */
 @theme {
   --color-deep: #10080c;
@@ -44,7 +59,7 @@ html {
 }
 body {
   height: 100%;
-  font-family: 'Inter', sans-serif;
+  font-family: var(--font-sans);
   color: var(--color-text);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;

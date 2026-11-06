@@ -6,7 +6,7 @@ import PageContainer from '../components/PageContainer';
 import { useAutoFillColumns, AUTO_FILL_GRID, CARD_COLUMN_GAP } from '../components/gridColumns';
 import type { VideoItem } from '../types';
 import { streamSearchResults } from '../api/searchStream';
-import { filterYellowItems, isExactMatch } from '../utils/filter';
+import { filterYellowItems, isExactMatch, isExactMatchEnabled, normalizeString } from '../utils/filter';
 
 interface StreamProgress {
   completed: number;
@@ -112,10 +112,12 @@ const Search = () => {
   const [error, setError] = useState('');
   const [streamProgress, setStreamProgress] = useState<StreamProgress | null>(null);
   const searchAbortRef = useRef<AbortController | null>(null);
+  // 默认关闭：精确匹配会把「凡人修仙传」这类片名全滤掉，导致进度显示
+  // 「已找到 338 个」而标题却写「0 个结果」。只有用户主动开启过才打开。
   const [exactMatch, setExactMatch] = useState(() => {
     try {
-      return localStorage.getItem('searchExactMatch') !== 'false';
-    } catch { return true; }
+      return isExactMatchEnabled(localStorage.getItem('searchExactMatch'));
+    } catch { return false; }
   });
 
   const getDefaultAggregate = () => {
@@ -188,6 +190,15 @@ const Search = () => {
           currentSite: data.name,
         });
       },
+      // Discarded/timed-out sources are not results, but they still count as
+      // finished — without this the progress bar stalls at "24/27".
+      onErrorEvent: (data) => {
+        setStreamProgress(prev => ({
+          completed: data.completed ?? prev?.completed ?? 0,
+          total: data.total ?? prev?.total ?? 0,
+          currentSite: data.discarded ? `${data.name} 超时丢弃` : (data.name || '失败'),
+        }));
+      },
       onTimeout: () => {
         setStreamProgress(prev => prev ? { ...prev, currentSite: '超时' } : null);
       },
@@ -229,7 +240,9 @@ const Search = () => {
     const keyOrder: string[] = [];
 
     filteredResults.forEach((item) => {
-      const key = `${(item.vod_name || '').replaceAll(' ', '')}-${item.vod_year || 'unknown'}`;
+      // 复用 normalizeString（去空格+标点+转小写），否则《片名》与「片名」会被
+      // 拆成两张卡片——这里原来只做了 replaceAll(' ','')。
+      const key = `${normalizeString(item.vod_name || '')}-${item.vod_year || 'unknown'}`;
       const arr = map.get(key) || [];
       if (arr.length === 0) keyOrder.push(key);
       arr.push(item);

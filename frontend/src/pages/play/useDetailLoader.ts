@@ -3,9 +3,27 @@ import apiClient from '../../api/client';
 import { detailCacheStore } from '../../store/detailCache';
 import { favoritesStore } from '../../store/favorites';
 import { historyStore } from '../../store/history';
+import { getCachedConfig } from '../../store/configCache';
 import { parseEpisodes, resolveResumeEpisode, episodePageIndex } from './playUtils';
 import type { DetailResponse, Episode, VideoDetail } from './types';
 import type { PlayControllerDeps } from './playContext';
+
+/**
+ * Is `site` a key that no longer exists in the configured source list?
+ *
+ * The old check was `/^\d+$/.test(site)`, which assumed a source key is an
+ * upstream-supplied numeric id and therefore flagged every legitimate numeric
+ * key as "expired history". The truth lives in `api_site`; when the config is
+ * not available (signed out, where `api_site` is withheld) we cannot tell, so
+ * we let the request through and surface the backend's own error instead of
+ * inventing a fake detail payload.
+ */
+function isUnknownSite(site: string | undefined): boolean {
+  if (!site) return false;
+  const apiSite = getCachedConfig()?.api_site;
+  if (!apiSite || Object.keys(apiSite).length === 0) return false;
+  return !(site in apiSite);
+}
 
 /**
  * Loads the video detail for the current `:site/:id`, hydrates favorites +
@@ -20,7 +38,7 @@ export function useDetailLoader(deps: PlayControllerDeps, startOptimize: (title:
       payload: { loading: true, isOptimizing: true, optimizeComplete: false, playUrl: '' },
     });
 
-    if (site && /^\d+$/.test(site)) {
+    if (isUnknownSite(site)) {
       dispatch({
         type: 'patch',
         payload: {
@@ -28,9 +46,9 @@ export function useDetailLoader(deps: PlayControllerDeps, startOptimize: (title:
           isOptimizing: false,
           detail: {
             vod_id: id || '',
-            vod_name: '播放源无效',
+            vod_name: '播放源不存在',
             vod_pic: '',
-            vod_content: '历史记录中的播放源已失效，请清空历史记录后重新搜索。',
+            vod_content: '该播放源已从配置中移除，请返回搜索页重新选择来源。',
             vod_play_url: '',
           } satisfies VideoDetail,
         },

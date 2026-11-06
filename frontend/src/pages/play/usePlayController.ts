@@ -39,6 +39,9 @@ export function usePlayController() {
   const playRequestId = useRef(0);
   const switchRequestId = useRef(0);
   const sourceListRef = useRef<HTMLDivElement>(null);
+  // Written by the effect below (never during render) so `useSourceSwitch` can
+  // await the progress writer without mutating the deps object.
+  const progressFlushRef = useRef<(() => Promise<void>) | null>(null);
 
   // 已观看集数列表（按剧集名 vod_name 聚合，换源天然同步）
   const [watchedEpisodes, setWatchedEpisodes] = useState<string[]>([]);
@@ -63,6 +66,7 @@ export function usePlayController() {
     switchRequestId,
     optimizeStarted,
     sourceListRef,
+    progressFlushRef,
   };
 
   const { streamSearch, startOptimize } = useSourceSearch(deps);
@@ -74,9 +78,11 @@ export function usePlayController() {
 
   // Single-writer plumbing: let the source-switch hook flush the live playback
   // position into history *before* it swaps sources, so cross-source resume
-  // (time + episode index) stays continuous. `flush` is only read at runtime,
-  // so assigning it after the deps object is built is safe.
-  deps.progressFlush = flush;
+  // (time + episode index) stays continuous. Synced in an effect — assigning
+  // during render is a `react-hooks/refs` violation (and made CI fail).
+  useEffect(() => {
+    progressFlushRef.current = flush;
+  }, [flush]);
 
   // Scroll the active source into view when the selection or list changes.
   useEffect(() => {

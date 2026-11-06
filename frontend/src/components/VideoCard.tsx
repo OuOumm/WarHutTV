@@ -31,7 +31,10 @@ interface VideoCardProps {
 // ─── Sub-components (memoised) ───
 
 const PlayOverlay = memo(() => (
-  <div className="hidden sm:flex absolute inset-0 items-center justify-center z-[3] opacity-0 sm:group-hover:opacity-100 transition-opacity duration-300">
+  // This is a purely decorative hover affordance. It shares `z-[3]` with the
+  // overlay <Link> but renders later in the DOM, so without pointer-events-none
+  // it sits on top of the link and swallows every click on the card.
+  <div className="hidden sm:flex absolute inset-0 items-center justify-center z-[3] opacity-0 sm:group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
     <div className="relative">
       <div className="absolute inset-0 w-16 h-16 -m-2 rounded-full border-2 border-primary/30 scale-0 sm:group-hover:scale-100 sm:group-hover:opacity-0 transition-all duration-700 ease-out" />
       <div className="w-12 h-12 rounded-full bg-primary/90 backdrop-blur-sm flex items-center justify-center shadow-lg shadow-primary/25 scale-0 sm:group-hover:scale-100 transition-transform duration-300"
@@ -95,8 +98,7 @@ const CardBase = memo(({ to, poster, title, badge, children, actions, animate = 
   const [lifted, setLifted] = useState(false);
 
   return (
-    <Link
-      to={to}
+    <div
       className={`group relative block rounded-xl overflow-hidden cursor-pointer w-full ${animate ? 'card-entrance' : ''} card-base transition-all duration-350 ${
         lifted ? '-translate-y-1.5 scale-[1.02] shadow-xl shadow-black/30' : ''
       }`}
@@ -104,6 +106,19 @@ const CardBase = memo(({ to, poster, title, badge, children, actions, animate = 
       onMouseEnter={() => setLifted(true)}
       onMouseLeave={() => setLifted(false)}
     >
+      {/*
+        The navigation target is an overlay <Link> instead of wrapping the whole
+        card: the previous markup nested the favorite/delete <button>s inside the
+        <a>, which is invalid HTML (interactive content inside interactive
+        content) and made keyboard focus order and click handling flaky.
+        `z-[3]` keeps it above the poster and below the action buttons.
+      */}
+      <Link
+        to={to}
+        aria-label={title}
+        className="absolute inset-0 z-[3] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset"
+      />
+
       <div className="relative aspect-[2/3] overflow-hidden bg-surface">
         <img
           src={poster}
@@ -148,11 +163,11 @@ const CardBase = memo(({ to, poster, title, badge, children, actions, animate = 
         )}
 
         {/* Bottom info */}
-        <div className="absolute bottom-0 left-0 right-0 px-3 pb-3 z-[5]">
+        <div className="absolute bottom-0 left-0 right-0 px-3 pb-3 z-[5] pointer-events-none">
           {children}
         </div>
       </div>
-    </Link>
+    </div>
   );
 });
 
@@ -205,7 +220,7 @@ const VideoCard = memo(({ video, douban, bangumi, from = 'vod', onDelete, showAc
       <CardBase to={searchUrl} poster={processImageUrl(douban.poster)} srcSet={buildDoubanSrcSet(douban.poster)} title={douban.title}
         badge={douban.rate ? <Badge variant="highlight">{douban.rate}</Badge> : undefined}
         animate={animate} eager={eager}>
-        <h3 className="font-['Anton'] text-[13px] text-white uppercase tracking-wider leading-tight mb-1.5 truncate drop-shadow-sm">
+        <h3 className="font-display text-[13px] text-white uppercase tracking-wider leading-tight mb-1.5 truncate drop-shadow-sm" title={douban.title}>
           {douban.title}
         </h3>
         {douban.year && (
@@ -228,7 +243,7 @@ const VideoCard = memo(({ video, douban, bangumi, from = 'vod', onDelete, showAc
       <CardBase to={searchUrl} poster={poster} srcSet={srcSet} title={title}
         badge={rating ? <Badge variant="highlight">{rating}</Badge> : undefined}
         animate={animate} eager={eager}>
-        <h3 className="font-['Anton'] text-[13px] text-white uppercase tracking-wider leading-tight mb-1.5 truncate drop-shadow-sm">
+        <h3 className="font-display text-[13px] text-white uppercase tracking-wider leading-tight mb-1.5 truncate drop-shadow-sm" title={title}>
           {title}
         </h3>
         {year && <span className="text-[11px] text-white/70 font-medium tracking-wide">{year}</span>}
@@ -246,7 +261,7 @@ const VideoCard = memo(({ video, douban, bangumi, from = 'vod', onDelete, showAc
     const remarks = video.vod_remarks;
 
     return (
-      <CardBase to={playUrl} poster={video.vod_pic || '/placeholder.jpg'} title={video.vod_name}
+      <CardBase to={playUrl} poster={video.vod_pic || '/placeholder.svg'} title={video.vod_name}
         badge={remarks ? <Badge>{remarks}</Badge> : undefined}
         animate={animate} eager={eager}
         actions={(showActions || showFavorite) ? (
@@ -265,7 +280,7 @@ const VideoCard = memo(({ video, douban, bangumi, from = 'vod', onDelete, showAc
             </ActionButton>
           </>
         ) : undefined}>
-        <h3 className="font-['Anton'] text-[13px] text-white uppercase tracking-wider leading-tight mb-1.5 truncate drop-shadow-sm">
+        <h3 className="font-display text-[13px] text-white uppercase tracking-wider leading-tight mb-1.5 truncate drop-shadow-sm" title={video.vod_name}>
           {video.vod_name}
         </h3>
         {metaParts.length > 0 && (

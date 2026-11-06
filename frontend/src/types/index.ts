@@ -57,10 +57,16 @@ export interface DoubanResult {
   list: DoubanItem[];
 }
 
+export interface ApiSiteEntry {
+  api: string;
+  name: string;
+  detail?: string;
+}
+
 export interface SiteConfig {
   site_name: string;
   announcement: string;
-  api_site: Record<string, unknown>;
+  api_site?: Record<string, ApiSiteEntry>;
 }
 
 export interface BangumiCalendarData {

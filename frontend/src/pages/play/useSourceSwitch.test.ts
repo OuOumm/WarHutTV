@@ -59,6 +59,7 @@ function buildDeps(state: PlayState): Built {
   const switchRequestId = { current: 0 };
   const optimizeStarted = { current: false };
   const sourceListRef = { current: null };
+  const progressFlushRef: { current: (() => Promise<void>) | null } = { current: null };
   const deps: PlayControllerDeps = {
     state,
     dispatch,
@@ -74,6 +75,7 @@ function buildDeps(state: PlayState): Built {
     switchRequestId,
     optimizeStarted,
     sourceListRef,
+    progressFlushRef,
   };
   return { deps, dispatch, toast, switchRequestId };
 }
@@ -176,13 +178,13 @@ describe('useSourceSwitch.handleSourceSwitch (P0-1 failure paths)', () => {
     expect(toast).toHaveBeenCalledWith('该播放源内容不可用', 'error');
   });
 
-  it('awaits deps.progressFlush before starting the source lookup', async () => {
+  it('awaits deps.progressFlushRef before starting the source lookup', async () => {
     let resolveFlush: (() => void) | undefined;
     const progressFlush = vi.fn(
       () => new Promise<void>((resolve) => { resolveFlush = resolve; }),
     );
     const { deps } = buildDeps(makeState({ currentSource: 'siteA' }));
-    deps.progressFlush = progressFlush;
+    deps.progressFlushRef.current = progressFlush;
     const streamSearch = vi.fn(async () => [] as SearchSiteData[]);
     const { result } = renderHook((p) => useSourceSwitch(p.deps, p.streamSearch), {
       initialProps: { deps, streamSearch },
@@ -202,10 +204,10 @@ describe('useSourceSwitch.handleSourceSwitch (P0-1 failure paths)', () => {
     expect(streamSearch).toHaveBeenCalledTimes(1);
   });
 
-  it('does NOT call deps.progressFlush when switching to the already-active source', async () => {
+  it('does NOT call deps.progressFlushRef when switching to the already-active source', async () => {
     const progressFlush = vi.fn();
     const { deps } = buildDeps(makeState({ currentSource: 'siteA' }));
-    deps.progressFlush = progressFlush;
+    deps.progressFlushRef.current = progressFlush;
     const streamSearch = vi.fn(async () => [] as SearchSiteData[]);
     const { result } = renderHook((p) => useSourceSwitch(p.deps, p.streamSearch), {
       initialProps: { deps, streamSearch },
@@ -218,9 +220,9 @@ describe('useSourceSwitch.handleSourceSwitch (P0-1 failure paths)', () => {
     expect(progressFlush).not.toHaveBeenCalled();
   });
 
-  it('does not throw when deps.progressFlush is undefined (optional, safe ?.())', async () => {
+  it('does not throw when deps.progressFlushRef.current is null (optional, safe ?.())', async () => {
     const { deps } = buildDeps(makeState({ currentSource: 'siteA' }));
-    // deps.progressFlush intentionally left undefined
+    // deps.progressFlushRef.current intentionally left null
     const streamSearch = vi.fn(async () => [] as SearchSiteData[]);
     const { result } = renderHook((p) => useSourceSwitch(p.deps, p.streamSearch), {
       initialProps: { deps, streamSearch },

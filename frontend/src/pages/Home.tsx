@@ -9,8 +9,9 @@ import { getDoubanCategories } from '../api/douban';
 import { getBangumiCalendar } from '../api/bangumi';
 import { historyStore } from '../store/history';
 import { favoritesStore } from '../store/favorites';
+import { apiCacheStore } from '../store/apiCache';
 import { useConfig } from '../store/config';
-import type { DoubanItem, BangumiCalendarData, VideoItem } from '../types';
+import type { DoubanItem, DoubanResult, BangumiCalendarData, VideoItem } from '../types';
 import type { Favorite, WatchHistory } from '../store/db';
 
 // Section with scroll reveal
@@ -93,8 +94,8 @@ const Home = () => {
   const { siteName } = useConfig();
 
   useEffect(() => {
-    loadCachedData();
-    refreshData();
+    void loadCachedData();
+    void refreshData();
   }, []);
 
   useEffect(() => {
@@ -105,53 +106,70 @@ const Home = () => {
     }
   }, [activeTab]);
 
-  const loadCachedData = () => {
-    try {
-      const moviesRaw = localStorage.getItem('douban_cache_cat:movie:热门:全部:20:0');
-      const tvRaw = localStorage.getItem('douban_cache_cat:tv:tv:tv:20:0');
-      const bangumiRaw = localStorage.getItem('bangumi_calendar');
+  /**
+   * Paint from the persisted API cache before the network round-trips finish.
+   *
+   * The old version read `localStorage['douban_cache_…']` / `['bangumi_calendar']`,
+   * but nothing has written those keys since the caches moved to IndexedDB
+   * (`apiCacheStore`), so the branch never hit and the home page always waited
+   * for three sequential requests before showing anything.
+   */
+  const loadCachedData = async () => {
+    const [movies, tv, variety, bangumi] = await Promise.allSettled([
+      apiCacheStore.get<DoubanResult>('douban', 'cat:movie:热门:全部:20:0'),
+      apiCacheStore.get<DoubanResult>('douban', 'cat:tv:tv:tv:20:0'),
+      apiCacheStore.get<DoubanResult>('douban', 'cat:tv:show:show:20:0'),
+      apiCacheStore.get<BangumiCalendarData[]>('bangumi', 'calendar'),
+    ]);
 
-      let hasCache = false;
-      if (moviesRaw) {
-        const entry = JSON.parse(moviesRaw);
-        if (Date.now() < entry.expiry) { setHotMovies(entry.data.list || []); hasCache = true; }
-      }
-      if (tvRaw) {
-        const entry = JSON.parse(tvRaw);
-        if (Date.now() < entry.expiry) { setHotTvShows(entry.data.list || []); hasCache = true; }
-      }
-      if (bangumiRaw) {
-        const entry = JSON.parse(bangumiRaw);
-        if (Date.now() < entry.expiry) { setBangumiData(entry.data || []); hasCache = true; }
-      }
-      // Render cached content immediately instead of waiting for the network
-      // refresh — the loading gate used to keep the skeleton up until every
-      // remote request settled, defeating the local cache.
-      if (hasCache) setLoading(false);
-    } catch {
-      // Ignore invalid cache entries; fresh data is loaded below.
+    let hasCache = false;
+    if (movies.status === 'fulfilled' && movies.value?.list?.length) {
+      setHotMovies(movies.value.list);
+      hasCache = true;
     }
+    if (tv.status === 'fulfilled' && tv.value?.list?.length) {
+      setHotTvShows(tv.value.list);
+      hasCache = true;
+    }
+    if (variety.status === 'fulfilled' && variety.value?.list?.length) {
+      setHotVariety(variety.value.list);
+      hasCache = true;
+    }
+    if (bangumi.status === 'fulfilled' && bangumi.value?.length) {
+      setBangumiData(bangumi.value);
+      hasCache = true;
+    }
+    // Render cached content immediately instead of waiting for the network
+    // refresh — the loading gate used to keep the skeleton up until every
+    // remote request settled, defeating the local cache.
+    if (hasCache) setLoading(false);
   };
 
   const refreshData = async () => {
-    try {
-      const primary = await Promise.allSettled([
+    // All three 豆瓣 requests are independent: fire them together instead of
+    // waiting for movie+tv before even starting the variety request.
+    const [primary, varietyRes] = await Promise.all([
+      Promise.allSettled([
         getDoubanCategories({ kind: 'movie', category: '热门', type: '全部' }),
         getDoubanCategories({ kind: 'tv', category: 'tv', type: 'tv' }),
-      ]);
-      if (primary[0].status === 'fulfilled' && primary[0].value.code === 200) setHotMovies(primary[0].value.list);
-      if (primary[1].status === 'fulfilled' && primary[1].value.code === 200) setHotTvShows(primary[1].value.list);
+        getDoubanCategories({ kind: 'tv', category: 'show', type: 'show' }),
+      ]),
+      getBangumiCalendar().catch((error) => {
+        console.warn('[home] bangumi calendar failed', error);
+        return [] as BangumiCalendarData[];
+      }),
+    ]);
 
-      const varietyRes = await getDoubanCategories({ kind: 'tv', category: 'show', type: 'show' });
-      if (varietyRes.code === 200) setHotVariety(varietyRes.list);
-    } catch (err) {
-      console.error('刷新数据失败:', err);
-    }
+    const [movieRes, tvRes, showRes] = primary;
+    if (movieRes.status === 'fulfilled' && movieRes.value.code === 200) setHotMovies(movieRes.value.list);
+    if (tvRes.status === 'fulfilled' && tvRes.value.code === 200) setHotTvShows(tvRes.value.list);
+    if (showRes.status === 'fulfilled' && showRes.value.code === 200) setHotVariety(showRes.value.list);
+    if (varietyRes.length) setBangumiData(varietyRes);
 
-    historyStore.getRecent(20).then(setContinueWatching).catch(() => {});
-    favoritesStore.getAll().then(setFavoriteItems).catch(() => {});
-    getBangumiCalendar().then(setBangumiData).catch(() => {});
-
+    // Local reads run in parallel with the network work above and don't gate
+    // the first paint.
+    void historyStore.getRecent(20).then(setContinueWatching).catch(() => {});
+    void favoritesStore.getAll().then(setFavoriteItems).catch(() => {});
 
     setLoading(false);
   };

@@ -14,6 +14,7 @@ interface ToastItemData {
   id: number;
   message: string;
   type: ToastType;
+  duration: number;
 }
 
 interface ToastContextValue {
@@ -123,8 +124,11 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 
   const toast = useCallback((message: string, type: ToastType = 'info', duration = DEFAULT_DURATION) => {
     const id = ++idRef.current;
-    setToasts((prev) => [...prev, { id, message, type }].slice(-MAX_VISIBLE));
-    // Auto-remove after the visible window (matches ToastItem timing).
+    // Each toast keeps its own duration: the per-item timer below uses it, and
+    // ToastItem must render the same value or the visual countdown and the
+    // removal timer disagree (the old code always passed DEFAULT_DURATION to
+    // every item, silently ignoring the caller's `duration`).
+    setToasts((prev) => [...prev, { id, message, type, duration }].slice(-MAX_VISIBLE));
     setTimeout(() => remove(id), duration + 350);
   }, [remove]);
 
@@ -137,7 +141,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             key={t.id}
             message={t.message}
             type={t.type}
-            duration={DEFAULT_DURATION}
+            duration={t.duration}
             onClose={() => remove(t.id)}
           />
         ))}

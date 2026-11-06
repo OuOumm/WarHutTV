@@ -3,6 +3,7 @@ import { useAuth } from '../store/auth';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 
 interface Settings {
+  /** Which third-party CDN rewrites 豆瓣 poster URLs. API data goes through our backend. */
   doubanProxy: 'tencent' | 'ali' | 'direct';
   defaultAggregate: boolean;
 }
@@ -40,26 +41,20 @@ export function useSettings() {
 // Exported as UserMenu for usage context (it's the user avatar dropdown menu)
 export default function UserMenu() {
   const [showDropdown, setShowDropdown] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
   const { logout } = useAuth();
   const { settings, update } = useSettings();
   const menuRef = useRef<HTMLDivElement>(null);
 
-  // Trap focus inside each popover; Esc closes (menu → hide, settings → back to menu).
+  // Trap focus inside the menu; Esc closes it.
   const menuTrapRef = useFocusTrap<HTMLDivElement>(
-    showDropdown && !showSettings,
+    showDropdown,
     useCallback(() => setShowDropdown(false), []),
-  );
-  const settingsTrapRef = useFocusTrap<HTMLDivElement>(
-    showDropdown && showSettings,
-    useCallback(() => setShowSettings(false), []),
   );
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
         setShowDropdown(false);
-        setShowSettings(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -69,7 +64,7 @@ export default function UserMenu() {
   return (
     <div className="relative" ref={menuRef}>
       <button
-        onClick={() => { setShowDropdown(!showDropdown); setShowSettings(false); }}
+        onClick={() => setShowDropdown(!showDropdown)}
         aria-haspopup="menu"
         aria-expanded={showDropdown}
         aria-label="用户菜单"
@@ -80,59 +75,16 @@ export default function UserMenu() {
         </svg>
       </button>
 
-      {showDropdown && !showSettings && (
+      {showDropdown && (
         <div
           ref={menuTrapRef}
           role="menu"
           aria-label="用户菜单"
-          className="absolute right-0 top-full mt-2 w-40 glass-panel rounded-xl shadow-2xl overflow-hidden z-[100] animate-in fade-in slide-in-from-top-2 duration-200"
+          className="absolute right-0 top-full mt-2 w-56 glass-panel rounded-xl shadow-2xl overflow-hidden z-[100] animate-in fade-in slide-in-from-top-2 duration-200"
         >
-          <button
-            role="menuitem"
-            onClick={() => setShowSettings(true)}
-            className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-text hover:bg-white/[0.05] transition-colors"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-            设置
-          </button>
-          <div className="border-t border-glass-border/50" />
-          <button
-            role="menuitem"
-            onClick={() => logout()}
-            className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-500 hover:bg-red-500/10 transition-colors"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-            </svg>
-            退出
-          </button>
-        </div>
-      )}
-
-      {showDropdown && showSettings && (
-        <div
-          ref={settingsTrapRef}
-          role="dialog"
-          aria-label="设置"
-          className="absolute right-0 top-full mt-2 w-72 glass-panel rounded-xl shadow-2xl overflow-hidden z-[100] animate-in fade-in slide-in-from-top-2 duration-200">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-glass-border/50">
-            <span className="text-sm font-medium text-text">设置</span>
-            <button
-              onClick={() => setShowSettings(false)}
-              className="w-7 h-7 rounded-full flex items-center justify-center text-muted hover:text-text hover:bg-white/[0.05] transition-all"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-          <div className="p-4 space-y-4">
-            {/* Proxy select */}
+          <div className="px-4 py-3 space-y-3">
             <div>
-              <h4 className="text-xs font-medium text-muted mb-1.5">豆瓣数据代理</h4>
+              <h4 className="text-xs font-medium text-muted mb-1.5">豆瓣图片加速</h4>
               <select
                 value={settings.doubanProxy}
                 onChange={(e) => update({ doubanProxy: e.target.value as Settings['doubanProxy'] })}
@@ -142,9 +94,11 @@ export default function UserMenu() {
                 <option value="ali">豆瓣 CDN By CMLiussss（阿里云）</option>
                 <option value="direct">直连豆瓣</option>
               </select>
+              <p className="text-[11px] text-muted/70 mt-1">
+                仅影响海报图片；豆瓣 API 数据统一由服务端代理。
+              </p>
             </div>
 
-            {/* Aggregate toggle */}
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
                 <h4 className="text-sm text-text">默认聚合搜索</h4>
@@ -167,6 +121,18 @@ export default function UserMenu() {
               </button>
             </div>
           </div>
+
+          <div className="border-t border-glass-border/50" />
+          <button
+            role="menuitem"
+            onClick={() => logout()}
+            className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-500 hover:bg-red-500/10 transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+            退出
+          </button>
         </div>
       )}
     </div>
