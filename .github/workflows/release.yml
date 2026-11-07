@@ -265,4 +265,7 @@ jobs:
             bin/*.tar.gz
             bin/*.zip
           generate_release_notes: false
-          overwrite: true
+          # `overwrite` was renamed to `overwrite_files` in action-gh-release v2;
+          # without it an unknown-input warning is emitted and stale assets are
+          # not replaced when re-publishing the same tag.
+          overwrite_files: true
