@@ -160,7 +160,13 @@ func SearchStream(c *gin.Context) {
 		pg = parsed
 	}
 
-	cacheKey := searchCacheKey(keyword, pg, config.Snapshot().APISite)
+	// Take one snapshot per request and reuse it for both the cache key and the
+	// site set. Reading the config twice would clone the APISite map twice and
+	// (before the config became immutable) allow a reload to slip between the
+	// two reads, caching results under a key for a different source set.
+	cfg := config.Snapshot()
+
+	cacheKey := searchCacheKey(keyword, pg, cfg.APISite)
 	if cached, ok := services.AppCache.Get(cacheKey); ok {
 		setSSEHeaders(c)
 		if _, ok := c.Writer.(http.Flusher); !ok {
@@ -181,7 +187,7 @@ func SearchStream(c *gin.Context) {
 	}
 	c.Status(http.StatusOK)
 
-	sites := config.Snapshot().APISite
+	sites := cfg.APISite
 	siteCount := len(sites)
 	if siteCount == 0 {
 		writeSSE(c, "start", map[string]interface{}{"keyword": keyword, "site_count": 0})

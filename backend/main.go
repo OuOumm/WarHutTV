@@ -46,15 +46,6 @@ func main() {
 	config.Load(*configPath)
 	handlers.Version = version
 
-	// Hot reload: re-apply the config file whenever it changes (polling) or a
-	// SIGHUP arrives (Unix). This makes editing data/config.json / api_site /
-	// password take effect without restarting the process. Environment
-	// variables still win over the file, so a PASSWORD/JWT_SECRET set in the
-	// environment can only be changed by restarting.
-	sighup, stopSighup := newSighupChan()
-	defer stopSighup()
-	config.Watch(ctx, *configPath, sighup)
-
 	// Refuse to start with the baked-in insecure defaults. Operators MUST set
 	// a real password / jwt_secret, either via PASSWORD / JWT_SECRET or in the
 	// config file.

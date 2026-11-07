@@ -261,18 +261,8 @@ volumes:
 | `WARHUTV_CONFIG` | 配置文件路径 | `data/config.json` |
 | `TRUSTED_PROXIES` | 信任的反向代理 IP/CIDR（逗号分隔），用于正确解析客户端 IP | `127.0.0.1,::1` |
 | `SEARCH_SITE_TIMEOUT` | 单个搜索源的超时预算（秒数或 Go 时长，如 `10`、`2500ms`）；超时或失败的源被丢弃并计入进度，避免卡在 `24/27`。范围 `0.5s`–`20s`。默认 10s 兼顾慢但可用的源（部分源需 4–6s） | `10s` |
-| `CONFIG_WATCH_INTERVAL` | 配置文件热重载的轮询间隔（秒数或 Go 时长，如 `2`、`500ms`）；范围 `200ms`–`5m`。设为 `0`/`off`/`false` 关闭轮询（仅保留 SIGHUP） | `2s` |
 
 > ⚠️ 生产环境请务必设置 `PASSWORD`，并使用强随机 `JWT_SECRET`。程序拒绝以 `admin123` 或默认 secret 启动。
-
-### 热重载
-
-编辑 `data/config.json`（`api_site`、`site_name`、`announcement`、`password`、`jwt_secret`）后**无需重启**：
-
-- **轮询**：后台默认每 2s 检测文件内容变化（按内容 hash，不是 mtime），变化即重新加载；用 `CONFIG_WATCH_INTERVAL` 调整频率，`0`/`off`/`false` 可关闭。
-- **信号**：Linux / macOS 上发送 `SIGHUP` 立即重载：`kill -HUP $(pgrep warhutv)`（Windows 无 SIGHUP，走轮询即可）。
-
-安全约束：坏文件（JSON 解析失败、缺文件、`password`/`jwt_secret` 为空或仍是默认值）会被**拒绝并保持旧配置**，日志记一条错误；重载**不会**重新生成 `jwt_secret`（避免让所有在线会话失效），也不会写回文件。环境变量优先级仍高于文件，因此 `PASSWORD`/`JWT_SECRET` 若在环境变量里设置，改文件不会生效——这类改动仍需重启。
 
 ### data/config.json
 
@@ -451,11 +441,11 @@ git push origin v1.1.0
 
 ### 登录密码是什么？
 
-必须在 `data/config.json` 的 `password` 字段设置密码，或者通过环境变量 `PASSWORD` 设置；两者都没有（或仍是示例文件里的 `admin123`）时程序**拒绝启动**并提示需要先完成配置。应用不提供在线改密入口，改密码请直接修改 `data/config.json` 的 `password` 字段（保存后 2s 内自动热重载生效，见「热重载」）；若密码来自 `PASSWORD` 环境变量，则需要重启服务才能变更。
+必须在 `data/config.json` 的 `password` 字段设置密码，或者通过环境变量 `PASSWORD` 设置；两者都没有（或仍是示例文件里的 `admin123`）时程序**拒绝启动**并提示需要先完成配置。应用不提供在线改密入口，改密码请直接修改 `data/config.json` 的 `password` 字段；配置在启动时读取一次，修改后需重启服务才能生效。
 
 ### 如何添加视频源？
 
-直接编辑 `data/config.json` 的 `api_site` 字段（应用不提供在线源管理入口）。格式要求兼容通用资源站 API（`/api.php/provide/vod` 接口），修改后自动热重载生效（默认 2s 内），无需重启。
+直接编辑 `data/config.json` 的 `api_site` 字段（应用不提供在线源管理入口）。格式要求兼容通用资源站 API（`/api.php/provide/vod` 接口）；配置在启动时读取一次，修改后需重启服务才能生效。
 
 ### 支持哪些播放格式？
 

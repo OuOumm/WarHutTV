@@ -1,9 +1,7 @@
 package config
 
 import (
-	"context"
 	"crypto/rand"
-	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -11,10 +9,9 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"sync"
-	"time"
+	"sync/atomic"
 )
 
 const (
@@ -26,13 +23,6 @@ const (
 	// `cd backend && go run .`.
 	defaultConfigPath = "data/config.json"
 	configPathEnv     = "WARHUTV_CONFIG"
-
-	// configWatchIntervalEnv controls how often the config file is polled for
-	// changes. "0"/"off"/"false" disables polling (SIGHUP still works on Unix).
-	configWatchIntervalEnv = "CONFIG_WATCH_INTERVAL"
-	defaultWatchInterval   = 2 * time.Second
-	minWatchInterval       = 200 * time.Millisecond
-	maxWatchInterval       = 5 * time.Minute
 )
 
 type SiteConfig struct {
@@ -70,14 +60,13 @@ type ConfigSnapshot struct {
 }
 
 var (
-	// globalConfig is assigned exactly once (on the first Load/Get) and from
-	// then on is only ever mutated IN PLACE under its own mu. This is the key
-	// to hot reload: every reader keeps a stable *Config pointer and sees a
-	// consistent set of fields, so Reload never has to swap pointers under
-	// concurrency (which would race with Get()).
-	globalConfig *Config
-	loadMu       sync.Mutex // serializes Load / Reload / initial Get
-	watchOnce    sync.Once  // guards Watch against spawning two pollers
+	// globalConfig is published once at startup by Load() (or lazily by the
+	// first Get()) and is immutable from then on: the config is read once and
+	// never changes while the process runs. Reads are a single atomic pointer
+	// load — no global mutex on the hot request path. loadMu only serializes
+	// the rare writes and the lazy first-load fallback.
+	globalConfig atomic.Pointer[Config]
+	loadMu       sync.Mutex
 )
 
 // DefaultPath returns the config file path: WARHUTV_CONFIG when set, otherwise
@@ -101,33 +90,48 @@ func defaultConfig() *Config {
 
 // Load reads the config file at path, applies environment overrides and stores
 // the result as the process-wide config. path may be empty, in which case
-// DefaultPath() is used.
+// DefaultPath() is used. Called once at startup; calling it again re-reads the
+// file (used by tests).
 //
 // Precedence is environment > file > defaults:
 //   - PASSWORD overrides password (and is never persisted by Save)
 //   - JWT_SECRET overrides jwt_secret (and is never persisted by Save)
 //   - SITE_NAME overrides site_name
 //
-// On the initial load a missing file is created with a generated secret and a
-// malformed file falls back to defaults (the server then refuses to start if
-// the insecure default password survives). Reload() is deliberately stricter.
+// On a missing file a config with a generated secret is created; a malformed
+// file falls back to defaults (the server then refuses to start if the insecure
+// default password survives).
 func Load(path string) {
 	loadMu.Lock()
 	defer loadMu.Unlock()
-	loadLocked(path)
+	globalConfig.Store(load(path))
 }
 
+// Get returns the process-wide config. The config is immutable after startup,
+// so this is a lock-free atomic load on every request.
 func Get() *Config {
+	if cfg := globalConfig.Load(); cfg != nil {
+		return cfg
+	}
+	return lazyLoad()
+}
+
+// lazyLoad handles the (rare) case where Get() is called before Load(), e.g.
+// in library-only use or some unit tests. It never runs on the hot path.
+func lazyLoad() *Config {
 	loadMu.Lock()
 	defer loadMu.Unlock()
-	if globalConfig == nil {
-		loadLocked(DefaultPath())
+	if cfg := globalConfig.Load(); cfg != nil {
+		return cfg
 	}
-	return globalConfig
+	cfg := load(DefaultPath())
+	globalConfig.Store(cfg)
+	return cfg
 }
 
-// loadLocked must be called with loadMu held.
-func loadLocked(path string) {
+// load parses and resolves path into a fully initialized *Config. It is pure
+// with respect to global state: the caller (Load / lazyLoad) publishes it.
+func load(path string) *Config {
 	if strings.TrimSpace(path) == "" {
 		path = DefaultPath()
 	}
@@ -140,8 +144,6 @@ func loadLocked(path string) {
 		save = false
 	}
 
-	publish(cfg)
-
 	if !cfg.passwordFromEnv && cfg.Password == DefaultPassword {
 		log.Printf("warning: using default password %q; set PASSWORD or edit %s before exposing this instance", DefaultPassword, path)
 	}
@@ -150,6 +152,7 @@ func loadLocked(path string) {
 			log.Printf("failed to save generated config %s: %v", path, err)
 		}
 	}
+	return cfg
 }
 
 // resolveForLoad parses path and returns a fully resolved config (file + env).
@@ -220,70 +223,6 @@ func applyEnv(cfg *Config, generateSecret bool) bool {
 		cfg.SiteName = value
 	}
 	return generated
-}
-
-func validateConfig(cfg *Config) error {
-	if cfg.Password == "" || cfg.Password == DefaultPassword {
-		return errors.New("admin password is empty or equals the insecure default")
-	}
-	if cfg.JWTSecret == "" || cfg.JWTSecret == DefaultJWTSecret {
-		return errors.New("jwt secret is empty or equals the insecure default")
-	}
-	return nil
-}
-
-// publish installs cfg as the process config: the first time it assigns the
-// pointer, afterwards it copies the fields IN PLACE so existing readers (which
-// hold the *Config returned by Get) observe the new values without ever being
-// left with a stale or dangling pointer.
-func publish(cfg *Config) {
-	if globalConfig == nil {
-		globalConfig = cfg
-		return
-	}
-	globalConfig.applyFrom(cfg)
-}
-
-func (c *Config) applyFrom(src *Config) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.SiteName = src.SiteName
-	c.Announcement = src.Announcement
-	c.Password = src.Password
-	c.JWTSecret = src.JWTSecret
-	c.APISite = cloneAPISite(src.APISite)
-	c.filePassword = src.filePassword
-	c.fileJWTSecret = src.fileJWTSecret
-	c.passwordFromEnv = src.passwordFromEnv
-	c.jwtSecretFromEnv = src.jwtSecretFromEnv
-}
-
-// Reload re-reads path and atomically applies it to the live config. It is
-// strict: a missing file, malformed JSON, or an insecure effective password /
-// jwt_secret is rejected and the current config is kept. It never regenerates
-// the jwt_secret (which would invalidate every active session) and never writes
-// the file. Environment overrides still take precedence.
-func Reload(path string) error {
-	if strings.TrimSpace(path) == "" {
-		path = DefaultPath()
-	}
-	loadMu.Lock()
-	defer loadMu.Unlock()
-
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return fmt.Errorf("read config %s: %w", path, err)
-	}
-	cfg, err := parseConfig(data)
-	if err != nil {
-		return fmt.Errorf("reload %s: %w", path, err)
-	}
-	applyEnv(cfg, false)
-	if err := validateConfig(cfg); err != nil {
-		return fmt.Errorf("refusing to reload %s: %w (keeping previous config)", path, err)
-	}
-	publish(cfg)
-	return nil
 }
 
 func Snapshot() ConfigSnapshot {
@@ -383,101 +322,4 @@ func generateJWTSecret() (string, error) {
 		return "", fmt.Errorf("generate random bytes: %w", err)
 	}
 	return hex.EncodeToString(buf), nil
-}
-
-// WatchInterval parses CONFIG_WATCH_INTERVAL. It accepts a plain number of
-// seconds ("5") or a Go duration ("2500ms"), clamps to [200ms, 5m], and treats
-// "0"/"off"/"false" as "polling disabled". An invalid value falls back to the
-// default. The second return value reports whether polling is enabled.
-func WatchInterval() (time.Duration, bool) {
-	raw := strings.TrimSpace(os.Getenv(configWatchIntervalEnv))
-	if raw == "" {
-		return defaultWatchInterval, true
-	}
-	if raw == "0" || strings.EqualFold(raw, "off") || strings.EqualFold(raw, "false") {
-		return 0, false
-	}
-
-	var d time.Duration
-	if secs, err := strconv.Atoi(raw); err == nil {
-		d = time.Duration(secs) * time.Second
-	} else if parsed, err := time.ParseDuration(raw); err == nil {
-		d = parsed
-	} else {
-		log.Printf("config: invalid %s %q; using %s", configWatchIntervalEnv, raw, defaultWatchInterval)
-		return defaultWatchInterval, true
-	}
-	if d < minWatchInterval {
-		d = minWatchInterval
-	}
-	if d > maxWatchInterval {
-		d = maxWatchInterval
-	}
-	return d, true
-}
-
-// Watch starts a single background goroutine that reloads the config whenever
-// the file content changes (polling) or a SIGHUP arrives (sighup may be nil on
-// platforms without it). It returns immediately and stops when ctx is done.
-// Change detection is content-based (sha256), so a quick editor "truncate +
-// write" is retried on the next poll until the file is valid again; a broken
-// file is logged once per distinct content, never spamming the log.
-func Watch(ctx context.Context, path string, sighup <-chan os.Signal) {
-	watchOnce.Do(func() {
-		go watchLoop(ctx, path, sighup)
-	})
-}
-
-func watchLoop(ctx context.Context, path string, sighup <-chan os.Signal) {
-	interval, enabled := WatchInterval()
-
-	var tickC <-chan time.Time
-	if enabled {
-		ticker := time.NewTicker(interval)
-		defer ticker.Stop()
-		tickC = ticker.C
-		log.Printf("config watcher started (poll %s): %s", interval, path)
-	} else {
-		log.Printf("config watcher: polling disabled (SIGHUP only): %s", path)
-	}
-
-	// Baseline the current content so the already-loaded config is not
-	// needlessly re-applied on the first tick.
-	lastAttempt := currentHash(path)
-
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-tickC:
-			if h := currentHash(path); h != lastAttempt {
-				lastAttempt = h
-				attemptReload(path)
-			}
-		case <-sighup:
-			log.Printf("config: SIGHUP received")
-			lastAttempt = currentHash(path)
-			attemptReload(path)
-		}
-	}
-}
-
-func attemptReload(path string) {
-	if err := Reload(path); err != nil {
-		log.Printf("config: %v", err)
-	} else {
-		log.Printf("config: reloaded from %s", path)
-	}
-}
-
-// currentHash returns the sha256 of the config file, or "" when it cannot be
-// read. Using content rather than mtime avoids missing edits with the same
-// size and a coarse filesystem timestamp.
-func currentHash(path string) string {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return ""
-	}
-	sum := sha256.Sum256(data)
-	return hex.EncodeToString(sum[:])
 }

@@ -762,7 +762,9 @@ mu.Unlock()
 
 **验证**：lint / tsc / build / gofmt / go vet / go test 见下方最终验证表；本轮删除后重新执行一遍全量验证。
 
-### 10.8 配置热重载（2026-11-07，用户要求）
+### 10.8 配置热重载（2026-11-07，用户要求）—— ⚠️ 已按 10.10 整体撤销
+
+> **本节记录的功能已删除。** 后续分析发现它是「半交付」：后端能重载，前端的 `config.tsx` 模块级缓存却不跟着变，改 `site_name` / 公告 / 新增源仍要刷新页面；同时引入了搜索请求内的配置 TOCTOU 窗口与每次读取的全局锁。用户据此要求整体删除，详见 **10.10**。以下为当时实现的历史记录，不再代表当前代码。
 
 删除在线改密/源管理 UI 后，「改配置必须重启」的体验变差，用户要求「加上热重载」。实现落在 `backend/config/config.go` + `backend/main.go`：
 
@@ -804,6 +806,29 @@ mu.Unlock()
 
 **验收**：全仓库 `*.md` grep 确认 `*.go` / `*.yml` / `README.md` 中无指向已删文档的引用；当前 4 份有效文档之间交叉链接（guide ↔ checklist ↔ overview ↔ project-review ↔ archive/README）目标全部存在，无断链。
 
+### 10.10 撤销热重载并修复性能问题（2026-11-07，用户要求）
+
+用户要求「分析热重载对性能与磁盘的影响、有无副作用」后，结论是运行开销可忽略（约 2 秒 CPU/天、零写盘），但功能只做了一半：后端重载而前端 `config.tsx` 模块级缓存不更新，且引入了「搜索请求内多次读配置的 TOCTOU 窗口」与「`Get()` 每次拿全局 `loadMu.Lock()`」两个一致性/性能顾虑。用户据此拍板：**不用热更新更好，删除所有热更新代码，并修复刚排查到的性能问题**。
+
+**删除（全部热重载代码）**：
+
+| 文件 | 删除内容 |
+|---|---|
+| `backend/config/config.go` | 删 `Reload` / `validateConfig` / `publish` / `applyFrom` / `Watch` / `WatchInterval` / `watchLoop` / `attemptReload` / `currentHash` 及 `CONFIG_WATCH_INTERVAL` 常量、`context`/`crypto/sha256`/`strconv`/`time` import、全局 `watchOnce`；配置模型简化为「启动时读取一次、之后不可变」 |
+| `backend/sighup_unix.go`、`backend/sighup_windows.go` | 两个 build-tag 文件整体删除 |
+| `backend/main.go` | 删 `newSighupChan()` / `defer stopSighup()` / `config.Watch(...)` 调用与对应注释；`signal.NotifyContext` 保留用于优雅退出 |
+| `backend/config/config_test.go` | 删 7 个热重载用例（原地重载、env 优先级、坏/缺/不安全配置拒绝、secret 不重新生成、间隔解析、hash 跟踪）与 `validConfigJSON` 辅助；新增 `TestConfigIsImmutableAfterLoad` 钉住「改文件不影响运行中配置」 |
+| 文档 | `.env.example` 删 `CONFIG_WATCH_INTERVAL` 注释块；`README.md` 删环境变量表一行、整个「热重载」小节，FAQ「登录密码 / 如何添加视频源」改回「修改后需重启服务才能生效」；本文件 10.8 加「已撤销」横幅、文末引文改写 |
+
+**性能修复（2 项）**：
+
+| 问题 | 修法 |
+|---|---|
+| `Get()` 每次请求都 `loadMu.Lock()`（普通 Mutex），把所有鉴权 / 搜索 / 配置 / 代理请求串行化 | `globalConfig` 改为 `atomic.Pointer[Config]`：配置启动后不可变，`Get()` 退化为一次原子指针读取（无锁、无全局临界区）；`loadMu` 只在启动写入与测试重复 `Load` 时串行化，`lazyLoad()` 兜底「先 `Get()` 后 `Load()`」的库使用场景。`sync/atomic` 是标准库，无新依赖 |
+| `SearchStream` 一次请求内两次 `config.Snapshot()`（缓存 key 与实际源集合），既克隆两次 27 项 `APISite` map，又存在「重载插在两次读取之间 → 结果以旧 key 缓存 2h」的窗口 | `backend/handlers/search.go` 开头取 `cfg := config.Snapshot()` 一次，缓存 key 与 `sites` 都复用 `cfg.APISite`。**注意**：`snapshotLocked()` 在 env 注入时会用 `fileJWTSecret` 回填，即 `cfg.JWTSecret` 是文件值而非 env 值，因此 `backend/handlers/search.go:138` 的 token 校验仍保留 `config.JWTSecret()`，单快照只用于缓存 key 与源集合 |
+
+**验证**：`gofmt -l` 无输出、`go build ./...` / `go vet ./...` / `go test ./...` / `go test -race ./...` 全绿；删除热重载后配置不可变，前端无需再做「后端热更、前端跟随」的补偿；`grep 热重载|CONFIG_WATCH_INTERVAL|SIGHUP|newSighupChan|config\.Watch` 在 `*.{go,ts,tsx,example,yml}` 中 0 命中（仅本文件 10.8 历史记录保留）。
+
 ---
 
 > **一句话结论（审查时）：** 功能骨架与关键算法（搜索、聚合、换源续播）质量不错，但"交付层"（Docker/构建/CI/配置/部署文档）存在四个 P0 级断点，且仓库里有一个可导致认证绕过的已提交 JWT 密钥。
@@ -812,5 +837,5 @@ mu.Unlock()
 >
 > **运行期追加（2026-11-06）：** 实机跑起来后又修掉"首页卡片点不动"与"搜索卡在 24/27"两个交互缺陷，详见 10.6；并按用户要求把「精确匹配」默认改为关闭、`SEARCH_SITE_TIMEOUT` 默认改为 10s。随后按用户要求**整体删除站点设置与修改密码功能及相关代码**，详见 10.7。服务现运行在 `http://127.0.0.1:3000`。
 >
-> **配置热重载与文档整理（2026-11-07）：** 加了 2s 轮询 + SIGHUP 的配置热重载（原地生效、坏配置拒绝、不重置会话密钥），详见 10.8；随后按用户要求整理文档、删除 6 份过期文档，`docs/` 收敛为「当前有效 4 份 + 历史归档 4 份」，详见 10.9。
+> **文档整理与热重载撤销（2026-11-07）：** 整理文档、删除 6 份过期文档，`docs/` 收敛为「当前有效 4 份 + 历史归档 4 份」，详见 10.9；随后经性能/副作用分析，按用户要求整体删除配置热重载（10.8 已撤销），并把 `Get()` 改为无锁原子读取、`SearchStream` 改为单次配置快照，详见 10.10。
 
