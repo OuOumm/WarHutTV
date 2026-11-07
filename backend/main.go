@@ -18,12 +18,12 @@ import (
 	"warhutv/middleware"
 )
 
-// version is injected at build time:
+// version is injected at build time, e.g.:
 //
-//	go build -ldflags "-X main.version=1.3.1"
+//	go build -ldflags "-X main.version=$(tr -d '[:space:]' < version)"
 //
-// It falls back to the `version` file when the binary was built without
-// ldflags (e.g. `go run .` from a release checkout).
+// The single source of truth is the repository `version` file. It falls back
+// to that file when the binary was built without ldflags (e.g. `go run .`).
 var version = "dev"
 
 func main() {
