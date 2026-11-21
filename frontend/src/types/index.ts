@@ -38,11 +38,6 @@ export interface VideoDetail {
   type_name?: string;
 }
 
-export interface User {
-  token: string;
-  expiresAt: number;
-}
-
 export interface DoubanItem {
   id: string;
   title: string;

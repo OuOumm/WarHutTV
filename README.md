@@ -393,8 +393,7 @@ make docker           # 构建 Docker 镜像（自动注入版本号）
 | POST | `/api/auth/logout` | 否 | 清除认证 Cookie |
 | GET | `/api/config` | 视情况 | 未登录只返回站点名/公告；登录后附带 `api_site` |
 | GET | `/api/search/stream` | 是 | SSE 跨源搜索（`wd`、`pg`），含 15s 心跳 |
-| GET | `/api/detail` | 是 | 详情（`site`、`ids`），附带解析好的 `episodes` |
-| GET | `/api/play` | 是 | 按集取播放地址（`site`、`ids`、`episode`） |
+| GET | `/api/detail` | 是 | 详情（`site`、`ids`），原样返回上游数据；分集由客户端从 `vod_play_url` 解析 |
 | GET | `/api/sites/ping` | 是 | 播放源可用性探测（真实 RTT + 结果条数） |
 | GET | `/api/bangumi/calendar` | 是 | 番组日历，直连失败自动回退镜像 |
 | GET | `/api/douban/*path` | 是 | 豆瓣数据代理（路径白名单） |

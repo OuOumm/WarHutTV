@@ -1,5 +1,7 @@
 # WarHutTV 项目审查报告
 
+> ⚠️ **历史快照 —— 不代表当前状态。** 本文记录 2026-11-03 审查时的问题与 2026-11-05~11-07 的修复过程，其中 §6「P3 未动清单」等描述已与当前代码漂移。当前事实请见 [`docs/CURRENT.md`](./CURRENT.md)，领域术语见根 `CONTEXT.md`，已定决策见 `docs/adr/`。
+
 > 审查基线：`master` @ `1e144d2`（version `1.3.1`）
 > 审查时间：2026-11-03
 > 审查范围：`backend/`（全部 Go 源码）、`frontend/src/`（全部 TS/TSX）、构建与部署链（Makefile / build.sh / build.ps1 / Dockerfile* / CI / README / .env.example）

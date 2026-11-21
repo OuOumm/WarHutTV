@@ -9,21 +9,12 @@ const apiClient = axios.create({
   withCredentials: true,
 });
 
-// Kept for API symmetry; returns no headers because auth is cookie-based.
-export function getAuthHeaders(): Record<string, string> {
-  return {};
-}
-
+// Auth is cookie-based (HttpOnly), so no client-side token headers are needed.
 export function handleAuthFailure(): void {
   if (window.location.pathname !== '/login') {
     window.location.href = '/login';
   }
 }
-
-apiClient.interceptors.request.use((config) => {
-  Object.assign(config.headers, getAuthHeaders());
-  return config;
-});
 
 apiClient.interceptors.response.use(
   (response) => response,

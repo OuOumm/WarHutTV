@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { resolveResumeEpisode, applyResumeProgress, sortSourcesBySpeed } from './playUtils';
+import { parseEpisodes, resolveResumeEpisode, applyResumeProgress, sortSourcesBySpeed } from './playUtils';
 import { historyStore } from '../../store/history';
 import type { Episode, SourceItem } from './types';
 
@@ -8,6 +8,52 @@ const eps: Episode[] = [
   { name: '第2集', url: 'b.m3u8' },
   { name: '第3集', url: 'c.m3u8' },
 ];
+
+describe('parseEpisodes (ADR-0001: client is the sole playlist parser)', () => {
+  it('parses a single line into named episodes', () => {
+    expect(parseEpisodes('第1集$a.m3u8#第2集$b.m3u8')).toEqual([
+      { name: '第1集', url: 'a.m3u8' },
+      { name: '第2集', url: 'b.m3u8' },
+    ]);
+  });
+
+  it('dedupes by episode name across lines (一站一个源)', () => {
+    // Two lines (m3u8 + mp4) describing the same episodes must collapse to one
+    // entry per name — the domain model has no second playable source per site.
+    const raw = '第1集$a.m3u8#第2集$b.m3u8$$$第1集$a.mp4#第2集$b.mp4';
+    expect(parseEpisodes(raw)).toEqual([
+      { name: '第1集', url: 'a.m3u8' },
+      { name: '第2集', url: 'b.m3u8' },
+    ]);
+  });
+
+  it('prefers the m3u8 url when an mp4 line comes first', () => {
+    // Playable source = the m3u8 line; mp4 cannot go through ad filtering.
+    const raw = '第1集$a.mp4#第2集$b.mp4$$$第1集$a.m3u8#第2集$b.m3u8';
+    expect(parseEpisodes(raw)).toEqual([
+      { name: '第1集', url: 'a.m3u8' },
+      { name: '第2集', url: 'b.m3u8' },
+    ]);
+  });
+
+  it('keeps the first-seen order and does not let a later m3u8 replace an existing m3u8', () => {
+    const raw = '第1集$first.m3u8#第2集$b.m3u8$$$第1集$second.m3u8';
+    expect(parseEpisodes(raw)[0]).toEqual({ name: '第1集', url: 'first.m3u8' });
+  });
+
+  it('tolerates malformed entries: missing url, bare url, empty segments', () => {
+    const raw = '第1集$#裸链.m3u8##第2集$b.m3u8$$$';
+    expect(parseEpisodes(raw)).toEqual([
+      { name: '第1集', url: '' },
+      { name: '裸链.m3u8', url: '' },
+      { name: '第2集', url: 'b.m3u8' },
+    ]);
+  });
+
+  it('returns an empty list for empty input', () => {
+    expect(parseEpisodes('')).toEqual([]);
+  });
+});
 
 describe('resolveResumeEpisode (P0-2 / P1-1 index fallback)', () => {
   it('returns the exact-name match when present', () => {

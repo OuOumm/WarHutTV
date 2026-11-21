@@ -86,7 +86,6 @@ func main() {
 		auth.GET("/auth/verify", handlers.Verify)
 
 		auth.GET("/detail", handlers.Detail)
-		auth.GET("/play", handlers.Play)
 
 		auth.GET("/bangumi/calendar", handlers.BangumiCalendar)
 		auth.GET("/sites/ping", handlers.PingSites)

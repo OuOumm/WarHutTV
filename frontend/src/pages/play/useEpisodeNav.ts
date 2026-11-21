@@ -1,5 +1,4 @@
 import { useCallback } from 'react';
-import apiClient from '../../api/client';
 import { getPlayableUrl } from './playUtils';
 import type { Episode } from './types';
 import type { PlayControllerDeps } from './playContext';
@@ -7,13 +6,17 @@ import type { PlayControllerDeps } from './playContext';
 /**
  * Episode selection → playable URL resolution.
  * Guards against out-of-order clicks with `playRequestId`.
+ *
+ * Every episode produced by `parseEpisodes` carries its own URL (ADR-0001:
+ * the client is the sole parser). A missing URL means malformed upstream data,
+ * so we surface a clear message instead of calling a server-side fallback that
+ * would have to re-parse the same payload — a second, divergent implementation.
  */
 export function useEpisodeNav(deps: PlayControllerDeps) {
-  const { dispatch, stateRef, id } = deps;
+  const { dispatch, toast, stateRef } = deps;
 
   const handleEpisodeClick = useCallback(
     (ep: Episode) => {
-      const currentSource = stateRef.current.currentSource;
       const requestId = ++deps.playRequestId.current;
       // 切集：新集从 0:00 开始。把 currentEpisode + currentTime + playUrl +
       // switchStartsFromZero 合并到**同一次** dispatch，避免在 playUrl 就绪前
@@ -27,21 +30,13 @@ export function useEpisodeNav(deps: PlayControllerDeps) {
           payload: { currentEpisode: ep, currentTime: 0, playUrl: url, switchStartsFromZero: true },
         });
       };
-      if (ep.url) {
-        getPlayableUrl(ep.url).then(apply);
+      if (!ep.url) {
+        toast('该分集缺少播放地址，可能上游数据异常', 'error');
         return;
       }
-
-      apiClient
-        .get('/play', { params: { site: currentSource, ids: id, episode: ep.name } })
-        .then((res) => {
-          if (res.data?.url) {
-            getPlayableUrl(res.data.url).then(apply);
-          }
-        })
-        .catch(console.error);
+      getPlayableUrl(ep.url).then(apply);
     },
-    [id, dispatch, deps.playRequestId],
+    [dispatch, toast, deps.playRequestId],
   );
 
   /**

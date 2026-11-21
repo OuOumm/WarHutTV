@@ -1,13 +1,4 @@
-import type { SpeedTestResult } from '../utils/speedtest';
-
-interface SourceItem {
-  key: string;
-  name: string;
-  poster?: string;
-  episodeCount?: number;
-  speed?: SpeedTestResult | null;
-  status: 'pending' | 'testing' | 'done' | 'error';
-}
+import type { SourceItem } from '../pages/play/types';
 
 // 优选动画组件
 export const OptimizingOverlay = ({ sources }: {

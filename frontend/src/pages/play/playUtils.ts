@@ -14,7 +14,10 @@ export function parseEpisodes(playUrl: string): Episode[] {
         episodeMap.set(name, { name, url: newUrl });
         return;
       }
-      if (newUrl.includes('.m3u8')) {
+      // Only upgrade a non-HLS entry to HLS. Two HLS lines for the same
+      // episode keep the first-seen one, so the default line stays stable.
+      const prevUrl = episodeMap.get(name)!.url;
+      if (newUrl.includes('.m3u8') && !prevUrl.includes('.m3u8')) {
         episodeMap.set(name, { name, url: newUrl });
       }
     });

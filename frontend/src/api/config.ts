@@ -1,16 +1,8 @@
 import apiClient from './client';
+import type { SiteConfig } from '../types';
 
-export interface ApiSiteEntry {
-  api: string;
-  name: string;
-  detail?: string;
-}
-
-export interface ApiSiteConfigResponse {
-  site_name: string;
-  announcement: string;
-  api_site?: Record<string, ApiSiteEntry>;
-}
+// The config endpoint returns exactly the SiteConfig shape; keep one definition.
+export type ApiSiteConfigResponse = SiteConfig;
 
 export const configApi = {
   getConfig: async (): Promise<ApiSiteConfigResponse> => {
