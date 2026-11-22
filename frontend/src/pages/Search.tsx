@@ -6,7 +6,10 @@ import PageContainer from '../components/PageContainer';
 import { useAutoFillColumns, AUTO_FILL_GRID, CARD_COLUMN_GAP } from '../components/gridColumns';
 import type { VideoItem } from '../types';
 import { streamSearchResults } from '../api/searchStream';
-import { filterYellowItems, isExactMatch, isExactMatchEnabled, normalizeString } from '../utils/filter';
+import { readSearchCache, writeSearchCache, writeSearchScroll } from '../store/searchCache';
+import { addSearchHistory } from '../store/searchHistory';
+import { filterYellowItems, isExactMatch, isExactMatchEnabled } from '../utils/filter';
+import { aggregateKey, sortAggregated, sortItems, type SortMode } from '../utils/searchSort';
 
 interface StreamProgress {
   completed: number;
@@ -78,6 +81,11 @@ const SearchResultHeader = ({
   exactMatch,
   toggleExactMatch,
   onViewChange,
+  sort,
+  onSortChange,
+  sources,
+  activeSource,
+  onSourceChange,
 }: {
   viewMode: 'agg' | 'all';
   aggregatedLength: number;
@@ -85,29 +93,89 @@ const SearchResultHeader = ({
   exactMatch: boolean;
   toggleExactMatch: () => void;
   onViewChange: () => void;
+  sort: SortMode;
+  onSortChange: (mode: SortMode) => void;
+  sources: string[];
+  activeSource: string;
+  onSourceChange: (source: string) => void;
 }) => (
-  <div className="mb-6 flex items-center justify-between flex-wrap gap-3">
-    <h2 className="text-xl font-bold text-text">
-      搜索结果
-      <span className="ml-2 text-sm font-normal text-muted">
-        {viewMode === 'agg' ? aggregatedLength : resultsLength} 个结果
-      </span>
-    </h2>
-    <div className="flex items-center gap-3">
-      <Toggle label="精确匹配" checked={exactMatch} onChange={toggleExactMatch} />
-      <Toggle
-        label="聚合"
-        checked={viewMode === 'agg'}
-        onChange={onViewChange}
-      />
+  <div className="mb-6 space-y-3">
+    <div className="flex items-center justify-between flex-wrap gap-3">
+      <h2 className="text-xl font-bold text-text">
+        搜索结果
+        <span className="ml-2 text-sm font-normal text-muted">
+          {viewMode === 'agg' ? aggregatedLength : resultsLength} 个结果
+        </span>
+      </h2>
+      <div className="flex items-center gap-3 flex-wrap">
+        <label className="flex items-center gap-2 text-sm text-muted">
+          <span className="hidden sm:inline">排序</span>
+          <select
+            value={sort}
+            onChange={(e) => onSortChange(e.target.value as SortMode)}
+            aria-label="结果排序"
+            className="px-2.5 py-1.5 text-sm bg-glass border border-glass-border rounded-lg text-text focus:outline-none focus:ring-2 focus:ring-primary/40"
+          >
+            <option value="default">默认</option>
+            <option value="year-desc">年份（新→旧）</option>
+            <option value="year-asc">年份（旧→新）</option>
+            <option value="sources">源数量（多→少）</option>
+          </select>
+        </label>
+        <Toggle label="精确匹配" checked={exactMatch} onChange={toggleExactMatch} />
+        <Toggle
+          label="聚合"
+          checked={viewMode === 'agg'}
+          onChange={onViewChange}
+        />
+      </div>
     </div>
+
+    {sources.length > 1 && (
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-xs text-muted">来源</span>
+        <button
+          type="button"
+          onClick={() => onSourceChange('')}
+          aria-pressed={activeSource === ''}
+          className={`px-2.5 py-1 rounded-full text-xs transition-colors border ${
+            activeSource === ''
+              ? 'bg-primary text-deep border-primary font-medium'
+              : 'bg-glass text-muted border-glass-border hover:text-text'
+          }`}
+        >
+          全部
+        </button>
+        {sources.map((source) => (
+          <button
+            key={source}
+            type="button"
+            onClick={() => onSourceChange(source)}
+            aria-pressed={activeSource === source}
+            className={`px-2.5 py-1 rounded-full text-xs transition-colors border max-w-[12rem] truncate ${
+              activeSource === source
+                ? 'bg-primary text-deep border-primary font-medium'
+                : 'bg-glass text-muted border-glass-border hover:text-text'
+            }`}
+          >
+            {source}
+          </button>
+        ))}
+      </div>
+    )}
   </div>
 );
 
 const Search = () => {
   const [searchParams] = useSearchParams();
   const keyword = searchParams.get('wd') || '';
-  const [results, setResults] = useState<VideoItem[]>([]);
+  // Seed from the session cache so coming back from the play page renders the
+  // previous results immediately instead of an empty page plus a re-search.
+  const [results, setResults] = useState<VideoItem[]>(() => {
+    if (!keyword) return [];
+    const cached = readSearchCache(keyword);
+    return cached ? filterYellowItems(cached.results) : [];
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [streamProgress, setStreamProgress] = useState<StreamProgress | null>(null);
@@ -128,6 +196,8 @@ const Search = () => {
   };
 
   const [viewMode, setViewMode] = useState<'agg' | 'all'>(getDefaultAggregate() ? 'agg' : 'all');
+  const [sort, setSort] = useState<SortMode>('default');
+  const [activeSource, setActiveSource] = useState('');
   const searchColumns = useAutoFillColumns(150, 24, 2);
   // 首屏内的卡片用 eager 加载（消除 Chrome 懒加载干预），约一列数 × 视口可容纳行数
   const eagerCount = searchColumns * Math.ceil((typeof window !== 'undefined' ? window.innerHeight : 800) / 420);
@@ -148,11 +218,53 @@ const Search = () => {
   }, []);
 
   useEffect(() => {
-    if (keyword) searchVideos(keyword);
+    if (!keyword) return;
+
+    // Record the keyword here rather than in the search box: the box is only
+    // one of several entry points. Clicking a 豆瓣/Bangumi recommendation on the
+    // home page navigates straight to `/search?wd=…`, and a bookmarked or
+    // pasted URL never goes through the form at all. Recording on display
+    // covers every path, and repeated keywords just move to the front.
+    addSearchHistory(keyword);
+
+    // A fresh cache hit means these results are already on screen from the
+    // initialiser above. Re-running the SSE search would throw them away and
+    // make "back" cost another few seconds.
+    const cached = readSearchCache(keyword);
+    if (cached) {
+      setStreamProgress(null);
+      setLoading(false);
+      if (cached.scrollY > 0) {
+        // Restore once the grid has painted and the document is tall enough to
+        // accept the offset.
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => window.scrollTo(0, cached.scrollY));
+        });
+      }
+      return;
+    }
+
+    searchVideos(keyword);
     return () => {
       searchAbortRef.current?.abort();
       searchAbortRef.current = null;
     };
+  }, [keyword]);
+
+  // Remember the reading position so returning to this keyword lands in the
+  // same spot.
+  //
+  // Recorded on click (capture phase, so it runs before the card's <Link>
+  // navigates) rather than from a scroll listener: `ScrollToTop` resets the
+  // window on every pathname change, and that reset can beat both the listener
+  // and the unmount cleanup, overwriting the real offset with 0.
+  const rememberScroll = useCallback(() => {
+    if (!keyword) return;
+    try {
+      writeSearchScroll(keyword, window.scrollY);
+    } catch {
+      // A failed save only costs the scroll position, never the results.
+    }
   }, [keyword]);
 
   // SSE 流式搜索
@@ -209,6 +321,11 @@ const Search = () => {
         const flatList = siteResults.flatMap(r => r.list || []);
         setResults(filterYellowItems(flatList));
 
+        // Cache for the back-navigation path. A fresh search also resets the
+        // remembered reading position, because the user is looking at the top.
+        writeSearchCache(wd, filterYellowItems(flatList));
+        writeSearchScroll(wd, 0);
+
         // 存储 siteResults，供播放页面复用
         try {
           sessionStorage.setItem(`search_results:${wd}`, JSON.stringify(siteResults));
@@ -228,11 +345,26 @@ const Search = () => {
     });
   };
 
-  // 精确匹配筛选后的结果
+  // 按来源筛选（点击头部某一行源名），空串表示全部
+  const sourceOptions = useMemo(() => {
+    const names = new Set<string>();
+    results.forEach((item) => {
+      if (item.source_name) names.add(item.source_name);
+    });
+    return Array.from(names).sort((a, b) => a.localeCompare(b, 'zh-Hans-CN'));
+  }, [results]);
+
+  // 精确匹配 + 来源筛选后的结果
   const filteredResults = useMemo(() => {
-    if (!exactMatch || !keyword) return results;
-    return results.filter((item) => isExactMatch(item.vod_name || '', keyword));
-  }, [results, keyword, exactMatch]);
+    let list = results;
+    if (exactMatch && keyword) {
+      list = list.filter((item) => isExactMatch(item.vod_name || '', keyword));
+    }
+    if (activeSource) {
+      list = list.filter((item) => item.source_name === activeSource);
+    }
+    return list;
+  }, [results, keyword, exactMatch, activeSource]);
 
   // 聚合结果
   const aggregatedResults = useMemo(() => {
@@ -242,14 +374,14 @@ const Search = () => {
     filteredResults.forEach((item) => {
       // 复用 normalizeString（去空格+标点+转小写），否则《片名》与「片名」会被
       // 拆成两张卡片——这里原来只做了 replaceAll(' ','')。
-      const key = `${normalizeString(item.vod_name || '')}-${item.vod_year || 'unknown'}`;
+      const key = aggregateKey(item);
       const arr = map.get(key) || [];
       if (arr.length === 0) keyOrder.push(key);
       arr.push(item);
       map.set(key, arr);
     });
 
-    return keyOrder.map((key) => {
+    const aggregated = keyOrder.map((key) => {
       const group = map.get(key)!;
       const sourceNames = Array.from(new Set(group.map((g) => g.source_name).filter(Boolean)));
       return {
@@ -264,7 +396,21 @@ const Search = () => {
         item: group[0],
       };
     });
-  }, [filteredResults]);
+
+    // Sorting is applied at render time only; the streaming order is preserved
+    // in `results` so switching back to "默认" is instant and lossless.
+    return sortAggregated(aggregated, sort);
+  }, [filteredResults, sort]);
+
+  // The non-aggregated grid honours the same ordering. "sources" needs the
+  // per-title source counts from the aggregation step above.
+  const sortedResults = useMemo(() => {
+    const counts = new Map<string, number>();
+    if (sort === 'sources') {
+      aggregatedResults.forEach((agg) => counts.set(agg.key, agg.sourceCount));
+    }
+    return sortItems(filteredResults, sort, counts);
+  }, [filteredResults, sort, aggregatedResults]);
 
   return (
     <PageContainer className="mb-10">
@@ -289,7 +435,7 @@ const Search = () => {
         )}
 
         {results.length > 0 && (
-          <div className="content-fade-in">
+          <div className="content-fade-in" onClickCapture={rememberScroll}>
             <SearchResultHeader
               viewMode={viewMode}
               aggregatedLength={aggregatedResults.length}
@@ -297,6 +443,11 @@ const Search = () => {
               exactMatch={exactMatch}
               toggleExactMatch={toggleExactMatch}
               onViewChange={handleViewChange}
+              sort={sort}
+              onSortChange={setSort}
+              sources={sourceOptions}
+              activeSource={activeSource}
+              onSourceChange={setActiveSource}
             />
 
             {viewMode === 'agg' ? (
@@ -306,7 +457,7 @@ const Search = () => {
               >
                 {aggregatedResults.map((agg, i) => (
                   <div key={`${i}-${agg.item.vod_id}`} className="w-full">
-                    <VideoCard video={agg.item} from="vod" animate={false} eager={i < eagerCount} showFavorite />
+                    <VideoCard video={agg.item} from="vod" animate={false} eager={i < eagerCount} showFavorite linkState={{ searchKeyword: keyword }} />
                     <SourceCountBadge sourceCount={agg.sourceCount} />
                   </div>
                 ))}
@@ -316,9 +467,9 @@ const Search = () => {
                 className="gap-y-12 sm:gap-y-20"
                 style={{ display: 'grid', gridTemplateColumns: AUTO_FILL_GRID, columnGap: CARD_COLUMN_GAP }}
               >
-                {filteredResults.map((item, i) => (
+                {sortedResults.map((item, i) => (
                   <div key={`${i}-${item.vod_id}`} className="w-full">
-                    <VideoCard video={item} from="vod" animate={false} eager={i < eagerCount} showFavorite />
+                    <VideoCard video={item} from="vod" animate={false} eager={i < eagerCount} showFavorite linkState={{ searchKeyword: keyword }} />
                   </div>
                 ))}
               </div>

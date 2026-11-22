@@ -40,6 +40,13 @@ export const useAnnouncement = (isAuthenticated: boolean) => {
   useEffect(() => {
     if (!isAuthenticated || !config) return;
 
+    // An empty announcement must not open an empty dialog. Operators clear the
+    // text to switch the popup off, so blank content means "nothing to show".
+    if (!config.announcement.trim()) {
+      setIsVisible(false);
+      return;
+    }
+
     const dismissedContent = readDismissed();
     if (!dismissedContent || dismissedContent.content !== config.announcement) {
       setIsVisible(true);

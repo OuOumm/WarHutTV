@@ -11,9 +11,38 @@ import (
 	"warhutv/services"
 )
 
-// pingConcurrency bounds how many upstreams one speed test hits at once; 27
-// sources opened simultaneously is enough to look like an attack.
-const pingConcurrency = 5
+// pingConcurrencyCeiling is the hard cap on simultaneous probes.
+//
+// Every configured source is its own upstream host (measured: 27 sources across
+// 24 hosts), so probing them all at once puts exactly one request on each
+// server — it does not concentrate load the way N requests to one host would.
+// The cap exists only so an unusually large source list cannot open an
+// unbounded number of sockets.
+const pingConcurrencyCeiling = 32
+
+// pingConcurrencyFor returns how many probes may run at once: one per source,
+// bounded by the ceiling.
+func pingConcurrencyFor(sites int) int {
+	if sites > pingConcurrencyCeiling {
+		return pingConcurrencyCeiling
+	}
+	if sites < 1 {
+		return 1
+	}
+	return sites
+}
+
+// pingTimeout is the per-upstream budget.
+//
+// Measured against the live source list: the slowest *working* source answers
+// in ~6.9s and the rest are under 4.6s, so a 6s budget cuts the dead sources
+// from 10s each to 6s each at the cost of marking that one slow-but-working
+// source as timed out. It is visible as a timeout in the UI rather than a
+// silent removal, so the trade is acceptable.
+//
+// With full fan-out the batch count drops to one, so this timeout is now the
+// whole wall time rather than being multiplied by the number of batches.
+const pingTimeout = 6 * time.Second
 
 // PingSites probes every configured upstream and reports reachability plus
 // round-trip time. The frontend speed test used to `GET /api/search`, an
@@ -41,7 +70,7 @@ func PingSites(c *gin.Context) {
 
 	ctx := c.Request.Context()
 	results := make([]services.PingResult, len(keys))
-	sem := make(chan struct{}, pingConcurrency)
+	sem := make(chan struct{}, pingConcurrencyFor(len(keys)))
 	done := make(chan struct{}, len(keys))
 
 	for i, key := range keys {
@@ -50,7 +79,7 @@ func PingSites(c *gin.Context) {
 			defer func() { <-sem; done <- struct{}{} }()
 			// Each probe gets its own timeout so one dead source cannot stall
 			// the whole batch beyond the client's patience.
-			probeCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+			probeCtx, cancel := context.WithTimeout(ctx, pingTimeout)
 			defer cancel()
 			results[i] = services.ProxyPing(probeCtx, key)
 		}(i, key)

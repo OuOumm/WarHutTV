@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../store/auth';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 
@@ -42,6 +43,7 @@ export function useSettings() {
 export default function UserMenu() {
   const [showDropdown, setShowDropdown] = useState(false);
   const { logout } = useAuth();
+  const navigate = useNavigate();
   const { settings, update } = useSettings();
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -121,6 +123,24 @@ export default function UserMenu() {
               </button>
             </div>
           </div>
+
+          <div className="border-t border-glass-border/50" />
+          {/* Source diagnostics: probes every configured 采集站 for reachability
+              and latency. Occasional operator tooling, so it lives here rather
+              than in the main navigation. */}
+          <button
+            role="menuitem"
+            onClick={() => {
+              setShowDropdown(false);
+              navigate('/speed');
+            }}
+            className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-text/90 hover:bg-primary-glow transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+            源站测速
+          </button>
 
           <div className="border-t border-glass-border/50" />
           <button

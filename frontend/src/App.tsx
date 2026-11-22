@@ -29,16 +29,31 @@ const SpeedTest = lazy(() => import('./pages/SpeedTest'));
 document.documentElement.classList.add('dark');
 applyTheme(getCurrentTheme());
 
-// 清理过期缓存（模块级执行，无需 React effect）：
-// - detailCache 仅被懒加载的 Play 路由静态引用，动态 import 可独立成 chunk，
-//   在应用启动时异步拉取并执行，压低首屏 JS 体积；
-// - apiCache 已被首页(Home/Douban)经 bangumi 静态引用、随首屏加载，无法拆出
-//   独立 chunk（此前动态 import 被 Rollup 判定为 INEFFECTIVE_DYNAMIC_IMPORT），
-//   故改为静态调用，行为不变、告警消除。
-void import('./store/detailCache')
-  .then((m) => m.detailCacheStore.cleanExpired())
-  .catch(() => {});
-apiCacheStore.cleanExpired();
+// 清理过期缓存：推迟到首屏空闲后再做，避免启动时和首屏渲染抢主线程。
+//
+// 说明（2026-11 核实）：`storage` chunk（Dexie）**不是**这里拖进首屏的，而是
+// Home → api/douban|bangumi → apiCache 的静态引用链。所以本处改成动态 import
+// 并不能减少首屏字节，只减少启动期的同步工作；要让 Dexie 真正退出首屏需要
+// 让 Home 懒加载（对 /login 有意义、对落地页无意义）或用原生 IndexedDB 替掉
+// Dexie（改动远超收益）。当前选择：保留 Dexie，只把清理延后。
+function scheduleCacheCleanup() {
+  const run = () => {
+    void import('./store/detailCache')
+      .then((m) => m.detailCacheStore.cleanExpired())
+      .catch(() => {});
+    apiCacheStore.cleanExpired();
+  };
+
+  // `requestIdleCallback` is still missing in Safari; fall back to a short
+  // timer there so the cleanup is never skipped entirely.
+  if (typeof window.requestIdleCallback === 'function') {
+    window.requestIdleCallback(run, { timeout: 3000 });
+  } else {
+    window.setTimeout(run, 1500);
+  }
+}
+
+scheduleCacheCleanup();
 
 interface PrivateRouteProps {
   isAuthenticated: boolean;

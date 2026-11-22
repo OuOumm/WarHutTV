@@ -26,6 +26,8 @@ interface VideoCardProps {
    *  replaced with placeholders" intervention, which fires when lazy images
    *  are already on screen at load time. */
   eager?: boolean;
+  /** Router state carried to the play page, e.g. `{ searchKeyword }`. */
+  linkState?: unknown;
 }
 
 // ─── Sub-components (memoised) ───
@@ -83,7 +85,7 @@ const ActionButton = memo(({ onClick, variant, active, children }: {
 
 // ─── Base card ───
 
-const CardBase = memo(({ to, poster, title, badge, children, actions, animate = true, srcSet, sizes = CARD_IMAGE_SIZES, eager = false }: {
+const CardBase = memo(({ to, poster, title, badge, children, actions, animate = true, srcSet, sizes = CARD_IMAGE_SIZES, eager = false, linkState }: {
   to: string;
   poster: string;
   title: string;
@@ -94,6 +96,9 @@ const CardBase = memo(({ to, poster, title, badge, children, actions, animate = 
   srcSet?: string;
   sizes?: string;
   eager?: boolean;
+  /** Router state carried to the destination, e.g. the search keyword so the
+   *  play page can offer "back to these results". */
+  linkState?: unknown;
 }) => {
   const [lifted, setLifted] = useState(false);
 
@@ -115,6 +120,7 @@ const CardBase = memo(({ to, poster, title, badge, children, actions, animate = 
       */}
       <Link
         to={to}
+        state={linkState}
         aria-label={title}
         className="absolute inset-0 z-[3] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset"
       />
@@ -173,7 +179,7 @@ const CardBase = memo(({ to, poster, title, badge, children, actions, animate = 
 
 // ─── Main component ───
 
-const VideoCard = memo(({ video, douban, bangumi, from = 'vod', onDelete, showActions = false, showFavorite = false, animate = true, eager = false }: VideoCardProps) => {
+const VideoCard = memo(({ video, douban, bangumi, from = 'vod', onDelete, showActions = false, showFavorite = false, animate = true, eager = false, linkState }: VideoCardProps) => {
   const [isFavorited, setIsFavorited] = useState(false);
 
   // Sync the favorite state with the store: seed on mount (so already-favorited
@@ -263,7 +269,7 @@ const VideoCard = memo(({ video, douban, bangumi, from = 'vod', onDelete, showAc
     return (
       <CardBase to={playUrl} poster={video.vod_pic || '/placeholder.svg'} title={video.vod_name}
         badge={remarks ? <Badge>{remarks}</Badge> : undefined}
-        animate={animate} eager={eager}
+        animate={animate} eager={eager} linkState={linkState}
         actions={(showActions || showFavorite) ? (
           <>
             {showActions && (

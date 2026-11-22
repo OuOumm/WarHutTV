@@ -1,4 +1,5 @@
 import { useCallback } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { PlayerViewport } from './play/PlayerViewport';
 import { SourcePanel } from './play/SourcePanel';
 import { usePlayController } from './play/usePlayController';
@@ -8,6 +9,17 @@ import { useToast } from '../components/ToastProvider';
 const Play = () => {
   const controller = usePlayController();
   const { toast } = useToast();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // The card that sent us here carries the search keyword in router state, so
+  // "back" can return to those exact results (served from the search cache)
+  // instead of dropping the user on an empty home page. Entering a play URL
+  // directly has no such state; home is the only sensible destination then.
+  const searchKeyword = (location.state as { searchKeyword?: string } | null)?.searchKeyword;
+  const handleBack = useCallback(() => {
+    navigate(searchKeyword ? `/search?wd=${encodeURIComponent(searchKeyword)}` : '/');
+  }, [navigate, searchKeyword]);
 
   // The player only reports unrecoverable stream failures; surfacing them as a
   // toast is what tells the user to switch sources instead of staring at a
@@ -33,6 +45,17 @@ const Play = () => {
     <div>
       <div className="flex flex-col gap-4 py-4 px-3 sm:px-5 lg:px-8">
         <div className="py-1 flex flex-wrap items-center gap-x-3 gap-y-2">
+          <button
+            type="button"
+            onClick={handleBack}
+            aria-label={searchKeyword ? '返回搜索结果' : '返回首页'}
+            title={searchKeyword ? '返回搜索结果' : '返回首页'}
+            className="shrink-0 w-9 h-9 -ml-1 flex items-center justify-center rounded-full text-muted hover:text-primary hover:bg-primary-glow transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
           <h1 className="text-xl font-semibold text-text">
             {controller.currentDetail.vod_name}
             {controller.currentEpisode && <span className="text-lg text-muted font-normal"> - {controller.currentEpisode.name}</span>}

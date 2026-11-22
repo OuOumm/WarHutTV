@@ -22,6 +22,12 @@
 | 配置启动后不可变 | `config/config.go`：`atomic.Pointer[Config]` + 单次 Load，热重载已按 ADR 之外的技术决策撤销 |
 | 分集解析只在客户端（本次优化） | ADR-0001：后端删 `episodes` 字段 / `/api/play` / `ProxyPlay` / `ParsePlaylist`；前端 `parseEpisodes` 为唯一真相，新增 6 例单测，并修复双 m3u8 线路默认漂移 bug |
 | 前端类型单一来源（本次优化） | 删死类型 `User`、`getAuthHeaders`；`ApiSiteConfigResponse` 复用 `SiteConfig`；`OptimizingOverlay` 复用 `play/types` 的 `SourceItem`（消除本地少 `vodId` 的漂移副本） |
+| 搜索↔播放流程连续性（本次优化） | `store/searchCache.ts`：搜索结果按关键词缓存 5 分钟（`sessionStorage`），返回不再重跑全源 SSE；播放页标题旁加返回按钮（带 `linkState.searchKeyword` 精确回到原结果集），滚动位置一并还原。端到端验证见 `scripts/verify_search_back.py` |
+| 公告空内容防护（本次优化） | `useAnnouncement` 在 `announcement` 为空/纯空白时不再弹框。原本「已读即记」已正确（内容不变则不再弹），此改动只堵住管理员清空公告时的空弹窗 |
+| 源站测速入口（本次优化） | 「用户菜单 → 源站测速」可进入 `/speed`（此前有路由无入口）。端到端验证见 `scripts/verify_ux_fixes.py` |
+| 源站测速提速（本次优化） | `handlers/sites.go`：改为**按站数全量并发**（`pingConcurrencyFor`，硬上限 32）+ 单源超时 6s。实测 27 站 **26.9s → 6.02s**（三次一致，−78%），可用站数 14 不变。依据：27 站分布在 24 个主机，每台上游只收到 1 个请求。边界由 `handlers/sites_test.go` 钉住 |
+| 搜索发现能力（本次优化） | ①`store/searchHistory.ts`：最近搜索 8 条，聚焦搜索框时下拉展示，支持单条删除/清空；②`utils/searchSort.ts`：排序（默认/年份新旧/源数量）与按来源筛选（chips）。**记录点在搜索页**（不是搜索框）：首页豆瓣/Bangumi 推荐卡片是 `<Link to="/search?wd=…">` 直跳，书签/粘贴 URL 也绕过表单，只有按「关键词被展示」记录才能覆盖全部入口。端到端验证见 `scripts/verify_a_line.py`、`scripts/verify_history_from_home.py` |
+| 启动清理延后（本次优化） | `App.tsx` 的 `cleanExpired()` 改到 `requestIdleCallback`（Safari 回退 setTimeout）。**注**：`storage` chunk(Dexie, 31 kB gzip) 仍随首屏加载，因其由 `Home → api/douban\|bangumi → apiCache` 静态引用，非本处可拆；要让 Dexie 退出首屏需让 Home 懒加载或换原生 IndexedDB，均未采纳 |
 
 ## 未做（P3 真实剩余清单，已剔除文档误报）
 
@@ -35,7 +41,7 @@
 | 前端运行时响应校验 | `response.data as T` 盲转型；无 zod / valibot |
 | 类型单一来源 | `ApiSiteEntry` 在两处重复定义；`SourceItem` 与 `types/index.ts` 部分重叠；Cookie 迁移后的 `User` / `getAuthHeaders` 是死类型 |
 | 播放页上下文拆分 | `usePlayController` 返回 30+ 字段，父组件 state 变化重渲染整页 |
-| 长列表虚拟化 | 搜索 / 豆瓣无虚拟化；`ScrollableRow` 已有 rAF 优化 |
+| 长列表虚拟化 | 搜索 / 豆瓣无虚拟化；`ScrollableRow` 已有 rAF 优化。**已决定不做**：实测单次搜索约 140–150 张卡片，列表不够长，收益不抵引入虚拟化依赖的成本 |
 | 图片后端代理 | 海报走 CDN 直连（`utils/image.ts`），**有意取舍：不改为后端代理** |
 | 页面级组件测试 / E2E | 12 个前端测试集中在 store / play 纯逻辑，无页面级 / MSW / Playwright |
 | 构建入口统一 | `Makefile` / `build.sh` / `build.ps1` / CI / `Dockerfile` 五处逻辑重复，已漂移过一次 |
